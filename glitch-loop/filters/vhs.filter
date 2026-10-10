@@ -1,0 +1,12 @@
+format=yuv444p,
+curves=all='0/0.02 0.5/0.5 1/0.95',
+rgbashift=rh=-6:rv=0:bh=6:bv=0:edge=smear,
+chromashift=cbh=4:crh=-4:edge=smear,
+noise=c0s=20:c0f=t+u:c1s=5:c1f=t+u:c2s=5:c2f=t+u,
+gblur=sigma=0.55,
+deband=range=8:direction=1.5708:blur=false,
+eq=contrast=1.10:saturation=0.28:gamma=0.98,
+drawbox=x=0:y='mod(t*6*(1080+80)/112.111\,1080+80)-80':w=iw:h=60:color=black@0.55:t=fill,
+drawbox=x=0:y='mod(t*6*(1080+80)/112.111\,1080+80)-80-6':w=iw:h=4:color=white@0.35:t=fill,
+vignette=PI/4.2,
+format=yuv420p

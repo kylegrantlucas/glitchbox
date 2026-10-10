@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# analog-pass — NTSC/VHS analog artifact simulation via ntsc-rs-cli.
+#
+# ON THE PNG-SEQUENCE QUESTION:
+#   ntsc-rs-cli can WRITE a PNG sequence (--codec png, '#' placeholders) but
+#   cannot READ one — its input is a single media file or a single still image.
+#   That asymmetry matters, because the effect is frame-index dependent: running
+#   it once per PNG would render every frame as frame 0 and produce static,
+#   identical noise instead of temporal artifacting. So this reads video and
+#   writes FFV1 (default, for lossless chaining) or a PNG sequence (--frames,
+#   for inspection) — either way from ONE continuous render.
+#
+# ON DETERMINISM:
+#   ntsc-rs's RENDER is deterministic given random_seed — verified via framemd5,
+#   identical pixels across runs. Its GStreamer muxer is NOT: matroskamux writes
+#   a random SegmentUID, so two identical renders differ by 28 container bytes.
+#   We therefore always remux through the bit-exact ffmpeg wrapper with a stream
+#   copy, which is lossless (framemd5 unchanged) and makes the artifact
+#   byte-reproducible.
+#
+# Knobs that matter:
+#   --preset F   JSON effect settings preset. Default presets/vhs.json.
+#                Export richer presets from the ntsc-rs GUI; `version` is required.
+#   --seed N     Overrides random_seed in the preset. Pinned + logged.
+#   --scale N    Resize height in lines BEFORE the effect. Lower => coarser
+#                scanlines and heavier artifacting, and much faster.
+#   --frames     Also emit the PNG sequence (frame_####.png) next to the video.
+
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/_lib.sh"
+
+PRESET="" SEED=0 SCALE="" FRAMES="" INPUT="" OUTPUT="" CHECK=""
+
+usage() { sed -n '2,29p' "$0" | sed 's/^# \?//'; exit "${1:-0}"; }
+
+while [ $# -gt 0 ]; do
+  case $1 in
+    --preset) PRESET=$2; shift 2 ;;
+    --seed)   SEED=$2; shift 2 ;;
+    --scale)  SCALE=$2; shift 2 ;;
+    --frames) FRAMES=1; shift ;;
+    -o|--output) OUTPUT=$2; shift 2 ;;
+    --check) CHECK=1; shift ;;
+    -h|--help) usage 0 ;;
+    -*) vb_die "unknown flag: $1" ;;
+    *)  INPUT=$1; shift ;;
+  esac
+done
+
+vb_require_cmd ntsc-rs-cli
+vb_require_cmd ffmpeg
+[ -n "$CHECK" ] && exit 0
+
+[ -n "$INPUT" ] || usage 1
+PRESET=${PRESET:-$(vb_root)/presets/vhs.json}
+[ -f "$PRESET" ] || vb_die "preset not found: $PRESET"
+
+# Inject the seed rather than making the caller edit the preset, so seed and
+# preset stay independently addressable in the manifest.
+SETTINGS=$(jq -cS --argjson seed "$SEED" '.random_seed = $seed' "$PRESET")
+
+PARAMS=$(jq -cS -n \
+  --argjson seed "$SEED" \
+  --arg scale "${SCALE:-native}" \
+  --arg frames "${FRAMES:+yes}" \
+  --arg preset "$(basename "$PRESET")" \
+  --argjson settings "$SETTINGS" \
+  '{seed:$seed,scale:$scale,frames:($frames|length>0),preset:$preset,settings:$settings}')
+
+TOOLS=$(jq -cS -n \
+  --arg ntsc "$(vb_tool_version ntsc-rs-cli)" \
+  --arg ffmpeg "$(vb_tool_version ffmpeg)" \
+  '{"ntsc-rs-cli":$ntsc,ffmpeg:$ffmpeg}')
+
+vb_begin analog-pass "$INPUT" "$PARAMS" "$TOOLS"
+OUTPUT=${OUTPUT:-$VB_RUN_DIR/out.mkv}
+
+RAW="$VB_RUN_DIR/stage1-ntsc.mkv"
+
+declare -a scale_args=()
+[ -n "$SCALE" ] && scale_args=(--scale "$SCALE")
+
+vb_log "ntsc-rs: preset=$(basename "$PRESET") seed=$SEED scale=${SCALE:-native}"
+ntsc-rs-cli -i "$INPUT" -o "$RAW" -c ffv1 -y \
+  -j "$SETTINGS" "${scale_args[@]}" >/dev/null 2>&1 \
+  || vb_die "ntsc-rs-cli failed"
+
+if [ -n "$FRAMES" ]; then
+  vb_log "ntsc-rs: PNG sequence"
+  ntsc-rs-cli -i "$INPUT" -o "$VB_RUN_DIR/frame_####.png" -c png -y \
+    -j "$SETTINGS" "${scale_args[@]}" >/dev/null 2>&1 \
+    || vb_die "ntsc-rs-cli PNG pass failed"
+fi
+
+# Stream copy through the bit-exact wrapper: lossless, but replaces the random
+# SegmentUID with a deterministic container.
+vb_log "remux: bit-exact container"
+vb_ffmpeg -i "$RAW" -- -c:v copy -y "$OUTPUT"
+
+vb_finish "$OUTPUT"

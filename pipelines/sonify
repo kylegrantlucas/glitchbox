@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# sonify — SoX raw-import round trip on a BMP.
+#
+# Reinterprets a bitmap's pixel bytes as raw PCM audio, runs a SoX effect chain
+# over them, and writes the result back into the same bitmap. The header is
+# split off and reattached verbatim, so the output is still a loadable BMP —
+# only the pixel bytes are mangled.
+#
+# The pixel-data offset is read from the BMP header (bytes 10..13, LE) rather
+# than assumed to be 54: BITMAPV4/V5 headers and embedded colour profiles push
+# it further out, and hardcoding 54 would shred the palette and produce a
+# corrupt file instead of a glitched one.
+#
+# SoX effects can change sample count, which would resize the pixel block and
+# truncate or overrun the image. The output is therefore padded/truncated back
+# to the exact original byte length.
+#
+# Knobs that matter:
+#   --rate N      Sample rate for the reinterpretation. Default 48000. Does not
+#                 change the bytes by itself, but rescales any time-domain
+#                 effect, so it sets the spatial "wavelength" of the glitch.
+#   --bits N      Bits per sample: 8, 16, 24, 32. Default 8. This is the big one
+#                 — 8 keeps damage local to single bytes, 16+ smears across
+#                 neighbouring channels and makes colour shifts dominate.
+#   --encoding E  signed-integer | unsigned-integer | mu-law | a-law. Default
+#                 unsigned-integer, which matches how BMP stores channel bytes.
+#   --channels N  Default 3. Matching the pixel's channel count keeps the effect
+#                 per-colour; mismatching it rotates colours across the image.
+#   --effect ...  SoX effect chain. Default 'overdrive 20 20'. MUST be
+#                 deterministic — anything drawing on SoX's PRNG (e.g. `dither`,
+#                 `synth noise`) breaks reproducibility, since SoX has no seed
+#                 flag.
+#
+# NOTE: sox is invoked with -D (--no-dither). SoX auto-dithers on output, and
+# its dither is PRNG-driven with no way to seed it, so WITHOUT -D two identical
+# runs produce different bytes. Verified: with -D the raw output hashes match,
+# without it they diverge every time. Dither is also actively unwanted here — we
+# are treating these bytes as pixels, not as audio to be perceptually smoothed.
+
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/_lib.sh"
+
+RATE=48000 BITS=8 ENCODING=unsigned-integer CHANNELS=3
+EFFECT="overdrive 20 20" INPUT="" OUTPUT="" CHECK=""
+
+usage() { sed -n '2,32p' "$0" | sed 's/^# \?//'; exit "${1:-0}"; }
+
+while [ $# -gt 0 ]; do
+  case $1 in
+    --rate)     RATE=$2; shift 2 ;;
+    --bits)     BITS=$2; shift 2 ;;
+    --encoding) ENCODING=$2; shift 2 ;;
+    --channels) CHANNELS=$2; shift 2 ;;
+    --effect)   EFFECT=$2; shift 2 ;;
+    -o|--output) OUTPUT=$2; shift 2 ;;
+    --check)    CHECK=1; shift ;;
+    -h|--help)  usage 0 ;;
+    -*) vb_die "unknown flag: $1" ;;
+    *)  INPUT=$1; shift ;;
+  esac
+done
+
+vb_require_cmd sox
+[ -n "$CHECK" ] && exit 0
+
+[ -n "$INPUT" ] || usage 1
+
+# BMP sanity: magic must be "BM".
+[ "$(head -c2 "$INPUT")" = "BM" ] || vb_die "not a BMP (missing 'BM' magic): $INPUT"
+
+DATA_OFFSET=$(od -An -tu4 -j10 -N4 --endian=little "$INPUT" | tr -d ' ')
+[ "$DATA_OFFSET" -gt 0 ] 2>/dev/null || vb_die "could not read BMP pixel-data offset"
+
+PARAMS=$(jq -cS -n \
+  --argjson rate "$RATE" --argjson bits "$BITS" --argjson channels "$CHANNELS" \
+  --arg encoding "$ENCODING" --arg effect "$EFFECT" \
+  --arg dither "disabled (-D)" \
+  --argjson data_offset "$DATA_OFFSET" \
+  '{rate:$rate,bits:$bits,channels:$channels,encoding:$encoding,
+    effect:$effect,dither:$dither,bmp_data_offset:$data_offset}')
+
+TOOLS=$(jq -cS -n --arg sox "$(vb_tool_version sox)" '{sox:$sox}')
+
+vb_begin sonify "$INPUT" "$PARAMS" "$TOOLS"
+OUTPUT=${OUTPUT:-$VB_RUN_DIR/out.bmp}
+
+HEADER="$VB_RUN_DIR/header.bin"
+PIXELS="$VB_RUN_DIR/pixels.raw"
+GLITCHED="$VB_RUN_DIR/glitched.raw"
+
+head -c "$DATA_OFFSET" "$INPUT" > "$HEADER"
+tail -c "+$((DATA_OFFSET + 1))" "$INPUT" > "$PIXELS"
+PIXEL_BYTES=$(wc -c < "$PIXELS")
+
+vb_log "sox: ${BITS}-bit $ENCODING ${CHANNELS}ch @ ${RATE}Hz — $EFFECT"
+# shellcheck disable=SC2086  # $EFFECT is an intentional multi-word effect chain
+sox -D -t raw -r "$RATE" -e "$ENCODING" -b "$BITS" -c "$CHANNELS" "$PIXELS" \
+    -t raw -r "$RATE" -e "$ENCODING" -b "$BITS" -c "$CHANNELS" "$GLITCHED" \
+    $EFFECT 2>/dev/null
+
+# Restore the exact pixel-block length so the header stays truthful.
+head -c "$PIXEL_BYTES" "$GLITCHED" > "$GLITCHED.fit"
+ACTUAL=$(wc -c < "$GLITCHED.fit")
+if [ "$ACTUAL" -lt "$PIXEL_BYTES" ]; then
+  vb_log "padding $((PIXEL_BYTES - ACTUAL)) bytes (effect shortened the stream)"
+  dd if=/dev/zero bs=1 count=$((PIXEL_BYTES - ACTUAL)) >> "$GLITCHED.fit" 2>/dev/null
+fi
+
+cat "$HEADER" "$GLITCHED.fit" > "$OUTPUT"
+vb_finish "$OUTPUT"

@@ -1,0 +1,12 @@
+out/
+work/
+result
+result-*
+.direnv/
+.DS_Store
+# media outputs/intermediates (glitch-loop/source.jpg is the tracked exception)
+*.mp4
+*.mpg
+*.mkv
+*.mov
+*.png

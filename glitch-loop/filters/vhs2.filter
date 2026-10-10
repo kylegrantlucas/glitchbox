@@ -1,0 +1,10 @@
+format=yuv444p,
+curves=all='0/0.02 0.5/0.5 1/0.95',
+rgbashift=rh=-8:rv=0:bh=8:bv=0:edge=smear,
+chromashift=cbh=6:crh=-6:edge=smear,
+noise=c0s=26:c0f=t+u:c1s=6:c1f=t+u:c2s=6:c2f=t+u,
+gblur=sigma=0.5,
+deband=range=8:direction=1.5708:blur=false,
+eq=contrast=1.12:saturation=0.24:gamma=0.98,
+vignette=PI/4.2,
+format=yuv420p

@@ -1,0 +1,120 @@
+# Glitch-loop pipeline.
+#
+# Base pipeline: source.jpg  ->  judder motion  ->  MPEG-2 with forced MVs
+#                             ->  mv_average_timed mosh  ->  VHS filter  ->  loop_mosh.mp4
+#
+# Combine pipeline: last N seconds of loop_mosh + external video segment,
+#                   concatenated and cross-moshed via mv_average.
+#
+# Run `just` with no args to list recipes.
+
+set shell := ["bash", "-cu"]
+
+here    := justfile_directory()
+work    := here + "/work"
+out     := justfile_directory() + "/out"
+scripts := justfile_directory() + "/scripts"
+filters := here + "/filters"
+# ffglitch 0.10.2 comes from the videobed devShell (pkgs/ffglitch.nix).
+ffedit  := "ffedit"
+ffgac   := "ffgac"
+
+# Artistic constants — change these if you want a different loop
+loop_s  := "112.111"
+fps     := "30"
+w       := "1920"
+h       := "1080"
+
+default:
+    @just --list
+
+# Full base pipeline: source.jpg -> loop_mosh.mp4
+base: judder mpeg2 mosh vhs
+
+# Motion pass: enveloped multi-harmonic judder (loop-seamless)
+judder:
+    mkdir -p {{work}} {{out}}
+    ffmpeg -y -loop 1 -framerate {{fps}} -t {{loop_s}} -i {{here}}/source.jpg \
+      -filter_script:v {{filters}}/judder.filter \
+      -c:v libx264 -crf 14 -preset veryfast \
+      {{work}}/judder.mp4
+
+# Encode judder to MPEG-2 with forced motion vectors, single GOP
+mpeg2:
+    {{ffgac}} -y -i {{work}}/judder.mp4 -an \
+      -mpv_flags +nopimb+forcemv -qscale:v 0 -g max -bf 0 -sc_threshold max \
+      -vcodec mpeg2video -f rawvideo \
+      {{work}}/judder.mpg
+
+# Datamosh via ffedit + timed mv_average script
+# (clean 0-40s, smear ramp 40-48s, amplified decay 48-112s)
+mosh:
+    {{ffedit}} -i {{work}}/judder.mpg -f mv \
+      -s {{scripts}}/mv_average_timed.js \
+      -o {{work}}/mosh.mpg
+
+# VHS filter chain + final H.264 encode
+vhs:
+    ffmpeg -y -i {{work}}/mosh.mpg \
+      -filter_script:v {{filters}}/vhs2.filter \
+      -r {{fps}} \
+      -c:v libx264 -crf 20 -preset slow -tune grain \
+      -pix_fmt yuv420p -profile:v high -level 4.1 \
+      -movflags +faststart -an \
+      {{out}}/loop_mosh.mp4
+
+# Layered cross-mosh: loop_mosh plays IN FULL (112.1s), with an external video
+# segment layered on top over the last LEN seconds via time-varying alpha blend.
+# The blended composite is then datamoshed so both signals collapse into each
+# other. Output duration matches loop_mosh.
+#
+# Usage:
+#   just combine /path/to/video.mp4 4:22 67 combined_mosh.mp4
+#
+# Args:
+#   video    — external source video path
+#   start    — start timestamp in the external video (e.g. "4:22" or "262")
+#   len      — how many seconds of external video to layer over loop_mosh's tail
+#   out_name — output filename inside out/
+combine video start len out_name:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p {{work}} {{out}}
+    offset=$(bc -l <<< "{{loop_s}} - {{len}}")
+    # extract external segment, FILL-CROP to 1920x1080 (no pillarbox), grayscale
+    ffmpeg -y -ss {{start}} -t {{len}} -i "{{video}}" \
+      -vf "scale={{w}}:{{h}}:force_original_aspect_ratio=increase:flags=lanczos,crop={{w}}:{{h}},setsar=1,fps={{fps}},lutyuv=y=val:u=128:v=128,format=yuv420p" \
+      -an -c:v libx264 -crf 14 -preset veryfast \
+      {{work}}/segment.mp4
+    # Composite pipeline (three inputs consumed by filter_complex):
+    #  [0:v] loop_mosh (full 112s)
+    #  [1:v] religions segment (67s)
+    #  time-shift [1:v] so it starts at ${offset}, then use it BOTH as:
+    #    (a) a displacement map on loop_mosh to TEAR its pixels along religions' contrast
+    #    (b) an overlay signal that bleeds in on top of the torn base
+    #  Ramp both effects in over ~20s so we get: 45s clean loop_mosh -> 45-65s religions
+    #  tears in and bleeds through the tears -> 65s+ mosh (mv_layer_mosh) collapses everything.
+    ffmpeg -y -i {{out}}/loop_mosh.mp4 -i {{work}}/segment.mp4 \
+      -filter_complex "[0:v]setpts=PTS,lutyuv=y=val:u=128:v=128,format=yuv420p[bg];[1:v]tpad=start_duration=${offset}:color=gray,fps={{fps}},setpts=PTS,lutyuv=y=val:u=128:v=128,format=yuv420p[fg];[fg]split=3[fg2][xmap_raw][ymap_raw];[xmap_raw]lutyuv=y='128+(val-128)*0.42':u=128:v=128,format=yuv420p[xdisp];[ymap_raw]lutyuv=y='128+(val-128)*0.42':u=128:v=128,format=yuv420p[ydisp];[bg][xdisp][ydisp]displace=edge=mirror[torn];[bg][torn]blend=all_expr='A*(1-min(1\,max(0\,(T-${offset})/20)))+B*min(1\,max(0\,(T-${offset})/20))'[base];[base][fg2]blend=all_expr='A*(1-min(0.75\,max(0\,(T-${offset})/20*0.65)))+B*min(0.75\,max(0\,(T-${offset})/20*0.65))'" \
+      -t {{loop_s}} -an -c:v libx264 -crf 14 -preset veryfast \
+      {{work}}/layered.mp4
+    # MPEG-2 single-GOP with forced MVs
+    {{ffgac}} -y -i {{work}}/layered.mp4 -an \
+      -mpv_flags +nopimb+forcemv -qscale:v 0 -g max -bf 0 -sc_threshold max \
+      -vcodec mpeg2video -f rawvideo \
+      {{work}}/layered.mpg
+    # timed mosh: pass through 0-45s; ramp+amplify over the blend window
+    {{ffedit}} -i {{work}}/layered.mpg -f mv \
+      -s {{scripts}}/mv_layer_mosh.js \
+      -o {{work}}/layered_mosh.mpg
+    # final encode + belt-and-braces chroma flatten
+    ffmpeg -y -i {{work}}/layered_mosh.mpg -r {{fps}} \
+      -vf "lutyuv=y=val:u=128:v=128,format=yuv420p" \
+      -c:v libx264 -crf 20 -preset slow -tune grain \
+      -pix_fmt yuv420p -profile:v high -level 4.1 \
+      -movflags +faststart -an \
+      {{out}}/{{out_name}}
+
+# Clean intermediates (keeps out/)
+clean:
+    rm -rf {{work}}
