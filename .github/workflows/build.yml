@@ -1,0 +1,230 @@
+# Build, test, and package Glitchbox.app on GitHub's Xcode 27 (Apple silicon)
+# image; draft a GitHub Release for v* tags.
+#
+# packaging/build.sh skips any toolchain stage whose stamp (a hash of its
+# recipe, pinned inputs, and dependencies' stamps) matches, so the stamped
+# outputs are cached together with their stamps. See the cache steps below.
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # Pinned rather than the image defaults (Rust 1.99, Xcode 27.0 today):
+  # bender-rs needs Rust >= 1.96, and both are part of the stage cache key.
+  RUST_TOOLCHAIN: "1.97.0"
+  XCODE_APP: /Applications/Xcode_27.0.app
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 180
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      artifact: ${{ steps.version.outputs.artifact }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Read packaging/VERSION
+        id: version
+        run: |
+          version=$(tr -d '[:space:]' < packaging/VERSION)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "artifact=Glitchbox-$version-${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
+
+      # Before any build minutes are spent: a release tag must name the version
+      # the DMG is built with.
+      - name: Check tag matches packaging/VERSION
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [ "${GITHUB_REF_NAME#v}" != "$VERSION" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match packaging/VERSION ($VERSION)"
+            exit 1
+          fi
+
+      - name: Select toolchain
+        id: toolchain
+        run: |
+          sudo xcode-select -s "$XCODE_APP"
+          xcodebuild -version
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --no-self-update
+          rustup default "$RUST_TOOLCHAIN"
+          rustc --version
+          cargo --version
+          cmake --version | sed -n 1p
+          jq --version
+          curl --version | sed -n 1p
+          xcode=$(xcodebuild -version | awk '/Build version/ { print $3 }')
+          echo "key=xcode-$xcode-rust-$RUST_TOOLCHAIN" >> "$GITHUB_OUTPUT"
+          df -h "$GITHUB_WORKSPACE"
+
+      - name: Swift tests (GlitchboxKit)
+        working-directory: app/GlitchboxKit
+        # Same scrubbed environment build.sh uses for xcodebuild/swift.
+        run: env -i HOME="$HOME" USER="$USER" LOGNAME="$USER" LANG=C LC_ALL=C TERM=dumb PATH=/usr/bin:/bin:/usr/sbin:/sbin swift test
+
+      # Pinned inputs and the cargo registry (build/downloads/cargo-home).
+      # fetch re-verifies every file's sha256 and cargo checks crates against
+      # the pinned lockfiles, so a restored file is never trusted blindly. No
+      # restore-keys: a sources.json change starts clean instead of dragging
+      # superseded downloads along forever.
+      - name: Cache downloads
+        uses: actions/cache@v6
+        with:
+          path: build/downloads
+          key: downloads-v1-${{ hashFiles('packaging/sources.json') }}
+
+      # Stamped stage outputs: build/stamps plus everything the stages write
+      # that later stages and assembly read (build/prefix: x264, frei0r, and
+      # the finished binaries; build/gst: full, sdk, runtime). Each stage
+      # rebuilds whenever its stamp doesn't match, and gst/gst_runtime/frei0r
+      # delete their output first, so restoring an older entry (restore-keys)
+      # or one saved by a failed run is safe: it can only skip stages whose
+      # recipe, inputs, and dependencies are unchanged. The cargo target dirs
+      # are deleted by build.sh after each build, so there are none to cache.
+      # Compilers are not in the stamps, so the pinned Xcode build and Rust
+      # version are in the key.
+      - name: Restore stage cache
+        id: stages
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            build/stamps
+            build/prefix
+            build/gst
+          key: stages-v1-${{ steps.toolchain.outputs.key }}-${{ hashFiles('packaging/sources.json', 'packaging/build.sh') }}
+          restore-keys: |
+            stages-v1-${{ steps.toolchain.outputs.key }}-${{ hashFiles('packaging/sources.json', 'packaging/build.sh') }}-
+            stages-v1-${{ steps.toolchain.outputs.key }}-
+
+      # A restore that failed partway leaves no matched key but may leave
+      # files behind; a stamp without its complete outputs must not survive.
+      - name: Discard incomplete stage restore
+        if: steps.stages.outputs.cache-matched-key == ''
+        run: rm -rf build/stamps build/prefix build/gst
+
+      - name: packaging/build.sh all
+        id: build
+        run: packaging/build.sh all
+
+      # Saved after failures too (stamps are written only after a stage
+      # succeeds), keyed by the stamps themselves so a later, more complete
+      # build is never blocked by an existing key.
+      - name: Stage cache key
+        id: stamps
+        if: ${{ !cancelled() && steps.build.outcome != 'skipped' }}
+        env:
+          PREFIX: stages-v1-${{ steps.toolchain.outputs.key }}-${{ hashFiles('packaging/sources.json', 'packaging/build.sh') }}
+        run: |
+          [ -d build/stamps ] && [ -n "$(ls build/stamps)" ] || exit 0
+          h=$(cd build/stamps && for f in *; do printf '%s %s\n' "$f" "$(cat "$f")"; done | shasum -a 256 | cut -c1-16)
+          echo "key=$PREFIX-$h" >> "$GITHUB_OUTPUT"
+
+      - name: Save stage cache
+        if: ${{ !cancelled() && steps.stamps.outputs.key != '' && steps.stamps.outputs.key != steps.stages.outputs.cache-matched-key }}
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            build/stamps
+            build/prefix
+            build/gst
+          key: ${{ steps.stamps.outputs.key }}
+
+      - name: Checksum DMG
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        working-directory: build/dist
+        run: |
+          shasum -a 256 "Glitchbox-$VERSION.dmg" > "Glitchbox-$VERSION.dmg.sha256"
+          cat "Glitchbox-$VERSION.dmg.sha256"
+          ls -l
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.version.outputs.artifact }}
+          path: |
+            build/dist/Glitchbox-${{ steps.version.outputs.version }}.dmg
+            build/dist/Glitchbox-${{ steps.version.outputs.version }}.dmg.sha256
+          if-no-files-found: error
+          compression-level: 0 # UDZO is already compressed
+          retention-days: 14
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-logs-${{ github.run_attempt }}
+          path: build/logs
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Disk usage
+        if: always()
+        run: |
+          df -h "$GITHUB_WORKSPACE"
+          du -sh build/* build/gst/* 2>/dev/null || true
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.artifact }}
+          path: dist
+
+      - name: Create draft release
+        working-directory: dist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          dmg=Glitchbox-$VERSION.dmg
+          shasum -a 256 -c "$dmg.sha256"
+          sum=$(cut -d' ' -f1 "$dmg.sha256")
+          cat > notes.md <<EOF
+          Glitchbox $VERSION, built from \`$TAG\` ($GITHUB_SHA).
+
+          Apple silicon Macs, macOS 26 or later. Open \`$dmg\` and drag Glitchbox to
+          Applications. The app is ad-hoc signed and not notarized, so Gatekeeper blocks
+          the first launch: allow it in System Settings → Privacy & Security → Open
+          Anyway, or run \`xattr -dr com.apple.quarantine /Applications/Glitchbox.app\`.
+
+          SHA-256 (\`$dmg\`): \`$sum\`
+          EOF
+          # A rerun updates the existing draft instead of adding a second one.
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$dmg" "$dmg.sha256" --clobber
+            gh release edit "$TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" "$dmg" "$dmg.sha256" --draft --verify-tag \
+              --title "Glitchbox $VERSION" --notes-file notes.md
+          fi
+          gh release view "$TAG" --json isDraft,tagName,assets \
+            --jq '{isDraft, tagName, assets: [.assets[] | {name, size}]}'
