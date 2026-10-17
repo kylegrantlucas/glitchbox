@@ -1,0 +1,23 @@
+{
+  "layers": [
+    {
+      "enabled": true,
+      "params": {
+        "length_x": 0,
+        "length_y": -200,
+        "threshold": 100
+      },
+      "plugin": "pixel-smear"
+    },
+    {
+      "enabled": true,
+      "params": {
+        "bh": 8,
+        "rh": -8
+      },
+      "plugin": "rgb-split"
+    }
+  ],
+  "name": "Smeared test card",
+  "schema": 1
+}

@@ -1,0 +1,39 @@
+{
+  "layers": [
+    {
+      "enabled": true,
+      "params": {
+        "intensity": 0.3,
+        "max": 0.2
+      },
+      "plugin": "row-shift"
+    },
+    {
+      "enabled": true,
+      "params": {
+        "gop": 0,
+        "h_scale": 0,
+        "pan_x": 0,
+        "pan_y": 0,
+        "qscale": 0,
+        "tail": 1,
+        "v_scale": 100
+      },
+      "plugin": "mpeg2-mosh"
+    },
+    {
+      "enabled": true,
+      "params": {},
+      "plugin": "analog-pass"
+    },
+    {
+      "enabled": true,
+      "params": {
+        "saturation": 0.6
+      },
+      "plugin": "vhs-filter"
+    }
+  ],
+  "name": "Four-layer stack",
+  "schema": 1
+}

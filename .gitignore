@@ -10,6 +10,9 @@ work/
 *.mkv
 *.mov
 *.png
+# the splash site's committed clips, icon renders, and screenshot
+!site/assets/**/*.mp4
+!site/assets/**/*.png
 # Xcode/SwiftPM build products (the project is regenerated from app/project.yml)
 app/Glitchbox.xcodeproj/
 app/.build/

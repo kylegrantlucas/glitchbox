@@ -1,0 +1,13 @@
+{
+  "layers": [
+    {
+      "enabled": true,
+      "params": {
+        "script": "dd_zoomInOut.js"
+      },
+      "plugin": "mv-script"
+    }
+  ],
+  "name": "Zoom in, zoom out",
+  "schema": 1
+}

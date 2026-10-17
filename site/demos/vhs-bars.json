@@ -1,0 +1,11 @@
+{
+  "layers": [
+    {
+      "enabled": true,
+      "params": {},
+      "plugin": "analog-pass"
+    }
+  ],
+  "name": "VHS dub of bars and tone",
+  "schema": 1
+}

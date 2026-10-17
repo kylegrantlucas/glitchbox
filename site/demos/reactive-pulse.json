@@ -1,0 +1,11 @@
+{
+  "layers": [
+    {
+      "enabled": true,
+      "params": {},
+      "plugin": "reactive-vcr"
+    }
+  ],
+  "name": "Kick drum on the tracking",
+  "schema": 1
+}

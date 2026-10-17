@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glitchbox: break video on purpose</title>
+<meta name="description" content="Glitchbox is a macOS app for breaking video on purpose. Stack datamosh, VHS, circuit-bend, frei0r, and ffmpeg plugins into a chain and watch the result.">
+<meta name="theme-color" content="#1a28c2">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon/icon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="assets/icon/icon-64.png">
+<link rel="apple-touch-icon" href="assets/icon/icon-180.png">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="topbar" aria-label="Sections">
+  <ul>
+    <li><a href="#chains">Chains</a></li>
+    <li><a href="#demos">Demos</a></li>
+    <li><a href="#plugins">Plugins</a></li>
+    <li><a href="#cli">Command line</a></li>
+    <li><a href="#install">Install</a></li>
+    <li><a href="#credits">Credits</a></li>
+  </ul>
+  <button type="button" class="motion-toggle" aria-pressed="false" hidden>Pause clips</button>
+</nav>
+
+<header class="hero">
+  <div class="hero-title">
+    <img class="hero-icon" src="assets/icon/icon-512.png" width="512" height="512" alt="Glitchbox app icon: a bone-white cube sliced sideways, with cyan and red ghost edges, on blue">
+    <h1 class="wordmark">
+      <span class="visually-hidden">Glitchbox</span>
+      <span class="wm" aria-hidden="true">
+        <span class="wm-top">Glitchbox</span>
+        <span class="wm-tear">Glitchbox</span>
+        <span class="wm-bottom">Glitchbox</span>
+      </span>
+    </h1>
+  </div>
+
+  <div class="hero-copy">
+    <p class="lede">A macOS app for breaking video on purpose.</p>
+    <p>Stack plugins into a chain: datamosh, VHS and NTSC artifacts, circuit-bent video hardware, frei0r and ffmpeg effects. Tweak each layer’s parameters and watch the result in the built-in player. Every tool it runs ships inside the app, so there is nothing else to install.</p>
+    <p class="cta">
+      <a class="button" href="https://github.com/kylegrantlucas/glitchbox/releases/latest">Download for macOS</a>
+    </p>
+    <p class="cta-note">For Apple silicon Macs on macOS 26 or later. The app isn’t notarized, so read the <a href="#install">install notes</a> before the first launch.</p>
+  </div>
+
+  <figure class="hero-reel">
+    <video class="clip" src="assets/demos/stack.mp4" poster="assets/demos/stack.jpg" width="640" height="360" muted loop playsinline controls preload="metadata" aria-label="A radial gradient broken into streaks of saturated colour, with analog noise along the bottom edge." aria-describedby="hero-reel-cap"></video>
+    <figcaption id="hero-reel-cap">
+      <span>Four layers over an ffmpeg gradient:</span>
+      <ol class="chain-inline">
+        <li><code>row-shift</code></li>
+        <li><code>mpeg2-mosh</code></li>
+        <li><code>analog-pass</code></li>
+        <li><code>vhs-filter</code></li>
+      </ol>
+    </figcaption>
+  </figure>
+</header>
+
+<main id="main">
+
+<section id="chains" class="section" aria-labelledby="chains-h">
+  <h2 id="chains-h">How a chain works</h2>
+  <div class="chains-text">
+    <p>A chain starts with a source layer. It trims and scales your clip, converts it to constant-frame-rate FFV1, and pulls the audio out as a WAV file. Every layer after that runs one plugin with its own parameters.</p>
+    <p>Layers hand lossless FFV1 files down the stack, and each one is cached. Change a layer and only that layer and the ones below it render again.</p>
+    <p>Save a stack as a chain preset. Your presets and plugins live in <code>~/Library/Application Support/Glitchbox</code>, and a file there with the same name as a built-in one replaces it.</p>
+  </div>
+
+  <figure class="layer-strip">
+    <ol>
+      <li>
+        <img src="assets/demos/stack-layer-0.jpg" width="480" height="270" alt="A smooth radial gradient in blue, bone, red, and cyan." loading="lazy">
+        <span class="layer-name">Source</span>
+        <span class="layer-note">ffmpeg <code>gradients</code></span>
+      </li>
+      <li>
+        <img src="assets/demos/stack-layer-1.jpg" width="480" height="270" alt="The gradient cut into horizontal bands, each slid sideways." loading="lazy">
+        <span class="layer-name"><code>row-shift</code></span>
+        <span class="layer-note">intensity 0.3, max 0.2</span>
+      </li>
+      <li>
+        <img src="assets/demos/stack-layer-2.jpg" width="480" height="270" alt="The bands broken into blocky streaks of saturated colour." loading="lazy">
+        <span class="layer-name"><code>mpeg2-mosh</code></span>
+        <span class="layer-note">Sink and rise preset</span>
+      </li>
+      <li>
+        <img src="assets/demos/stack-layer-3.jpg" width="480" height="270" alt="The same streaks with analog noise, ringing, and a torn strip along the bottom edge." loading="lazy">
+        <span class="layer-name"><code>analog-pass</code></span>
+        <span class="layer-note">defaults</span>
+      </li>
+      <li>
+        <img src="assets/demos/stack-layer-4.jpg" width="480" height="270" alt="The final frame: washed-out colour, softness, and a dark vignette." loading="lazy">
+        <span class="layer-name"><code>vhs-filter</code></span>
+        <span class="layer-note">saturation 0.6</span>
+      </li>
+    </ol>
+    <figcaption>The clip at the top of the page, one layer at a time, 1.5 seconds in.</figcaption>
+  </figure>
+
+  <figure class="app-shot">
+    <img src="assets/app/glitchbox-stack.png" width="1122" height="760" alt="The Glitchbox window: a plugin library on the left, and a source clip with Row Shift, MPEG-2 Mosh, Analog Pass, and VHS Filter stacked in the layer list." loading="lazy">
+    <figcaption>The same stack in the app, before rendering.</figcaption>
+  </figure>
+</section>
+
+<section id="demos" class="section section-deep" aria-labelledby="demos-h">
+  <h2 id="demos-h">Demo reel</h2>
+  <p class="section-intro">Each clip is a four-second Glitchbox render at 360p, shown without sound. The sources are ffmpeg’s built-in generators, and every chain is a file in the repo under <code>site/demos</code>.</p>
+
+  <div class="reel">
+    <figure class="demo">
+      <video class="clip" src="assets/demos/vhs-bars.mp4" poster="assets/demos/vhs-bars.jpg" width="640" height="360" muted loop playsinline controls preload="none" aria-label="SMPTE colour bars after the analog-pass plugin: soft edges, colour fringes, and tracking noise at the bottom."></video>
+      <figcaption>
+        <h3>VHS dub</h3>
+        <dl>
+          <dt>Source</dt><dd>SMPTE HD bars with a white bar rolling across</dd>
+          <dt>Chain</dt><dd><code>analog-pass</code> at its defaults, which match <code>presets/vhs.json</code>: head switching, tracking noise, edge wave, and ringing from ntsc-rs</dd>
+        </dl>
+      </figcaption>
+    </figure>
+
+    <figure class="demo">
+      <video class="clip" src="assets/demos/mosh-bands.mp4" poster="assets/demos/mosh-bands.jpg" width="640" height="360" muted loop playsinline controls preload="none" aria-label="Gradient bands in blue, bone, and cyan smeared into liquid shapes by motion-vector averaging."></video>
+      <figcaption>
+        <h3>Long smear</h3>
+        <dl>
+          <dt>Source</dt><dd>Drifting gradient bands</dd>
+          <dt>Chain</dt><dd><code>mpeg2-mosh</code> with the Long smear preset: a forced-motion-vector MPEG-2 encode, then each vector averaged over the last 30 frames</dd>
+        </dl>
+      </figcaption>
+    </figure>
+
+    <figure class="demo">
+      <video class="clip" src="assets/demos/mv-zoom.mp4" poster="assets/demos/mv-zoom.jpg" width="640" height="360" muted loop playsinline controls preload="none" aria-label="A Mandelbrot zoom whose blocks are pushed in and out by rewritten motion vectors."></video>
+      <figcaption>
+        <h3>Zoom in, zoom out</h3>
+        <dl>
+          <dt>Source</dt><dd>A Mandelbrot zoom, mapped to blue and bone</dd>
+          <dt>Chain</dt><dd><code>mv-script</code> running <code>dd_zoomInOut.js</code>, one of the DD-GlitchAssist ffedit scripts</dd>
+        </dl>
+      </figcaption>
+    </figure>
+
+    <figure class="demo">
+      <video class="clip" src="assets/demos/bend-life.mp4" poster="assets/demos/bend-life.jpg" width="640" height="360" muted loop playsinline controls preload="none" aria-label="Conway's Game of Life in bone and blue, with the picture tearing and rolling sideways."></video>
+      <figcaption>
+        <h3>Rolling tear</h3>
+        <dl>
+          <dt>Source</dt><dd>Conway’s Game of Life with mould trails</dd>
+          <dt>Chain</dt><dd><code>bender</code> with its Rolling tear preset, which switches in the sync separator and rail sag bends</dd>
+        </dl>
+      </figcaption>
+    </figure>
+
+    <figure class="demo">
+      <video class="clip" src="assets/demos/smear-testcard.mp4" poster="assets/demos/smear-testcard.jpg" width="640" height="360" muted loop playsinline controls preload="none" aria-label="A colour test card with its bright moving shapes stretched into streaks and red and blue fringes."></video>
+      <figcaption>
+        <h3>Smeared test card</h3>
+        <dl>
+          <dt>Source</dt><dd>ffmpeg’s <code>testsrc2</code> test card</dd>
+          <dt>Chain</dt><dd><code>pixel-smear</code> drags pixels brighter than 100 up to 200 px vertically, then <code>rgb-split</code> moves red and blue 8 px apart</dd>
+        </dl>
+      </figcaption>
+    </figure>
+
+    <figure class="demo">
+      <video class="clip" src="assets/demos/reactive-pulse.mp4" poster="assets/demos/reactive-pulse.jpg" width="640" height="360" muted loop playsinline controls preload="none" aria-label="A bone-white disc pulsing on blue, with tracking noise and colour bands that jump on each beat."></video>
+      <figcaption>
+        <h3>Kick drum on the tracking</h3>
+        <dl>
+          <dt>Source</dt><dd>A disc that swells on every kick of a synthetic 120 bpm kick-and-hat track</dd>
+          <dt>Chain</dt><dd><code>reactive-vcr</code> listening to that track through its default map: bass drives tracking noise, hits trigger head switching, and overall level adds snow</dd>
+        </dl>
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="plugins" class="section" aria-labelledby="plugins-h">
+  <h2 id="plugins-h">Plugins</h2>
+  <p class="section-intro">The built-in library has 19 plugins. A plugin is a JSON file that declares typed parameters and the commands to run, and the plugin editor in the app writes the same format.</p>
+
+  <div class="plugin-groups">
+    <div class="plugin-group">
+      <h3>Datamosh with FFglitch</h3>
+      <dl>
+        <dt>MPEG-2 Mosh <code>mpeg2-mosh</code></dt>
+        <dd>Forced-motion-vector MPEG-2 encode, then a motion-vector mosh with an average window, axis scales, and drift. Presets for long smear, pan drift, and sink and rise.</dd>
+        <dt>MV Script <code>mv-script</code></dt>
+        <dd>The same encode, then one of the deterministic DD-GlitchAssist ffedit scripts.</dd>
+        <dt>MV Mangle <code>mv-mangle</code></dt>
+        <dd>Seeded MPEG-4 motion-vector shuffle.</dd>
+      </dl>
+    </div>
+
+    <div class="plugin-group">
+      <h3>Analog video</h3>
+      <dl>
+        <dt>Analog Pass <code>analog-pass</code></dt>
+        <dd>NTSC and VHS simulation through ntsc-rs, with every ntsc-rs setting exposed.</dd>
+        <dt>Reactive VCR <code>reactive-vcr</code></dt>
+        <dd>Audio-reactive VCR artifacts, driven by the source’s own audio or an audio file you choose.</dd>
+        <dt>VHS Filter <code>vhs-filter</code></dt>
+        <dd>An ffmpeg VHS filtergraph with levels, misregistration, noise, softness, and vignette controls.</dd>
+      </dl>
+    </div>
+
+    <div class="plugin-group">
+      <h3>Circuit bending</h3>
+      <dl>
+        <dt>Circuit Bend <code>bender</code></dt>
+        <dd>Circuit-bent video hardware through bender-rs. Each stage of the video path, from camera sensor and tape to frame store, colour encoder, monitor, and feedback loop, can be broken the way a stray wire would break it. Every bender setting and stage order is exposed, and bender’s bundled presets come with it.</dd>
+      </dl>
+    </div>
+
+    <div class="plugin-group">
+      <h3>ffmpeg filters</h3>
+      <dl>
+        <dt>Trails <code>trails</code></dt>
+        <dd>Each pixel decays slowly instead of going dark.</dd>
+        <dt>Frame Blend <code>frame-blend</code></dt>
+        <dd>Blends each frame with the one before it: ghosting, motion edges, temporal XOR.</dd>
+        <dt>Datascope <code>datascope</code></dt>
+        <dd>Draws the pixels under a window as their numeric values.</dd>
+        <dt>RGB Split <code>rgb-split</code></dt>
+        <dd>Offsets the red, green, and blue planes independently.</dd>
+        <dt>Pixel Smear <code>pixel-smear</code></dt>
+        <dd>Pixel-sort-style streaks: pixels past a brightness threshold are dragged along a direction, farther the brighter they are.</dd>
+        <dt>Pixelate <code>pixelate</code></dt>
+        <dd>Mosaic blocks.</dd>
+        <dt>Bitcrush <code>bitcrush</code></dt>
+        <dd>Cuts each RGB channel to a few bits for banding and posterized colour.</dd>
+      </dl>
+    </div>
+
+    <div class="plugin-group">
+      <h3>frei0r effects</h3>
+      <dl>
+        <dt>Block Glitch <code>block-glitch</code></dt>
+        <dd>Random block shifts and colour glitches.</dd>
+        <dt>Row Shift <code>row-shift</code></dt>
+        <dd>Shifts bands of rows to and fro.</dd>
+        <dt>Plasma Distort <code>plasma-distort</code></dt>
+        <dd>Wobbles the image along a moving plasma field.</dd>
+        <dt>Kaleidoscope <code>kaleidoscope</code></dt>
+        <dd>Mirrors segments around a point.</dd>
+        <dt>Vertigo <code>vertigo</code></dt>
+        <dd>Feedback blend with a zoomed, rotating copy of the previous frame.</dd>
+      </dl>
+      <p class="group-note">Block Glitch and Row Shift are random, so every render differs and the cache keeps the first one.</p>
+    </div>
+  </div>
+</section>
+
+<section id="cli" class="section" aria-labelledby="cli-h">
+  <h2 id="cli-h">Command line and pipelines</h2>
+  <div class="two-up">
+    <div>
+      <p>The app carries a <code>glitchbox</code> command at <code>Glitchbox.app/Contents/Helpers/glitchbox</code>. It uses the same engine, library, and cache as the app.</p>
+<pre><code><span class="c"># plugins, and whether their tools are present</span>
+glitchbox list
+glitchbox render --chain analog-mosh-vhs \
+  --duration 3 --height 240 in.mp4
+<span class="c"># clear the layer cache</span>
+glitchbox clean</code></pre>
+    </div>
+    <div>
+      <p>The repo also holds the terminal pipelines the app grew out of. They are seeded and content-addressed: each run writes a manifest with the input digest, every resolved parameter, and the toolchain’s identity, so an artifact can be regenerated byte for byte.</p>
+<pre><code><span class="c"># analog-pass, then mv-mangle, then a final encode</span>
+just chain input.mkv 42
+<span class="c"># run the chain twice and compare every stage</span>
+just verify-repro input.mkv 42</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="install" class="section" aria-labelledby="install-h">
+  <h2 id="install-h">Install</h2>
+  <div class="install">
+    <p>You need an Apple silicon Mac with macOS 26 or later. Intel Macs and Linux aren’t built. Open <code>Glitchbox-&lt;version&gt;.dmg</code> and drag Glitchbox to Applications. The app takes about 190 MB on disk.</p>
+    <p>Builds are ad-hoc signed and not notarized, so Gatekeeper blocks the first launch of a downloaded copy. Allow it in System Settings → Privacy &amp; Security → Open Anyway, or clear the quarantine flag:</p>
+<pre><code>xattr -dr com.apple.quarantine \
+  /Applications/Glitchbox.app</code></pre>
+    <p class="cta"><a class="button" href="https://github.com/kylegrantlucas/glitchbox/releases/latest">Download for macOS</a></p>
+  </div>
+</section>
+
+<section id="credits" class="section" aria-labelledby="credits-h">
+  <h2 id="credits-h">Built on</h2>
+  <p class="section-intro">These projects ship inside Glitchbox.app, and the app runs them for you.</p>
+  <ul class="credits">
+    <li><a href="https://ffglitch.org/">FFglitch</a> <span class="ver">0.10.2</span><span class="role">ffgac and ffedit, for motion-vector datamosh</span></li>
+    <li><a href="https://github.com/ramiropolla/ffglitch-scripts">ffglitch-scripts</a><span class="role">the DD-GlitchAssist scripts behind MV Script</span></li>
+    <li><a href="https://github.com/valadaptive/ntsc-rs">ntsc-rs</a> <span class="ver">0.9.4</span><span class="role">NTSC and VHS emulation</span></li>
+    <li><a href="https://github.com/kylegrantlucas/bender-rs">bender-rs</a> <span class="ver">0.2.0</span><span class="role">circuit-bent video hardware</span></li>
+    <li><a href="https://github.com/kylegrantlucas/reactive-vcr">reactive-vcr</a> <span class="ver">0.4.0</span><span class="role">audio-reactive VCR artifacts</span></li>
+    <li><a href="https://ffmpeg.org/">FFmpeg</a> <span class="ver">8.1.2</span><span class="role">decoding, encoding, and the ffmpeg filters</span></li>
+    <li><a href="https://www.videolan.org/developers/x264.html">x264</a><span class="role">H.264 encoding, linked into ffmpeg</span></li>
+    <li><a href="https://github.com/dyne/frei0r">frei0r</a> <span class="ver">2.5.1</span><span class="role">the frei0r effect plugins</span></li>
+    <li><a href="https://gstreamer.freedesktop.org/">GStreamer</a> <span class="ver">1.28.8</span><span class="role">the media runtime under ntsc-rs, bender, and reactive-vcr</span></li>
+    <li><a href="https://sourceforge.net/projects/sox/">SoX</a> <span class="ver">14.4.2</span><span class="role">audio processing for the pipelines</span></li>
+    <li><a href="https://jqlang.org/">jq</a> <span class="ver">1.8.2</span><span class="role">building tool configs from plugin params</span></li>
+    <li><a href="https://www.gnu.org/software/bash/">bash</a> <span class="ver">5.3.20</span><span class="role">runs plugin script steps</span></li>
+  </ul>
+</section>
+
+</main>
+
+<footer class="footer">
+  <p><a href="https://github.com/kylegrantlucas/glitchbox/releases/latest">Download Glitchbox</a> <a href="https://github.com/kylegrantlucas/glitchbox">Source on GitHub</a></p>
+  <p class="fine">Set in <a href="https://github.com/Omnibus-Type/Archivo">Archivo</a> (SIL Open Font License, <a href="assets/fonts/OFL.txt">text</a>).</p>
+</footer>
+</body>
+</html>
