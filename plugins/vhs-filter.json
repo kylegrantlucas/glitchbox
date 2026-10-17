@@ -1,0 +1,91 @@
+{
+  "assets" : [],
+  "id" : "vhs-filter",
+  "name" : "VHS Filter",
+  "params" : [
+    {
+      "default" : 8,
+      "key" : "shift",
+      "label" : "RGB shift",
+      "max" : 32,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 6,
+      "key" : "chroma",
+      "label" : "Chroma shift",
+      "max" : 32,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 26,
+      "key" : "noise",
+      "label" : "Noise",
+      "max" : 100,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 0.5,
+      "key" : "blur",
+      "label" : "Blur",
+      "max" : 5,
+      "min" : 0,
+      "step" : 0.05,
+      "type" : "float"
+    },
+    {
+      "default" : 1.12,
+      "key" : "contrast",
+      "label" : "Contrast",
+      "max" : 2,
+      "min" : 0.5,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 0.24,
+      "key" : "saturation",
+      "label" : "Saturation",
+      "max" : 2,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "format=yuv444p,curves=all='0/0.02 0.5/0.5 1/0.95',rgbashift=rh=-{p.shift}:rv=0:bh={p.shift}:bv=0:edge=smear,chromashift=cbh={p.chroma}:crh=-{p.chroma}:edge=smear,noise=c0s={p.noise}:c0f=t+u:c1s=6:c1f=t+u:c2s=6:c2f=t+u,gblur=sigma={p.blur},deband=range=8:direction=1.5708:blur=false,eq=contrast={p.contrast}:saturation={p.saturation}:gamma=0.98,vignette=PI/4.2,format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "vhs"
+    }
+  ],
+  "summary" : "ffmpeg VHS filtergraph (glitch-loop/filters/vhs2.filter)."
+}

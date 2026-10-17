@@ -1,0 +1,54 @@
+{
+  "assets" : [],
+  "id" : "reactive-vcr",
+  "name" : "Reactive VCR",
+  "params" : [
+    {
+      "default" : "",
+      "extensions" : [
+        "wav",
+        "mp3",
+        "flac",
+        "aiff",
+        "m4a"
+      ],
+      "help" : "Driving audio track",
+      "key" : "audio",
+      "label" : "Audio",
+      "type" : "file"
+    },
+    {
+      "default" : "presets/reactive-vcr.toml",
+      "extensions" : [
+        "toml"
+      ],
+      "help" : "Audio-feature → effect mapping",
+      "key" : "map",
+      "label" : "Map",
+      "type" : "file"
+    }
+  ],
+  "requires" : [
+    "reactive-vcr",
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "reactive-vcr",
+        "--audio",
+        "{p.audio}",
+        "--map",
+        "{p.map}",
+        "--audio-mode",
+        "none",
+        "-o",
+        "{out}",
+        "{in}"
+      ],
+      "name" : "render"
+    }
+  ],
+  "summary" : "Audio-reactive VCR artifacts (pipelines/reactive-vcr)."
+}

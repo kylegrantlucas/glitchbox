@@ -123,6 +123,28 @@ verify-repro INPUT SEED="42":
     done
     [ "$fail" -eq 0 ] && echo "  all stages byte-reproducible" || { echo "  FAILED"; exit 1; }
 
+# Render/validate plugin chains headless (see studio/).
+plug *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    pkg="{{justfile_directory()}}/studio/VideobedKit"
+    # Strip nix's Apple-SDK vars so the system Swift toolchain works in the devshell.
+    clean_env=(env -u SDKROOT -u DEVELOPER_DIR -u NIX_CFLAGS_COMPILE -u NIX_LDFLAGS)
+    "${clean_env[@]}" swift build -q -c release --package-path "$pkg" --product vbplug >&2
+    bin=$("${clean_env[@]}" swift build -c release --package-path "$pkg" --show-bin-path)
+    exec "$bin/vbplug" {{ARGS}}
+
+# Generate the Xcode project, build, and launch Videobed Studio.
+studio:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{justfile_directory()}}/studio"
+    xcodegen generate --quiet
+    env -u SDKROOT -u DEVELOPER_DIR -u NIX_CFLAGS_COMPILE -u NIX_LDFLAGS \
+      xcodebuild -project VideobedStudio.xcodeproj -scheme VideobedStudio \
+      -configuration Debug -derivedDataPath .build/xcode -quiet build
+    open .build/xcode/Build/Products/Debug/VideobedStudio.app
+
 # Remove all build artifacts.
 clean:
     rm -rf "{{OUT}}"

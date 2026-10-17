@@ -1,0 +1,71 @@
+{
+  "assets" : [
+    "scripts/mv-shuffle.js"
+  ],
+  "id" : "mv-mangle",
+  "name" : "MV Mangle",
+  "params" : [
+    {
+      "default" : 8,
+      "help" : "1 = best, 31 = blockiest",
+      "key" : "qscale",
+      "label" : "Quantizer",
+      "max" : 31,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 1000,
+      "help" : "Large GOP accumulates displacement",
+      "key" : "gop",
+      "label" : "GOP size",
+      "max" : 9999,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 8,
+      "help" : "Max per-axis MV displacement",
+      "key" : "amount",
+      "label" : "Amount",
+      "max" : 64,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 1,
+      "key" : "seed",
+      "label" : "Seed",
+      "max" : 2147483647,
+      "min" : 0,
+      "type" : "int"
+    }
+  ],
+  "requires" : [
+    "mv-mangle",
+    "ffgac",
+    "ffedit",
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "mv-mangle",
+        "--qscale",
+        "{p.qscale}",
+        "--gop",
+        "{p.gop}",
+        "--amount",
+        "{p.amount}",
+        "--seed",
+        "{p.seed}",
+        "-o",
+        "{out}",
+        "{in}"
+      ],
+      "name" : "mangle"
+    }
+  ],
+  "summary" : "MPEG-4 motion-vector shuffle via FFglitch (pipelines/mv-mangle)."
+}

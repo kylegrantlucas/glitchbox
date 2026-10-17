@@ -44,7 +44,14 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-vb_require_cmd reactive-vcr
+# This pipeline shares its name with the tool and sits first on the devshell
+# PATH, so a bare `reactive-vcr` would re-enter this script. Resolve past it.
+SELF=$(readlink -f "${BASH_SOURCE[0]}") RVCR=""
+while IFS= read -r cand; do
+  [ "$(readlink -f "$cand")" = "$SELF" ] && continue
+  RVCR=$cand; break
+done < <(type -ap reactive-vcr)
+[ -n "$RVCR" ] || vb_die "'reactive-vcr' not found — are you inside \`nix develop\`?"
 vb_require_cmd ffmpeg
 [ -n "$CHECK" ] && exit 0
 
@@ -63,7 +70,7 @@ PARAMS=$(jq -cS -n \
   '{audio:$audio,audio_sha256:$audio_sha256,map:$map,map_sha256:$map_sha256,audio_mode:$audio_mode}')
 
 TOOLS=$(jq -cS -n \
-  --arg rvcr "$(vb_tool_version reactive-vcr)" \
+  --arg rvcr "$(vb_tool_version "$RVCR")" \
   --arg ffmpeg "$(vb_tool_version ffmpeg)" \
   '{"reactive-vcr":$rvcr,ffmpeg:$ffmpeg}')
 
@@ -73,7 +80,7 @@ OUTPUT=${OUTPUT:-$VB_RUN_DIR/out.mkv}
 RAW="$VB_RUN_DIR/stage1-rvcr.mp4"
 
 vb_log "reactive-vcr: map=$(basename "$MAP") audio-mode=$AUDIO_MODE"
-reactive-vcr render \
+"$RVCR" render \
   --video "$INPUT" --audio "$AUDIO" --map "$MAP" \
   --audio-mode "$AUDIO_MODE" --output "$RAW" \
   || vb_die "reactive-vcr render failed"

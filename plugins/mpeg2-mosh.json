@@ -1,0 +1,110 @@
+{
+  "assets" : [
+    "glitch-loop/scripts/mv_average.js",
+    "glitch-loop/scripts/mv_sink_and_rise.js",
+    "glitch-loop/scripts/mv_sink_and_rise_fast.js",
+    "glitch-loop/scripts/mv_pan.js"
+  ],
+  "id" : "mpeg2-mosh",
+  "name" : "MPEG-2 Mosh",
+  "params" : [
+    {
+      "default" : "glitch-loop/scripts/mv_average.js",
+      "help" : "ffedit motion-vector script",
+      "key" : "script",
+      "label" : "Script",
+      "options" : [
+        "glitch-loop/scripts/mv_average.js",
+        "glitch-loop/scripts/mv_sink_and_rise.js",
+        "glitch-loop/scripts/mv_sink_and_rise_fast.js",
+        "glitch-loop/scripts/mv_pan.js"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 0,
+      "help" : "0 = encoder default",
+      "key" : "qscale",
+      "label" : "Quantizer",
+      "max" : 31,
+      "min" : 0,
+      "type" : "int"
+    }
+  ],
+  "requires" : [
+    "ffgac",
+    "ffedit",
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffgac",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-y",
+        "-i",
+        "{in}",
+        "-an",
+        "-mpv_flags",
+        "+nopimb+forcemv",
+        "-qscale:v",
+        "{p.qscale}",
+        "-g",
+        "max",
+        "-bf",
+        "0",
+        "-sc_threshold",
+        "max",
+        "-vcodec",
+        "mpeg2video",
+        "-f",
+        "rawvideo",
+        "{work}/enc.mpg"
+      ],
+      "name" : "encode"
+    },
+    {
+      "argv" : [
+        "ffedit",
+        "-i",
+        "{work}/enc.mpg",
+        "-f",
+        "mv",
+        "-s",
+        "{root}/{p.script}",
+        "-o",
+        "{work}/mosh.mpg"
+      ],
+      "name" : "mosh"
+    },
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{work}/mosh.mpg",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "decode"
+    }
+  ],
+  "summary" : "Forced-MV MPEG-2 encode + ffedit motion script (glitch-loop technique)."
+}

@@ -1,0 +1,35 @@
+{
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "preset" : "presets/vhs.json",
+        "scale" : 0,
+        "seed" : 42
+      },
+      "plugin" : "analog-pass"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "qscale" : 0,
+        "script" : "glitch-loop/scripts/mv_average.js"
+      },
+      "plugin" : "mpeg2-mosh"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "blur" : 0.5,
+        "chroma" : 6,
+        "contrast" : 1.12,
+        "noise" : 26,
+        "saturation" : 0.24,
+        "shift" : 8
+      },
+      "plugin" : "vhs-filter"
+    }
+  ],
+  "name" : "Analog → Mosh → VHS",
+  "schema" : 1
+}

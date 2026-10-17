@@ -1,0 +1,50 @@
+{
+  "assets" : [
+    "presets/vhs.json"
+  ],
+  "id" : "analog-pass",
+  "name" : "Analog Pass",
+  "params" : [
+    {
+      "default" : 42,
+      "help" : "ntsc-rs random_seed",
+      "key" : "seed",
+      "label" : "Seed",
+      "max" : 2147483647,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : "presets/vhs.json",
+      "extensions" : [
+        "json"
+      ],
+      "help" : "ntsc-rs effect settings JSON",
+      "key" : "preset",
+      "label" : "Preset",
+      "type" : "file"
+    },
+    {
+      "default" : 0,
+      "help" : "0 = native",
+      "key" : "scale",
+      "label" : "Scale (lines)",
+      "max" : 2160,
+      "min" : 0,
+      "type" : "int"
+    }
+  ],
+  "requires" : [
+    "analog-pass",
+    "ntsc-rs-cli",
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "name" : "ntsc",
+      "script" : "args=(--seed \"$VB_P_SEED\" --preset \"$VB_P_PRESET\" -o \"$VB_OUT\")\nif [ \"$VB_P_SCALE\" -gt 0 ]; then args+=(--scale \"$VB_P_SCALE\"); fi\nanalog-pass \"${args[@]}\" \"$VB_IN\"\n"
+    }
+  ],
+  "summary" : "NTSC/VHS analog simulation via ntsc-rs (pipelines/analog-pass)."
+}
