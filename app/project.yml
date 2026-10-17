@@ -1,0 +1,36 @@
+name: Glitchbox
+options:
+  bundleIdPrefix: com.kylegrantlucas
+  deploymentTarget: { macOS: "26.0" }
+  # Icon Composer documents are directories; Xcode must see them as one file for actool.
+  fileTypes:
+    icon: { file: true, buildPhase: resources }
+packages:
+  GlitchboxKit: { path: GlitchboxKit }
+targets:
+  Glitchbox:
+    type: application
+    platform: macOS
+    sources: [Glitchbox]
+    dependencies: [{ package: GlitchboxKit, product: GlitchboxKit }]
+    info:
+      path: Glitchbox/Info.plist
+      properties:
+        CFBundleDisplayName: Glitchbox
+        # Debug only: the repo checkout, whose library and build/Glitchbox.app toolchain the app uses.
+        GBDevRoot: $(GB_DEV_ROOT)
+    settings:
+      base:
+        PRODUCT_NAME: Glitchbox
+        PRODUCT_BUNDLE_IDENTIFIER: com.kylegrantlucas.glitchbox
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: "6.0"
+        ENABLE_APP_SANDBOX: NO        # spawns the bundled CLI tools
+        ENABLE_HARDENED_RUNTIME: NO
+        CODE_SIGN_IDENTITY: "-"
+        ALWAYS_SEARCH_USER_PATHS: NO
+      configs:
+        Debug:
+          GB_DEV_ROOT: $(SRCROOT)/..
+        Release:
+          GB_DEV_ROOT: ""

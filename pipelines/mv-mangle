@@ -21,14 +21,14 @@
 #   --seed N     PRNG seed, default 1. Pinned and recorded in the manifest.
 #   --script F   ffedit script. Default scripts/mv-shuffle.js.
 #
-# Vendored upstream examples live in $FFGLITCH_SCRIPTS (pinned flake input).
+# Vendored upstream examples live in $FFGLITCH_SCRIPTS (pinned by the toolchain).
 # Many call Math.random(), which QuickJS cannot seed — those are NOT reproducible.
 
 . "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/_lib.sh"
 
 QSCALE=8 GOP=1000 AMOUNT=8 SEED=1 SCRIPT="" INPUT="" OUTPUT="" CHECK=""
 
-usage() { sed -n '2,28p' "$0" | sed 's/^# \?//'; exit "${1:-0}"; }
+usage() { sed -n '2,28p' "$0" | sed -E 's/^# ?//'; exit "${1:-0}"; }
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -40,54 +40,54 @@ while [ $# -gt 0 ]; do
     -o|--output) OUTPUT=$2; shift 2 ;;
     --check) CHECK=1; shift ;;
     -h|--help) usage 0 ;;
-    -*) vb_die "unknown flag: $1" ;;
+    -*) gb_die "unknown flag: $1" ;;
     *)  INPUT=$1; shift ;;
   esac
 done
 
-vb_require_cmd ffgac
-vb_require_cmd ffedit
-vb_require_cmd ffmpeg
+gb_require_cmd ffgac
+gb_require_cmd ffedit
+gb_require_cmd ffmpeg
 [ -n "$CHECK" ] && exit 0
 
 [ -n "$INPUT" ] || usage 1
-SCRIPT=${SCRIPT:-$(vb_root)/scripts/mv-shuffle.js}
-[ -f "$SCRIPT" ] || vb_die "ffedit script not found: $SCRIPT"
+SCRIPT=${SCRIPT:-$(gb_root)/scripts/mv-shuffle.js}
+[ -f "$SCRIPT" ] || gb_die "ffedit script not found: $SCRIPT"
 
 PARAMS=$(jq -cS -n \
   --argjson qscale "$QSCALE" --argjson gop "$GOP" \
   --argjson amount "$AMOUNT" --argjson seed "$SEED" \
   --arg script "$(basename "$SCRIPT")" \
-  --arg script_sha256 "$(vb_sha256 "$SCRIPT")" \
+  --arg script_sha256 "$(gb_sha256 "$SCRIPT")" \
   '{qscale:$qscale,gop:$gop,amount:$amount,seed:$seed,
     script:$script,script_sha256:$script_sha256}')
 
 TOOLS=$(jq -cS -n \
-  --arg ffgac "$(vb_tool_version ffgac)" \
-  --arg ffedit "$(vb_tool_version ffedit)" \
-  --arg ffmpeg "$(vb_tool_version ffmpeg)" \
+  --arg ffgac "$(gb_tool_version ffgac)" \
+  --arg ffedit "$(gb_tool_version ffedit)" \
+  --arg ffmpeg "$(gb_tool_version ffmpeg)" \
   '{ffgac:$ffgac,ffedit:$ffedit,ffmpeg:$ffmpeg}')
 
-vb_begin mv-mangle "$INPUT" "$PARAMS" "$TOOLS"
-OUTPUT=${OUTPUT:-$VB_RUN_DIR/out.mkv}
+gb_begin mv-mangle "$INPUT" "$PARAMS" "$TOOLS"
+OUTPUT=${OUTPUT:-$GB_RUN_DIR/out.mkv}
 
-ENC="$VB_RUN_DIR/stage1-mpeg4.avi"
-GLITCHED="$VB_RUN_DIR/stage2-glitched.avi"
+ENC="$GB_RUN_DIR/stage1-mpeg4.avi"
+GLITCHED="$GB_RUN_DIR/stage2-glitched.avi"
 
-vb_log "ffgac: mpeg4 q=$QSCALE gop=$GOP +forcemv+nopimb"
-ffgac -hide_banner -nostdin -loglevel "${VB_LOGLEVEL:-error}" \
+gb_log "ffgac: mpeg4 q=$QSCALE gop=$GOP +forcemv+nopimb"
+ffgac -hide_banner -nostdin -loglevel "${GB_LOGLEVEL:-error}" \
   -i "$INPUT" -an \
   -flags +bitexact -fflags +bitexact \
   -mpv_flags +forcemv+nopimb -qscale:v "$QSCALE" -g "$GOP" \
   -vcodec mpeg4 -f avi -y "$ENC"
 
-vb_log "ffedit: mv script seed=$SEED amount=$AMOUNT"
+gb_log "ffedit: mv script seed=$SEED amount=$AMOUNT"
 # -t is ffedit's bitexact/test mode.
 ffedit -t -i "$ENC" -f mv -s "$SCRIPT" \
   -sp "$(jq -cn --argjson seed "$SEED" --argjson amount "$AMOUNT" '{seed:$seed,amount:$amount}')" \
   -o "$GLITCHED" 2>/dev/null
 
-vb_log "ffmpeg: lossless re-encode"
-vb_ffmpeg -i "$GLITCHED" -- -c:v ffv1 -y "$OUTPUT"
+gb_log "ffmpeg: lossless re-encode"
+gb_ffmpeg -i "$GLITCHED" -- -c:v ffv1 -y "$OUTPUT"
 
-vb_finish "$OUTPUT"
+gb_finish "$OUTPUT"

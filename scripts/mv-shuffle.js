@@ -1,4 +1,4 @@
-// videobed — deterministic motion-vector displacement for `mv-mangle`.
+// glitchbox — deterministic motion-vector displacement for `mv-mangle`.
 //
 // Seeded xorshift32, never Math.random(). QuickJS exposes no way to seed the
 // global PRNG, so a Math.random()-based script is unreproducible by

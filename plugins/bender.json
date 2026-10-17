@@ -1700,7 +1700,7 @@
   "steps" : [
     {
       "name" : "bend",
-      "script" : "# Rebuild a bender preset from the layer params: \"group__field\" keys nest\n# back into per-stage blocks. Order goes through --set so bender rejects\n# unknown stage ids instead of silently dropping them.\njq -c --argjson seed \"$VB_P_SEED\" 'reduce (to_entries[] | select(.key | contains(\"__\"))) as $e\n  ({version: 1, seed: $seed}; setpath($e.key | split(\"__\"); $e.value))' \"$VB_PARAMS\" > \"$VB_WORK/bender.json\"\norder=()\nif [ -n \"${VB_P_ORDER// /}\" ]; then order=(--set \"order=${VB_P_ORDER// /}\"); fi\nbend --preset \"$VB_WORK/bender.json\" \"${order[@]}\" --seed \"$VB_P_SEED\" --scanlines \"$VB_P_SCANLINES\" \\\n  -o \"$VB_OUT\" \"$VB_IN\"\n"
+      "script" : "# Rebuild a bender preset from the layer params: \"group__field\" keys nest\n# back into per-stage blocks. Order goes through --set so bender rejects\n# unknown stage ids instead of silently dropping them.\njq -c --argjson seed \"$GB_P_SEED\" 'reduce (to_entries[] | select(.key | contains(\"__\"))) as $e\n  ({version: 1, seed: $seed}; setpath($e.key | split(\"__\"); $e.value))' \"$GB_PARAMS\" > \"$GB_WORK/bender.json\"\norder=()\nif [ -n \"${GB_P_ORDER// /}\" ]; then order=(--set \"order=${GB_P_ORDER// /}\"); fi\nbend --preset \"$GB_WORK/bender.json\" \"${order[@]}\" --seed \"$GB_P_SEED\" --scanlines \"$GB_P_SCANLINES\" \\\n  -o \"$GB_OUT\" \"$GB_IN\"\n"
     }
   ],
   "summary" : "Circuit-bent video hardware via bender-rs (pipelines/bend): each section is one stage of the video path, from camera sensor and tape to frame store, colour encoder, monitor, and feedback loop, broken the way a stray wire would. Defaults are bender's meltdown preset; Presets has the other bundled ones."

@@ -42,7 +42,7 @@
 RATE=48000 BITS=8 ENCODING=unsigned-integer CHANNELS=3
 EFFECT="overdrive 20 20" INPUT="" OUTPUT="" CHECK=""
 
-usage() { sed -n '2,32p' "$0" | sed 's/^# \?//'; exit "${1:-0}"; }
+usage() { sed -n '2,32p' "$0" | sed -E 's/^# ?//'; exit "${1:-0}"; }
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -54,21 +54,22 @@ while [ $# -gt 0 ]; do
     -o|--output) OUTPUT=$2; shift 2 ;;
     --check)    CHECK=1; shift ;;
     -h|--help)  usage 0 ;;
-    -*) vb_die "unknown flag: $1" ;;
+    -*) gb_die "unknown flag: $1" ;;
     *)  INPUT=$1; shift ;;
   esac
 done
 
-vb_require_cmd sox
+gb_require_cmd sox
 [ -n "$CHECK" ] && exit 0
 
 [ -n "$INPUT" ] || usage 1
 
 # BMP sanity: magic must be "BM".
-[ "$(head -c2 "$INPUT")" = "BM" ] || vb_die "not a BMP (missing 'BM' magic): $INPUT"
+[ "$(head -c2 "$INPUT")" = "BM" ] || gb_die "not a BMP (missing 'BM' magic): $INPUT"
 
-DATA_OFFSET=$(od -An -tu4 -j10 -N4 --endian=little "$INPUT" | tr -d ' ')
-[ "$DATA_OFFSET" -gt 0 ] 2>/dev/null || vb_die "could not read BMP pixel-data offset"
+# Little-endian u32 at byte 10, assembled from single bytes: BSD od has no --endian.
+DATA_OFFSET=$(od -An -tu1 -j10 -N4 "$INPUT" | awk 'NF {print $1 + $2*256 + $3*65536 + $4*16777216}')
+[ "$DATA_OFFSET" -gt 0 ] 2>/dev/null || gb_die "could not read BMP pixel-data offset"
 
 PARAMS=$(jq -cS -n \
   --argjson rate "$RATE" --argjson bits "$BITS" --argjson channels "$CHANNELS" \
@@ -78,20 +79,20 @@ PARAMS=$(jq -cS -n \
   '{rate:$rate,bits:$bits,channels:$channels,encoding:$encoding,
     effect:$effect,dither:$dither,bmp_data_offset:$data_offset}')
 
-TOOLS=$(jq -cS -n --arg sox "$(vb_tool_version sox)" '{sox:$sox}')
+TOOLS=$(jq -cS -n --arg sox "$(gb_tool_version sox)" '{sox:$sox}')
 
-vb_begin sonify "$INPUT" "$PARAMS" "$TOOLS"
-OUTPUT=${OUTPUT:-$VB_RUN_DIR/out.bmp}
+gb_begin sonify "$INPUT" "$PARAMS" "$TOOLS"
+OUTPUT=${OUTPUT:-$GB_RUN_DIR/out.bmp}
 
-HEADER="$VB_RUN_DIR/header.bin"
-PIXELS="$VB_RUN_DIR/pixels.raw"
-GLITCHED="$VB_RUN_DIR/glitched.raw"
+HEADER="$GB_RUN_DIR/header.bin"
+PIXELS="$GB_RUN_DIR/pixels.raw"
+GLITCHED="$GB_RUN_DIR/glitched.raw"
 
 head -c "$DATA_OFFSET" "$INPUT" > "$HEADER"
 tail -c "+$((DATA_OFFSET + 1))" "$INPUT" > "$PIXELS"
 PIXEL_BYTES=$(wc -c < "$PIXELS")
 
-vb_log "sox: ${BITS}-bit $ENCODING ${CHANNELS}ch @ ${RATE}Hz — $EFFECT"
+gb_log "sox: ${BITS}-bit $ENCODING ${CHANNELS}ch @ ${RATE}Hz — $EFFECT"
 # shellcheck disable=SC2086  # $EFFECT is an intentional multi-word effect chain
 sox -D -t raw -r "$RATE" -e "$ENCODING" -b "$BITS" -c "$CHANNELS" "$PIXELS" \
     -t raw -r "$RATE" -e "$ENCODING" -b "$BITS" -c "$CHANNELS" "$GLITCHED" \
@@ -101,9 +102,9 @@ sox -D -t raw -r "$RATE" -e "$ENCODING" -b "$BITS" -c "$CHANNELS" "$PIXELS" \
 head -c "$PIXEL_BYTES" "$GLITCHED" > "$GLITCHED.fit"
 ACTUAL=$(wc -c < "$GLITCHED.fit")
 if [ "$ACTUAL" -lt "$PIXEL_BYTES" ]; then
-  vb_log "padding $((PIXEL_BYTES - ACTUAL)) bytes (effect shortened the stream)"
+  gb_log "padding $((PIXEL_BYTES - ACTUAL)) bytes (effect shortened the stream)"
   dd if=/dev/zero bs=1 count=$((PIXEL_BYTES - ACTUAL)) >> "$GLITCHED.fit" 2>/dev/null
 fi
 
 cat "$HEADER" "$GLITCHED.fit" > "$OUTPUT"
-vb_finish "$OUTPUT"
+gb_finish "$OUTPUT"

@@ -1,48 +1,37 @@
 #!/usr/bin/env bash
-# videobed — shared pipeline helpers.
+# glitchbox — shared pipeline helpers.
 #
-# Sourced by every pipeline. Provides: platform guards, a bit-exact ffmpeg
+# Sourced by every pipeline. Provides: a tool guard, a bit-exact ffmpeg
 # wrapper, content-addressed run IDs, and manifest emission.
 
 set -euo pipefail
 
-VB_SCHEMA=1
+GB_SCHEMA=2
 
-vb_die() { printf 'error: %s\n' "$*" >&2; exit 1; }
-vb_log() { [ -n "${VB_QUIET:-}" ] || printf '  %s\n' "$*" >&2; }
+gb_die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+gb_log() { [ -n "${GB_QUIET:-}" ] || printf '  %s\n' "$*" >&2; }
 
-vb_root() {
-  # $VIDEOBED_ROOT is exported by the devshell; fall back to the script's parent.
-  printf '%s' "${VIDEOBED_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+gb_root() {
+  # $GLITCHBOX_ROOT comes from the toolchain environment; fall back to the script's parent.
+  printf '%s' "${GLITCHBOX_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 }
 
 # ---------------------------------------------------------------------------
-# Platform guards
+# Tool guard
 #
-# Some tools are genuinely unavailable on aarch64-darwin (glslviewer, csound and
-# supercollider are all broken or linux-only in nixpkgs). Refuse loudly with the
-# reason rather than emitting a confusing "command not found" three steps in.
+# Every tool comes from the Glitchbox toolchain (build/Glitchbox.app, or the
+# installed app). Refuse loudly rather than emitting a confusing "command not
+# found" three steps in.
 # ---------------------------------------------------------------------------
-vb_require_cmd() {
-  local cmd=$1 why=${2:-}
-  command -v "$cmd" >/dev/null 2>&1 && return 0
-  if [ -n "$why" ]; then
-    vb_die "'$cmd' is not available on ${VIDEOBED_PLATFORM:-this platform}: $why"
-  fi
-  vb_die "'$cmd' not found — are you inside \`nix develop\`?"
-}
-
-vb_require_linux() {
-  case "${VIDEOBED_PLATFORM:-$(uname -s)}" in
-    *linux*|Linux) : ;;
-    *) vb_die "$1" ;;
-  esac
+gb_require_cmd() {
+  command -v "$1" >/dev/null 2>&1 && return 0
+  gb_die "'$1' not found — run inside the Glitchbox toolchain (\`just shell\`, after \`just app\`)"
 }
 
 # ---------------------------------------------------------------------------
 # Bit-exact ffmpeg
 #
-# Usage:  vb_ffmpeg <input args...> -- <output args...> <outfile>
+# Usage:  gb_ffmpeg <input args...> -- <output args...> <outfile>
 #
 # The determinism flags MUST land after the input, as output options. Placed
 # before -i they bind to the input AVFormatContext, are silently accepted, and
@@ -50,14 +39,14 @@ vb_require_linux() {
 # DateUTC). Verified: 43 differing bytes before the fix, 0 after. Routing every
 # call through here is what stops that from being a per-call-site footgun.
 # ---------------------------------------------------------------------------
-vb_ffmpeg() {
+gb_ffmpeg() {
   local -a in=() out=(); local seen=0 a
   for a in "$@"; do
     if [ "$a" = "--" ] && [ $seen -eq 0 ]; then seen=1; continue; fi
     if [ $seen -eq 0 ]; then in+=("$a"); else out+=("$a"); fi
   done
-  [ $seen -eq 1 ] || vb_die "vb_ffmpeg: missing '--' separating input from output args"
-  ffmpeg -hide_banner -nostdin -loglevel "${VB_LOGLEVEL:-error}" \
+  [ $seen -eq 1 ] || gb_die "gb_ffmpeg: missing '--' separating input from output args"
+  ffmpeg -hide_banner -nostdin -loglevel "${GB_LOGLEVEL:-error}" \
     "${in[@]}" \
     -fflags +bitexact -flags:v +bitexact -map_metadata -1 -map_chapters -1 \
     "${out[@]}"
@@ -66,29 +55,26 @@ vb_ffmpeg() {
 # ---------------------------------------------------------------------------
 # Hashing / provenance
 # ---------------------------------------------------------------------------
-vb_sha256() { sha256sum "$1" | cut -d' ' -f1; }
+gb_sha256() { sha256sum "$1" | cut -d' ' -f1; }
 
-vb_tool_version() {
+gb_tool_version() {
   # Best-effort single-line version string for a tool, or "absent".
   command -v "$1" >/dev/null 2>&1 || { printf 'absent'; return; }
   case "$1" in
     ffmpeg|ffgac|ffedit|fflive) "$1" -version 2>&1 | head -1 ;;
     sox)                       sox --version 2>&1 | head -1 ;;
     ntsc-rs-cli)               ntsc-rs-cli --version 2>&1 | head -1 ;;
-    glslViewer)                glslViewer --version 2>&1 | head -1 ;;
     *)                         "$1" --version 2>&1 | head -1 ;;
   esac
 }
 
-# Locked input revisions, read straight out of flake.lock. No `nix` invocation,
-# no network — this stays correct and offline even years later.
-vb_flake_locks() {
-  local lock; lock="$(vb_root)/flake.lock"
-  [ -f "$lock" ] || { printf '{}'; return; }
-  jq -c '[.nodes | to_entries[]
-          | select(.value.locked != null)
-          | {key: .key, value: (.value.locked.rev // .value.locked.narHash)}]
-         | from_entries' "$lock"
+# The toolchain's identity: a digest over every pinned source and the build
+# script (Resources/toolchain.json, written by packaging/build.sh). Offline and
+# stable for as long as the toolchain is.
+gb_toolchain() {
+  local tc="${GLITCHBOX_TOOLCHAIN:-}/Resources/toolchain.json"
+  [ -f "$tc" ] || { printf '{}'; return; }
+  jq -cS '{digest, tools}' "$tc"
 }
 
 # ---------------------------------------------------------------------------
@@ -97,46 +83,46 @@ vb_flake_locks() {
 # The run ID is a content hash of everything that can affect the bytes: the
 # pipeline, the input's digest, the fully-resolved parameters (defaults
 # included, so an implicit default and an explicit one collide correctly), the
-# tool versions, and the locked flake inputs. Same inputs => same directory =>
+# tool versions, and the toolchain digest. Same inputs => same directory =>
 # re-running is idempotent and the artifact is regenerable from the manifest.
 #
 # The timestamp is deliberately NOT part of this.
 # ---------------------------------------------------------------------------
-vb_begin() {
-  VB_PIPELINE=$1; VB_INPUT=$2; VB_PARAMS=$3; VB_TOOLS=$4
+gb_begin() {
+  GB_PIPELINE=$1; GB_INPUT=$2; GB_PARAMS=$3; GB_TOOLS=$4
 
-  [ -f "$VB_INPUT" ] || vb_die "input not found: $VB_INPUT"
-  VB_INPUT_SHA=$(vb_sha256 "$VB_INPUT")
-  VB_LOCKS=$(vb_flake_locks)
+  [ -f "$GB_INPUT" ] || gb_die "input not found: $GB_INPUT"
+  GB_INPUT_SHA=$(gb_sha256 "$GB_INPUT")
+  GB_TOOLCHAIN=$(gb_toolchain)
 
-  VB_IDENTITY=$(jq -cS -n \
-    --arg schema "$VB_SCHEMA" \
-    --arg pipeline "$VB_PIPELINE" \
-    --arg input_sha256 "$VB_INPUT_SHA" \
-    --argjson params "$VB_PARAMS" \
-    --argjson tools "$VB_TOOLS" \
-    --argjson locks "$VB_LOCKS" \
-    '{schema:$schema,pipeline:$pipeline,input_sha256:$input_sha256,params:$params,tools:$tools,locks:$locks}')
+  GB_IDENTITY=$(jq -cS -n \
+    --arg schema "$GB_SCHEMA" \
+    --arg pipeline "$GB_PIPELINE" \
+    --arg input_sha256 "$GB_INPUT_SHA" \
+    --argjson params "$GB_PARAMS" \
+    --argjson tools "$GB_TOOLS" \
+    --argjson toolchain "$GB_TOOLCHAIN" \
+    '{schema:$schema,pipeline:$pipeline,input_sha256:$input_sha256,params:$params,tools:$tools,toolchain:$toolchain}')
 
-  VB_RUN_ID=$(printf '%s' "$VB_IDENTITY" | sha256sum | cut -c1-12)
-  VB_RUN_DIR="${VB_OUT_DIR:-$(vb_root)/out}/${VB_PIPELINE}-${VB_RUN_ID}"
-  mkdir -p "$VB_RUN_DIR"
-  vb_log "run ${VB_PIPELINE}-${VB_RUN_ID} -> ${VB_RUN_DIR#$(vb_root)/}"
+  GB_RUN_ID=$(printf '%s' "$GB_IDENTITY" | sha256sum | cut -c1-12)
+  GB_RUN_DIR="${GB_OUT_DIR:-$(gb_root)/out}/${GB_PIPELINE}-${GB_RUN_ID}"
+  mkdir -p "$GB_RUN_DIR"
+  gb_log "run ${GB_PIPELINE}-${GB_RUN_ID} -> ${GB_RUN_DIR#$(gb_root)/}"
 }
 
-vb_finish() {
+gb_finish() {
   local output=$1
-  [ -f "$output" ] || vb_die "expected output missing: $output"
+  [ -f "$output" ] || gb_die "expected output missing: $output"
   jq -S -n \
-    --argjson identity "$VB_IDENTITY" \
-    --arg input "$(basename "$VB_INPUT")" \
+    --argjson identity "$GB_IDENTITY" \
+    --arg input "$(basename "$GB_INPUT")" \
     --arg output "$(basename "$output")" \
-    --arg output_sha256 "$(vb_sha256 "$output")" \
-    --arg run_id "$VB_RUN_ID" \
+    --arg output_sha256 "$(gb_sha256 "$output")" \
+    --arg run_id "$GB_RUN_ID" \
     --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     '$identity + {run_id:$run_id, input:$input, output:$output,
                   output_sha256:$output_sha256, generated_at:$generated_at}' \
-    > "$VB_RUN_DIR/manifest.json"
-  vb_log "manifest ${VB_RUN_DIR#$(vb_root)/}/manifest.json"
+    > "$GB_RUN_DIR/manifest.json"
+  gb_log "manifest ${GB_RUN_DIR#$(gb_root)/}/manifest.json"
   printf '%s\n' "$output"
 }

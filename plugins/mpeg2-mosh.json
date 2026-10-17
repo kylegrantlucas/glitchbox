@@ -86,11 +86,11 @@
   "steps" : [
     {
       "name" : "encode",
-      "script" : "gop=$VB_P_GOP\n[ \"$gop\" -gt 0 ] || gop=max\nffgac -hide_banner -nostdin -loglevel error -y -i \"$VB_IN\" -an \\\n  -mpv_flags +nopimb+forcemv -qscale:v \"$VB_P_QSCALE\" -g \"$gop\" -bf 0 -sc_threshold max \\\n  -vcodec mpeg2video -f rawvideo \"$VB_WORK/enc.mpg\"\n"
+      "script" : "gop=$GB_P_GOP\n[ \"$gop\" -gt 0 ] || gop=max\nffgac -hide_banner -nostdin -loglevel error -y -i \"$GB_IN\" -an \\\n  -mpv_flags +nopimb+forcemv -qscale:v \"$GB_P_QSCALE\" -g \"$gop\" -bf 0 -sc_threshold max \\\n  -vcodec mpeg2video -f rawvideo \"$GB_WORK/enc.mpg\"\n"
     },
     {
       "name" : "mosh",
-      "script" : "ffedit -i \"$VB_WORK/enc.mpg\" -f mv -s \"$VB_ROOT/scripts/mosh.js\" \\\n  -sp \"$(jq -c '{tail, h_scale, v_scale, pan_x, pan_y}' \"$VB_PARAMS\")\" -o \"$VB_WORK/mosh.mpg\"\n"
+      "script" : "ffedit -i \"$GB_WORK/enc.mpg\" -f mv -s \"$GB_ROOT/scripts/mosh.js\" \\\n  -sp \"$(jq -c '{tail, h_scale, v_scale, pan_x, pan_y}' \"$GB_PARAMS\")\" -o \"$GB_WORK/mosh.mpg\"\n"
     },
     {
       "argv" : [

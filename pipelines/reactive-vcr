@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# reactive-vcr — audio-reactive VHS/NTSC effect via reactive-vcr (ntsc-rs core).
+# reactive-vcr — audio-reactive VHS/NTSC effect via reactive-vcr (ntsc-rs core, GStreamer I/O).
 #
 # INPUT is the video; --audio is the separate audio track that drives the
 # effect. Both are required — there is no single-file mode.
@@ -11,12 +11,11 @@
 #   manifest instead — change the seed, change the mapping, change the run ID.
 #
 # ON THE REMUX:
-#   reactive-vcr renders through the same ntsc-rs core as analog-pass, whose
-#   GStreamer muxer writes a random SegmentUID (see README's Reproducibility
-#   notes). Applying the same fix here as a precaution: render to a raw
-#   intermediate and remux through the bit-exact ffmpeg wrapper with a stream
-#   copy. Unlike that entry, this has NOT been confirmed by a verify-repro run
-#   in this repo — no sample media was available to test against.
+#   reactive-vcr renders through GStreamer's matroskamux, like analog-pass and
+#   bend, so two identical runs give identical frames (framemd5) in containers
+#   with different bytes (random SegmentUID). Render a lossless FFV1+FLAC
+#   intermediate and remux it through the bit-exact ffmpeg wrapper with a
+#   stream copy.
 #
 # Knobs that matter:
 #   --audio F       Audio track that drives the effect. Required.
@@ -29,7 +28,7 @@
 
 AUDIO="" MAP="" AUDIO_MODE="mix" INPUT="" OUTPUT="" CHECK=""
 
-usage() { sed -n '2,26p' "$0" | sed 's/^# \?//'; exit "${1:-0}"; }
+usage() { sed -n '2,26p' "$0" | sed -E 's/^# ?//'; exit "${1:-0}"; }
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -39,53 +38,53 @@ while [ $# -gt 0 ]; do
     -o|--output)  OUTPUT=$2; shift 2 ;;
     --check)      CHECK=1; shift ;;
     -h|--help)    usage 0 ;;
-    -*) vb_die "unknown flag: $1" ;;
+    -*) gb_die "unknown flag: $1" ;;
     *)  INPUT=$1; shift ;;
   esac
 done
 
-# This pipeline shares its name with the tool and sits first on the devshell
-# PATH, so a bare `reactive-vcr` would re-enter this script. Resolve past it.
+# This pipeline shares its name with the tool, and both are on the toolchain
+# PATH, so a bare `reactive-vcr` could re-enter this script. Resolve past it.
 SELF=$(readlink -f "${BASH_SOURCE[0]}") RVCR=""
 while IFS= read -r cand; do
   [ "$(readlink -f "$cand")" = "$SELF" ] && continue
   RVCR=$cand; break
 done < <(type -ap reactive-vcr)
-[ -n "$RVCR" ] || vb_die "'reactive-vcr' not found — are you inside \`nix develop\`?"
-vb_require_cmd ffmpeg
+[ -n "$RVCR" ] || gb_die "'reactive-vcr' not found — run inside the Glitchbox toolchain (\`just shell\`, after \`just app\`)"
+gb_require_cmd ffmpeg
 [ -n "$CHECK" ] && exit 0
 
 [ -n "$INPUT" ] || usage 1
-[ -n "$AUDIO" ] || vb_die "--audio is required"
-[ -f "$AUDIO" ] || vb_die "audio not found: $AUDIO"
-MAP=${MAP:-$(vb_root)/presets/reactive-vcr.toml}
-[ -f "$MAP" ] || vb_die "map not found: $MAP"
+[ -n "$AUDIO" ] || gb_die "--audio is required"
+[ -f "$AUDIO" ] || gb_die "audio not found: $AUDIO"
+MAP=${MAP:-$(gb_root)/presets/reactive-vcr.toml}
+[ -f "$MAP" ] || gb_die "map not found: $MAP"
 
 PARAMS=$(jq -cS -n \
   --arg audio "$(basename "$AUDIO")" \
-  --arg audio_sha256 "$(vb_sha256 "$AUDIO")" \
+  --arg audio_sha256 "$(gb_sha256 "$AUDIO")" \
   --arg map "$(basename "$MAP")" \
-  --arg map_sha256 "$(vb_sha256 "$MAP")" \
+  --arg map_sha256 "$(gb_sha256 "$MAP")" \
   --arg audio_mode "$AUDIO_MODE" \
   '{audio:$audio,audio_sha256:$audio_sha256,map:$map,map_sha256:$map_sha256,audio_mode:$audio_mode}')
 
 TOOLS=$(jq -cS -n \
-  --arg rvcr "$(vb_tool_version "$RVCR")" \
-  --arg ffmpeg "$(vb_tool_version ffmpeg)" \
+  --arg rvcr "$(gb_tool_version "$RVCR")" \
+  --arg ffmpeg "$(gb_tool_version ffmpeg)" \
   '{"reactive-vcr":$rvcr,ffmpeg:$ffmpeg}')
 
-vb_begin reactive-vcr "$INPUT" "$PARAMS" "$TOOLS"
-OUTPUT=${OUTPUT:-$VB_RUN_DIR/out.mkv}
+gb_begin reactive-vcr "$INPUT" "$PARAMS" "$TOOLS"
+OUTPUT=${OUTPUT:-$GB_RUN_DIR/out.mkv}
 
-RAW="$VB_RUN_DIR/stage1-rvcr.mp4"
+RAW="$GB_RUN_DIR/stage1-rvcr.mkv"
 
-vb_log "reactive-vcr: map=$(basename "$MAP") audio-mode=$AUDIO_MODE"
+gb_log "reactive-vcr: map=$(basename "$MAP") audio-mode=$AUDIO_MODE"
 "$RVCR" render \
   --video "$INPUT" --audio "$AUDIO" --map "$MAP" \
   --audio-mode "$AUDIO_MODE" --output "$RAW" \
-  || vb_die "reactive-vcr render failed"
+  || gb_die "reactive-vcr render failed"
 
-vb_log "remux: bit-exact container"
-vb_ffmpeg -i "$RAW" -- -c:v copy -c:a copy -y "$OUTPUT"
+gb_log "remux: bit-exact container"
+gb_ffmpeg -i "$RAW" -- -c:v copy -c:a copy -y "$OUTPUT"
 
-vb_finish "$OUTPUT"
+gb_finish "$OUTPUT"

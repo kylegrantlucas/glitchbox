@@ -15,7 +15,10 @@ work    := here + "/work"
 out     := justfile_directory() + "/out"
 scripts := justfile_directory() + "/scripts"
 filters := here + "/filters"
-# ffglitch 0.10.2 comes from the videobed devShell (pkgs/ffglitch.nix).
+# ffmpeg and ffglitch 0.10.2 come from the Glitchbox toolchain (`just app` at the
+# repo root builds it); its Helpers dir goes first on PATH.
+helpers := here / "../build/Glitchbox.app/Contents/Helpers"
+export PATH := helpers + ":" + env_var("PATH")
 ffedit  := "ffedit"
 ffgac   := "ffgac"
 

@@ -1,0 +1,107 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "linear-gradient": [
+          "display-p3:0.16,0.22,0.95,1.0",
+          "display-p3:0.06,0.09,0.58,1.0"
+        ],
+        "orientation": {
+          "start": {
+            "x": 0.5,
+            "y": 0
+          },
+          "stop": {
+            "x": 0.5,
+            "y": 1
+          }
+        }
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "linear-gradient": [
+          "display-p3:0.07,0.09,0.42,1.0",
+          "display-p3:0.02,0.03,0.16,1.0"
+        ],
+        "orientation": {
+          "start": {
+            "x": 0.5,
+            "y": 0
+          },
+          "stop": {
+            "x": 0.5,
+            "y": 1
+          }
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Smear",
+      "layers": [
+        {
+          "name": "blocks",
+          "image-name": "blocks.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.3
+      }
+    },
+    {
+      "name": "Box",
+      "layers": [
+        {
+          "name": "cube",
+          "image-name": "cube.svg",
+          "glass": true
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.2
+      }
+    },
+    {
+      "name": "Channel offset",
+      "layers": [
+        {
+          "name": "ghost-red",
+          "image-name": "ghost-red.svg",
+          "glass": false
+        },
+        {
+          "name": "ghost-cyan",
+          "image-name": "ghost-cyan.svg",
+          "glass": false
+        }
+      ],
+      "shadow": {
+        "kind": "none",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

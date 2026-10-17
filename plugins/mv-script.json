@@ -117,11 +117,11 @@
   "steps" : [
     {
       "name" : "encode",
-      "script" : "gop=$VB_P_GOP\n[ \"$gop\" -gt 0 ] || gop=max\nffgac -hide_banner -nostdin -loglevel error -y -i \"$VB_IN\" -an \\\n  -mpv_flags +nopimb+forcemv -qscale:v \"$VB_P_QSCALE\" -g \"$gop\" -bf 0 -sc_threshold max \\\n  -vcodec mpeg2video -f rawvideo \"$VB_WORK/enc.mpg\"\n"
+      "script" : "gop=$GB_P_GOP\n[ \"$gop\" -gt 0 ] || gop=max\nffgac -hide_banner -nostdin -loglevel error -y -i \"$GB_IN\" -an \\\n  -mpv_flags +nopimb+forcemv -qscale:v \"$GB_P_QSCALE\" -g \"$gop\" -bf 0 -sc_threshold max \\\n  -vcodec mpeg2video -f rawvideo \"$GB_WORK/enc.mpg\"\n"
     },
     {
       "name" : "mosh",
-      "script" : "args=()\nif [ \"$VB_P_AMOUNT\" -ne 0 ]; then args=(-sp \"$VB_P_AMOUNT\"); fi\nffedit -i \"$VB_WORK/enc.mpg\" -f mv \\\n  -s \"$FFGLITCH_SCRIPTS/free-for-all/dd-glitch-assist-scriptsv10/instant_damage/$VB_P_SCRIPT\" \\\n  \"${args[@]}\" -o \"$VB_WORK/mosh.mpg\"\n"
+      "script" : "args=()\nif [ \"$GB_P_AMOUNT\" -ne 0 ]; then args=(-sp \"$GB_P_AMOUNT\"); fi\nffedit -i \"$GB_WORK/enc.mpg\" -f mv \\\n  -s \"$FFGLITCH_SCRIPTS/free-for-all/dd-glitch-assist-scriptsv10/instant_damage/$GB_P_SCRIPT\" \\\n  \"${args[@]}\" -o \"$GB_WORK/mosh.mpg\"\n"
     },
     {
       "argv" : [
@@ -148,5 +148,5 @@
       "name" : "decode"
     }
   ],
-  "summary" : "Forced-MV MPEG-2 encode + one of the deterministic DD-GlitchAssist ffedit scripts from $FFGLITCH_SCRIPTS (pinned by flake.lock)."
+  "summary" : "Forced-MV MPEG-2 encode + one of the deterministic DD-GlitchAssist ffedit scripts from $FFGLITCH_SCRIPTS (pinned in the bundled toolchain)."
 }

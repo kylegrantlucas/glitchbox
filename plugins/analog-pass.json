@@ -698,7 +698,7 @@
   "steps" : [
     {
       "name" : "ntsc",
-      "script" : "# Build an ntsc-rs settings preset from the layer params: enum values arrive as\n# strings (\"2\") and ntsc-rs wants numbers; seed and scale are pipeline flags.\njq -c 'del(.seed, .scale)\n  | with_entries(if (.value | type) == \"string\" then .value |= tonumber else . end)\n  | . + {version: 1}' \"$VB_PARAMS\" > \"$VB_WORK/settings.json\"\nargs=(--seed \"$VB_P_SEED\" --preset \"$VB_WORK/settings.json\" -o \"$VB_OUT\")\nif [ \"$VB_P_SCALE\" -gt 0 ]; then args+=(--scale \"$VB_P_SCALE\"); fi\nanalog-pass \"${args[@]}\" \"$VB_IN\"\n"
+      "script" : "# Build an ntsc-rs settings preset from the layer params: enum values arrive as\n# strings (\"2\") and ntsc-rs wants numbers; seed and scale are pipeline flags.\njq -c 'del(.seed, .scale)\n  | with_entries(if (.value | type) == \"string\" then .value |= tonumber else . end)\n  | . + {version: 1}' \"$GB_PARAMS\" > \"$GB_WORK/settings.json\"\nargs=(--seed \"$GB_P_SEED\" --preset \"$GB_WORK/settings.json\" -o \"$GB_OUT\")\nif [ \"$GB_P_SCALE\" -gt 0 ]; then args+=(--scale \"$GB_P_SCALE\"); fi\nanalog-pass \"${args[@]}\" \"$GB_IN\"\n"
     }
   ],
   "summary" : "NTSC/VHS analog simulation via ntsc-rs (pipelines/analog-pass) with every ntsc-rs setting exposed. Defaults reproduce presets/vhs.json exactly (ntsc-rs legacy values fill keys that preset omits)."
