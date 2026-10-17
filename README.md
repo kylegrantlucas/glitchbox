@@ -21,6 +21,7 @@ Verified against nixpkgs `nixos-26.05` @ `062346a6`.
 | `mv-mangle` (FFglitch) | prebuilt wrap | built from source |
 | `analog-pass` (ntsc-rs) | source build | source build |
 | `reactive-vcr` (ntsc-rs core, audio-reactive) | prebuilt release | prebuilt release |
+| `bend` (bender-rs) | source build | source build (unverified) |
 | `sonify` (SoX) | yes | yes |
 | `shader-feedback` (glslViewer) | **no** | yes, via `xvfb-run` |
 | ffmpeg frei0r / geq / lagfun / tblend / datascope | yes | yes |
@@ -47,6 +48,10 @@ while still producing plausible-looking output:
   `random_seed` gives identical pixels (verified via `framemd5`) inside a
   container that differs by 28 bytes per run. `analog-pass` therefore always
   remuxes through `vb_ffmpeg` with a stream copy — lossless, and deterministic.
+- **bender renders deterministically but muxes through the same GStreamer
+  matroskamux.** `bend` records the fully resolved settings (`bender
+  --dump-preset` of preset + `--set` + seed) in the run identity and remuxes the
+  same way; two runs into separate trees are byte-identical.
 - **SoX auto-dithers, and its dither is unseedable.** `sonify` passes `-D`.
   Without it, two identical runs differ every time.
 - **QuickJS cannot seed `Math.random()`.** `scripts/mv-shuffle.js` uses an
@@ -63,9 +68,9 @@ per-stage, so a regression names the stage that lost determinism.
 
 ```
 flake.nix              devShells / packages / apps, flake-utils
-pkgs/                  ffglitch, ntsc-rs-cli, glslviewer-headless
+pkgs/                  ffglitch, ntsc-rs-cli, bender-cli, reactive-vcr, glslviewer-headless
 pipelines/_lib.sh      guards, vb_ffmpeg, run IDs, manifests
-pipelines/*            mv-mangle, analog-pass, reactive-vcr, sonify, shader-feedback
+pipelines/*            mv-mangle, analog-pass, reactive-vcr, bend, sonify, shader-feedback
 scripts/mv-shuffle.js  seeded ffedit motion-vector script
 presets/vhs.json       ntsc-rs effect preset
 presets/reactive-vcr.toml  audio-reactive mapping for [reactive-vcr](https://kylegrantlucas.github.io/reactive-vcr/)
@@ -109,8 +114,11 @@ just plug render --chain analog-mosh-vhs --duration 3 --height 240 in.mp4
   (same trim) as `audio.wav`; later layers get it as `{source_audio}`. Layers
   pass FFV1 `.mkv` along.
 - Plugins: `analog-pass` (every ntsc-rs setting; defaults reproduce
-  `presets/vhs.json` frame-for-frame), `mpeg2-mosh` (`scripts/mosh.js`: average
-  window, axis scales, drift; presets for sink-and-rise and pan), `mv-script`
+  `presets/vhs.json` frame-for-frame), `bender` (every bender-rs 0.2 stage and
+  setting via `pipelines/bend`, plus stage order; defaults and Presets are
+  bender's bundled presets, frame-identical to `bend --preset`), `mpeg2-mosh`
+  (`scripts/mosh.js`: average window, axis scales, drift; presets for
+  sink-and-rise and pan), `mv-script`
   (deterministic DD-GlitchAssist ffedit scripts), `mv-mangle`, `reactive-vcr`
   (uses the source's audio unless a file is chosen), `vhs-filter`, ffmpeg
   effects (`trails`, `frame-blend`, `datascope`, `rgb-split`, `pixel-smear`,
@@ -122,15 +130,20 @@ just plug render --chain analog-mosh-vhs --duration 3 --height 240 in.mp4
   and asset digests, and `flake.lock`. Editing one layer re-renders only it and the
   layers below. Failed layers keep their log in `<id>-<key>.failed/`.
 - The app captures the `nix develop` environment once per flake revision
-  (`out/studio/devshell-*.env0`, progress in `out/studio/devshell.log`); the CLI
-  uses its own environment when already inside the devshell. The first run may
-  build ntsc-rs from source.
+  (`out/studio/devshell-*.env0`, progress in `out/studio/devshell.log`) and
+  records it as a nix profile, `out/studio/devshell-profile`, which is a GC root
+  for the tools. A cache whose store paths were collected anyway is re-captured.
+  The CLI uses its own environment when already inside the devshell. The first
+  run may build ntsc-rs from source.
 - Studio renders are best-effort reproducible, like `glitch-loop/`; they are not
   covered by `just verify-repro`. Clear the cache with **Render → Clear Render
   Cache…** or `just plug clean`.
 
 ## Known gaps
 
+- `bender-cli` builds with bender-rs's own locked nixpkgs, because it needs
+  Rust ≥ 1.96 and this flake's nixpkgs ships 1.95. Its `x86_64-linux` build is
+  unverified for the same reason as FFglitch's: no Linux builder here.
 - The `x86_64-linux` FFglitch derivation builds from source and has **not** been
   built on a Linux host — this machine has no remote Linux builder. It
   instantiates and its `installCheckPhase` asserts `forcemv`, `nopimb`, and `-sp`

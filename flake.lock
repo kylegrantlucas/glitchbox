@@ -1,5 +1,24 @@
 {
   "nodes": {
+    "bender-rs": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1792254994,
+        "narHash": "sha256-WdhgwARq6kUaWM45lr4ifXbgt41Q0zN/V9t0/0m8nlo=",
+        "owner": "kylegrantlucas",
+        "repo": "bender-rs",
+        "rev": "e5b754c2bbea7ab924c078f857241c7a23c17ea1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "kylegrantlucas",
+        "ref": "v0.2.0",
+        "repo": "bender-rs",
+        "type": "github"
+      }
+    },
     "ffglitch-scripts": {
       "flake": false,
       "locked": {
@@ -36,6 +55,22 @@
     },
     "nixpkgs": {
       "locked": {
+        "lastModified": 1791956154,
+        "narHash": "sha256-jBYGPi4udQ9uo4KQp9m2J0546nJVQitG15gvZSaVVAs=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "55bfb4d7437bd4e09ab7cba58a43bd68eb310044",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
         "lastModified": 1787753485,
         "narHash": "sha256-BZWCi9ZRJiARTuKTbbtvFTj7t1TK4G3UEckT3HyNfRg=",
         "owner": "NixOS",
@@ -69,9 +104,10 @@
     },
     "root": {
       "inputs": {
+        "bender-rs": "bender-rs",
         "ffglitch-scripts": "ffglitch-scripts",
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs",
+        "nixpkgs": "nixpkgs_2",
         "ntsc-rs-src": "ntsc-rs-src"
       }
     },

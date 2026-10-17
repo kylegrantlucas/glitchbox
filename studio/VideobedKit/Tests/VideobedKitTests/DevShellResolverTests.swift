@@ -8,4 +8,10 @@ struct DevShellResolverTests {
         let env = DevShellResolver.parseEnv0(Data(raw.utf8))
         #expect(env == ["PATH": "/a:/b", "OPTS": "a=b=c", "EMPTY": ""])
     }
+
+    @Test func cacheWithCollectedStorePathsIsStale() {
+        #expect(!DevShellResolver.storePathsExist(["PATH": "/usr/bin:/nix/store/00000000000000000000000000000000-gone/bin"]))
+        // Only store paths are checked; ordinary PATH entries may legitimately be absent.
+        #expect(DevShellResolver.storePathsExist(["PATH": "/usr/bin:/opt/not-installed/bin"]))
+    }
 }

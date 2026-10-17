@@ -1,0 +1,1707 @@
+{
+  "assets" : [],
+  "id" : "bender",
+  "name" : "Circuit Bend",
+  "params" : [
+    {
+      "default" : 21,
+      "group" : "General",
+      "help" : "Random pattern for the same settings",
+      "key" : "seed",
+      "label" : "Seed",
+      "max" : 2147483647,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "General",
+      "help" : "Processing height in lines; 0 = keep the layer's size. Pixel- and row-sized settings scale with it",
+      "key" : "scanlines",
+      "label" : "Scanlines",
+      "max" : 2160,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : "",
+      "group" : "General",
+      "help" : "Comma-separated stage ids to run first; the rest follow in default order: sensor, retina, isp, tape, sync, clock, data, dct, mosh, hold, counter, address_a, address_b, colorize, invert, rail, osc, burst, bleed, composite, scan, feedback",
+      "key" : "order",
+      "label" : "Stage order",
+      "type" : "string"
+    },
+    {
+      "default" : false,
+      "group" : "Image sensor",
+      "help" : "Switch the Image sensor bend into the chain.",
+      "key" : "sensor__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.5,
+      "group" : "Image sensor",
+      "help" : "Rolling-shutter readout time: upper rows blend toward the previous frame.",
+      "key" : "sensor__skew",
+      "label" : "Skew",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Image sensor",
+      "help" : "Readout clock slip: rows below a moving split come from the previous frame; 1 = 5% of height per frame.",
+      "key" : "sensor__slip",
+      "label" : "Slip",
+      "max" : 1.0,
+      "min" : -1.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Image sensor",
+      "help" : "Rolling exposure under mains lighting: crawling horizontal bands.",
+      "key" : "sensor__flicker",
+      "label" : "Flicker",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.3,
+      "group" : "Image sensor",
+      "help" : "CCD vertical smear: full-height stripes through highlights.",
+      "key" : "sensor__smear",
+      "label" : "Smear",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.2,
+      "group" : "Image sensor",
+      "help" : "Charge overflow spreading vertically from highlights.",
+      "key" : "sensor__bloom",
+      "label" : "Bloom",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : "off",
+      "group" : "Image sensor",
+      "help" : "Colour-filter phase error between sensor and demosaic.",
+      "key" : "sensor__bayer",
+      "label" : "Bayer phase",
+      "labels" : [
+        "Off",
+        "Shifted 1 px",
+        "Shifted 1 row",
+        "Shifted both"
+      ],
+      "options" : [
+        "off",
+        "horizontal",
+        "vertical",
+        "diagonal"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 0.1,
+      "group" : "Image sensor",
+      "help" : "Column fixed-pattern gain and per-frame row noise.",
+      "key" : "sensor__fpn",
+      "label" : "Pattern noise",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Retina camera",
+      "help" : "Switch the Retina camera bend into the chain.",
+      "key" : "retina__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 112,
+      "group" : "Retina camera",
+      "help" : "Sensor rows across the picture height.",
+      "key" : "retina__resolution",
+      "label" : "Resolution",
+      "max" : 240,
+      "min" : 16,
+      "type" : "int"
+    },
+    {
+      "default" : "two_d",
+      "group" : "Retina camera",
+      "help" : "Edge-enhancement filter of the sensor.",
+      "key" : "retina__edge_mode",
+      "label" : "Edge mode",
+      "labels" : [
+        "2-D",
+        "Horizontal",
+        "Off"
+      ],
+      "options" : [
+        "two_d",
+        "horizontal",
+        "off"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 2,
+      "group" : "Retina camera",
+      "help" : "Edge ratio register; α = 0.5, 0.75, 1, 1.25, 2, 3, 4, 5.",
+      "key" : "retina__edge",
+      "label" : "Edge ratio",
+      "max" : 7,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 4,
+      "group" : "Retina camera",
+      "help" : "Output grey levels.",
+      "key" : "retina__levels",
+      "label" : "Levels",
+      "max" : 16,
+      "min" : 2,
+      "type" : "int"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Retina camera",
+      "help" : "Strength of the 4×4 ordered-dither thresholds.",
+      "key" : "retina__dither",
+      "label" : "Dither",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Retina camera",
+      "help" : "Slowed read clock: exposure grows down the frame.",
+      "key" : "retina__read_slow",
+      "label" : "Slow read",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Retina camera",
+      "help" : "Sensor invert bit.",
+      "key" : "retina__invert",
+      "label" : "Invert",
+      "type" : "bool"
+    },
+    {
+      "default" : "dmg",
+      "group" : "Retina camera",
+      "help" : "Display palette.",
+      "key" : "retina__palette",
+      "label" : "Palette",
+      "labels" : [
+        "DMG green",
+        "Grey"
+      ],
+      "options" : [
+        "dmg",
+        "grey"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : false,
+      "group" : "Camera ISP",
+      "help" : "Switch the Camera ISP bend into the chain.",
+      "key" : "isp__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.5,
+      "group" : "Camera ISP",
+      "help" : "Auto-exposure loop gain; above about 0.5 it overshoots and pumps.",
+      "key" : "isp__hunt",
+      "label" : "Exposure hunt",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.3,
+      "group" : "Camera ISP",
+      "help" : "Auto-white-balance loop gain; high values swing colour casts.",
+      "key" : "isp__white_balance",
+      "label" : "White balance",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.5,
+      "group" : "Camera ISP",
+      "help" : "Aperture-correction gain: halos beside edges.",
+      "key" : "isp__sharpen",
+      "label" : "Sharpen",
+      "max" : 4.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 1,
+      "group" : "Camera ISP",
+      "help" : "Halo width in pixels.",
+      "key" : "isp__sharpen_radius",
+      "label" : "Sharpen radius",
+      "max" : 8,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 0.1,
+      "group" : "Camera ISP",
+      "help" : "Sensor noise, amplified with the exposure gain.",
+      "key" : "isp__noise",
+      "label" : "Noise",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Tape transport",
+      "help" : "Switch the Tape transport bend into the chain.",
+      "key" : "tape__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.5,
+      "group" : "Tape transport",
+      "help" : "Skewed, noisy lines at the bottom where the heads switch.",
+      "key" : "tape__head_switch",
+      "label" : "Head switch",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Tape transport",
+      "help" : "Top-of-frame hook from tape tension.",
+      "key" : "tape__flagging",
+      "label" : "Flagging",
+      "max" : 1.0,
+      "min" : -1.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.3,
+      "group" : "Tape transport",
+      "help" : "Mistracking noise band drifting up the picture.",
+      "key" : "tape__tracking",
+      "label" : "Tracking",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.1,
+      "group" : "Tape transport",
+      "help" : "Oxide dropouts: short white streaks.",
+      "key" : "tape__dropout",
+      "label" : "Dropout",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Tape transport",
+      "help" : "Repeat the line above instead of white.",
+      "key" : "tape__doc",
+      "label" : "Dropout compensator",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Tape transport",
+      "help" : "FM over-deviation: black streaks trailing highlights.",
+      "key" : "tape__comet",
+      "label" : "Comet",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.5,
+      "group" : "Tape transport",
+      "help" : "FM luma bandwidth loss (softness).",
+      "key" : "tape__luma_bw",
+      "label" : "Luma softness",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.4,
+      "group" : "Tape transport",
+      "help" : "Colour-under smear and chroma noise.",
+      "key" : "tape__chroma_noise",
+      "label" : "Chroma noise",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.2,
+      "group" : "Tape transport",
+      "help" : "Capstan/drum timebase wobble.",
+      "key" : "tape__jitter",
+      "label" : "Jitter",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "Sync separator",
+      "help" : "Switch the Sync separator bend into the chain.",
+      "key" : "sync__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.0008,
+      "group" : "Sync separator",
+      "help" : "Horizontal shift per row as a fraction of width; slants the picture diagonally.",
+      "key" : "sync__h_skew",
+      "label" : "Skew",
+      "max" : 1.0,
+      "min" : -1.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.02,
+      "group" : "Sync separator",
+      "help" : "Random per-row horizontal shift, as a fraction of width.",
+      "key" : "sync__h_jitter",
+      "label" : "Jitter",
+      "max" : 0.2,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.8,
+      "group" : "Sync separator",
+      "help" : "Row-to-row correlation of the jitter; high values make lines drift together like a hunting H-PLL.",
+      "key" : "sync__jitter_smooth",
+      "label" : "Jitter smoothing",
+      "max" : 0.99,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.4,
+      "group" : "Sync separator",
+      "help" : "Per-frame probability of a band of torn, brightened lines that relock as they go down.",
+      "key" : "sync__tear_rate",
+      "label" : "Tear rate",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.1,
+      "group" : "Sync separator",
+      "help" : "Vertical roll speed with a visible blanking bar; 1 = 5% of the height per frame.",
+      "key" : "sync__v_roll",
+      "label" : "Vertical roll",
+      "max" : 1.0,
+      "min" : -1.0,
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "Sync separator",
+      "help" : "Show the horizontal blanking interval as a black bar where shifted lines wrap.",
+      "key" : "sync__blanking",
+      "label" : "Blanking",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Sync separator",
+      "help" : "Back-porch clamp samples active picture: each line's black level follows its left edge.",
+      "key" : "sync__clamp_error",
+      "label" : "Clamp error",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "Pixel clock",
+      "help" : "Switch the Pixel clock bend into the chain.",
+      "key" : "clock__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 2,
+      "group" : "Pixel clock",
+      "help" : "Each sample is held across this many pixels.",
+      "key" : "clock__sample_hold",
+      "label" : "Sample hold",
+      "max" : 64,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Pixel clock",
+      "help" : "Sample-rate multiplier; above 1 repeats the image horizontally.",
+      "key" : "clock__stretch",
+      "label" : "Stretch",
+      "max" : 4.0,
+      "min" : 0.25,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : 0.03,
+      "group" : "Pixel clock",
+      "help" : "Per-row probability the clock stalls and smears one sample.",
+      "key" : "clock__glitch_rate",
+      "label" : "Glitch rate",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Pixel clock",
+      "help" : "Random sample-clock phase error per pixel, in pixels.",
+      "key" : "clock__jitter",
+      "label" : "Jitter",
+      "max" : 4.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Pixel clock",
+      "help" : "Sample-and-hold grid offset added per row, in pixels; staircases held blocks diagonally.",
+      "key" : "clock__grid_drift",
+      "label" : "Grid drift",
+      "max" : 8.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "Data bus",
+      "help" : "Switch the Data bus bend into the chain.",
+      "key" : "data__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : "luma",
+      "group" : "Data bus",
+      "help" : "Which components pass over the bent bus.",
+      "key" : "data__target",
+      "label" : "Target",
+      "labels" : [
+        "Luma",
+        "Chroma",
+        "Both"
+      ],
+      "options" : [
+        "luma",
+        "chroma",
+        "both"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 7,
+      "group" : "Data bus",
+      "help" : "First of two bridged data bits (equal bits = no bridge).",
+      "key" : "data__swap_a",
+      "label" : "Bridge bit A",
+      "max" : 7,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 6,
+      "group" : "Data bus",
+      "help" : "Second of two bridged data bits.",
+      "key" : "data__swap_b",
+      "label" : "Bridge bit B",
+      "max" : 7,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : "swap",
+      "group" : "Data bus",
+      "help" : "How the two bridged bits interact.",
+      "key" : "data__pair_mode",
+      "label" : "Bridge mode",
+      "labels" : [
+        "Swap",
+        "A drives B",
+        "Wired AND",
+        "Wired OR"
+      ],
+      "options" : [
+        "swap",
+        "copy",
+        "and",
+        "or"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 5,
+      "group" : "Data bus",
+      "help" : "Data bit forced by the stuck mode.",
+      "key" : "data__stuck_bit",
+      "label" : "Stuck bit",
+      "max" : 7,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : "high",
+      "group" : "Data bus",
+      "help" : "How the stuck bit is forced.",
+      "key" : "data__stuck_mode",
+      "label" : "Stuck mode",
+      "labels" : [
+        "Off",
+        "Stuck low",
+        "Stuck high",
+        "Inverted"
+      ],
+      "options" : [
+        "off",
+        "low",
+        "high",
+        "invert"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 8,
+      "group" : "Data bus",
+      "help" : "Bits at or above this index are latched late, from an earlier sample (8 = off).",
+      "key" : "data__lag_bit",
+      "label" : "Lag bit",
+      "max" : 8,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 2,
+      "group" : "Data bus",
+      "help" : "How many pixels late the high bits are latched.",
+      "key" : "data__lag",
+      "label" : "Lag",
+      "max" : 32,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 0.2,
+      "group" : "Data bus",
+      "help" : "Probability that each 8-row band makes contact.",
+      "key" : "data__coverage",
+      "label" : "Coverage",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "DCT codec",
+      "help" : "Switch the DCT codec bend into the chain.",
+      "key" : "dct__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 30,
+      "group" : "DCT codec",
+      "help" : "JPEG-style quality; low values block and ring.",
+      "key" : "dct__quality",
+      "label" : "Quality",
+      "max" : 100,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "DCT codec",
+      "help" : "Quantizer ROM address offset: coefficients use the wrong step sizes.",
+      "key" : "dct__table_shift",
+      "label" : "Table shift",
+      "max" : 63,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 0.0,
+      "group" : "DCT codec",
+      "help" : "Per-block chance AC coefficients are read in a rotated zig-zag order.",
+      "key" : "dct__scramble",
+      "label" : "Scramble",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "DCT codec",
+      "help" : "Per-block-row chance of a DC predictor error that offsets the rest of the row.",
+      "key" : "dct__dc_drift",
+      "label" : "DC drift",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "DCT codec",
+      "help" : "Per-macroblock chance of showing another macroblock from the same row.",
+      "key" : "dct__block_shuffle",
+      "label" : "Block shuffle",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Datamosh",
+      "help" : "Switch the Datamosh bend into the chain.",
+      "key" : "mosh__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.02,
+      "group" : "Datamosh",
+      "help" : "Per-frame chance of a keyframe that refreshes the picture.",
+      "key" : "mosh__keyframe_rate",
+      "label" : "Keyframe rate",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 8,
+      "group" : "Datamosh",
+      "help" : "Motion search range in pixels.",
+      "key" : "mosh__search",
+      "label" : "Search range",
+      "max" : 64,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Datamosh",
+      "help" : "Multiplier on motion vectors.",
+      "key" : "mosh__vector_gain",
+      "label" : "Vector gain",
+      "max" : 4.0,
+      "min" : -4.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.25,
+      "group" : "Datamosh",
+      "help" : "How much of the P-frame residual is applied.",
+      "key" : "mosh__residual",
+      "label" : "Residual",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "Memory hold",
+      "help" : "Switch the Memory hold bend into the chain.",
+      "key" : "hold__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : "bands",
+      "group" : "Memory hold",
+      "help" : "Which part of the store misses its write.",
+      "key" : "hold__mode",
+      "label" : "Mode",
+      "labels" : [
+        "Bands",
+        "Fields",
+        "Strobe"
+      ],
+      "options" : [
+        "bands",
+        "fields",
+        "strobe"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 0.25,
+      "group" : "Memory hold",
+      "help" : "Per-band (or per-field) probability it is not rewritten this frame.",
+      "key" : "hold__rate",
+      "label" : "Rate",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 12,
+      "group" : "Memory hold",
+      "help" : "Rows per write band.",
+      "key" : "hold__band_height",
+      "label" : "Band height",
+      "max" : 120,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 4,
+      "group" : "Memory hold",
+      "help" : "Strobe: frames between store writes.",
+      "key" : "hold__strobe_period",
+      "label" : "Strobe period",
+      "max" : 60,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 0.1,
+      "group" : "Memory hold",
+      "help" : "How quickly held rows fade towards grey.",
+      "key" : "hold__decay",
+      "label" : "Decay",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Address counters",
+      "help" : "Switch the Address counters bend into the chain.",
+      "key" : "counter__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0,
+      "group" : "Address counters",
+      "help" : "Extra words per line: each row starts later, so the image shears and wraps.",
+      "key" : "counter__pitch",
+      "label" : "Pitch",
+      "max" : 64,
+      "min" : -64,
+      "type" : "int"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Address counters",
+      "help" : "Column counter resets at this fraction of the width.",
+      "key" : "counter__line_length",
+      "label" : "Line length",
+      "max" : 1.0,
+      "min" : 0.05,
+      "type" : "float"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Address counters",
+      "help" : "Row counter resets at this fraction of the height.",
+      "key" : "counter__frame_length",
+      "label" : "Frame length",
+      "max" : 1.0,
+      "min" : 0.05,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Address counters",
+      "help" : "Start address creeps each frame; 1 = 5% of the store per frame.",
+      "key" : "counter__scroll",
+      "label" : "Scroll",
+      "max" : 1.0,
+      "min" : -1.0,
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "Address bridge A",
+      "help" : "Switch the Address bridge A bend into the chain.",
+      "key" : "address_a__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : "column",
+      "group" : "Address bridge A",
+      "help" : "Address lines (column = x, row = y) whose bit is bridged.",
+      "key" : "address_a__axis",
+      "label" : "Axis",
+      "labels" : [
+        "Column",
+        "Row"
+      ],
+      "options" : [
+        "column",
+        "row"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 5,
+      "group" : "Address bridge A",
+      "help" : "Address bit that is altered; bit k affects 2^k-pixel blocks.",
+      "key" : "address_a__bit",
+      "label" : "Bit",
+      "max" : 10,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : "xor",
+      "group" : "Address bridge A",
+      "help" : "What the bridge does: force the bit, or combine it with the partner bit.",
+      "key" : "address_a__mode",
+      "label" : "Mode",
+      "labels" : [
+        "Stuck low",
+        "Stuck high",
+        "XOR partner",
+        "AND partner",
+        "OR partner"
+      ],
+      "options" : [
+        "stuck_low",
+        "stuck_high",
+        "xor",
+        "and",
+        "or"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : "row",
+      "group" : "Address bridge A",
+      "help" : "Axis of the partner address line used by XOR/AND/OR.",
+      "key" : "address_a__partner_axis",
+      "label" : "Partner axis",
+      "labels" : [
+        "Column",
+        "Row"
+      ],
+      "options" : [
+        "column",
+        "row"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 4,
+      "group" : "Address bridge A",
+      "help" : "Partner address bit used by XOR/AND/OR.",
+      "key" : "address_a__partner_bit",
+      "label" : "Partner bit",
+      "max" : 10,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 0.3,
+      "group" : "Address bridge A",
+      "help" : "Probability that each 8-row band makes contact.",
+      "key" : "address_a__coverage",
+      "label" : "Coverage",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Address bridge B",
+      "help" : "Switch the Address bridge B bend into the chain.",
+      "key" : "address_b__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : "row",
+      "group" : "Address bridge B",
+      "help" : "Address lines (column = x, row = y) whose bit is bridged.",
+      "key" : "address_b__axis",
+      "label" : "Axis",
+      "labels" : [
+        "Column",
+        "Row"
+      ],
+      "options" : [
+        "column",
+        "row"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 5,
+      "group" : "Address bridge B",
+      "help" : "Address bit that is altered; bit k affects 2^k-pixel blocks.",
+      "key" : "address_b__bit",
+      "label" : "Bit",
+      "max" : 10,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : "stuck_low",
+      "group" : "Address bridge B",
+      "help" : "What the bridge does: force the bit, or combine it with the partner bit.",
+      "key" : "address_b__mode",
+      "label" : "Mode",
+      "labels" : [
+        "Stuck low",
+        "Stuck high",
+        "XOR partner",
+        "AND partner",
+        "OR partner"
+      ],
+      "options" : [
+        "stuck_low",
+        "stuck_high",
+        "xor",
+        "and",
+        "or"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : "row",
+      "group" : "Address bridge B",
+      "help" : "Axis of the partner address line used by XOR/AND/OR.",
+      "key" : "address_b__partner_axis",
+      "label" : "Partner axis",
+      "labels" : [
+        "Column",
+        "Row"
+      ],
+      "options" : [
+        "column",
+        "row"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 7,
+      "group" : "Address bridge B",
+      "help" : "Partner address bit used by XOR/AND/OR.",
+      "key" : "address_b__partner_bit",
+      "label" : "Partner bit",
+      "max" : 10,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Address bridge B",
+      "help" : "Probability that each 8-row band makes contact.",
+      "key" : "address_b__coverage",
+      "label" : "Coverage",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Colourizer",
+      "help" : "Switch the Colourizer bend into the chain.",
+      "key" : "colorize__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : "bands",
+      "group" : "Colourizer",
+      "help" : "Flat colour bands or a continuous hue sweep.",
+      "key" : "colorize__mode",
+      "label" : "Mode",
+      "labels" : [
+        "Bands",
+        "Gradient"
+      ],
+      "options" : [
+        "bands",
+        "gradient"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 6,
+      "group" : "Colourizer",
+      "help" : "Number of luma bands.",
+      "key" : "colorize__bands",
+      "label" : "Bands",
+      "max" : 16,
+      "min" : 2,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "Colourizer",
+      "help" : "Frequency-doubler passes on luma before colouring.",
+      "key" : "colorize__fold",
+      "label" : "Fold",
+      "max" : 4,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Colourizer",
+      "help" : "Hue of the darkest band, in degrees.",
+      "key" : "colorize__hue",
+      "label" : "Hue",
+      "max" : 180.0,
+      "min" : -180.0,
+      "type" : "float"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Colourizer",
+      "help" : "Hue turns across the full luma range.",
+      "key" : "colorize__spread",
+      "label" : "Spread",
+      "max" : 4.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.6,
+      "group" : "Colourizer",
+      "help" : "Colour strength.",
+      "key" : "colorize__saturation",
+      "label" : "Saturation",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Colourizer",
+      "help" : "Pixels darker than this keep their original colour.",
+      "key" : "colorize__key",
+      "label" : "Key",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Colourizer",
+      "help" : "Blend with the original.",
+      "key" : "colorize__mix",
+      "label" : "Mix",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "Inversion",
+      "help" : "Switch the Inversion bend into the chain.",
+      "key" : "invert__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : "solarize",
+      "group" : "Inversion",
+      "help" : "Which rewiring is applied.",
+      "key" : "invert__mode",
+      "label" : "Mode",
+      "labels" : [
+        "Invert luma",
+        "Invert chroma",
+        "Swap I/Q",
+        "Solarize"
+      ],
+      "options" : [
+        "invert_luma",
+        "invert_chroma",
+        "swap_iq",
+        "solarize"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 0.8,
+      "group" : "Inversion",
+      "help" : "Luma level above which solarization inverts.",
+      "key" : "invert__threshold",
+      "label" : "Threshold",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Inversion",
+      "help" : "Blend between the original and the inverted signal.",
+      "key" : "invert__mix",
+      "label" : "Mix",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Rail sag",
+      "help" : "Switch the Rail sag bend into the chain.",
+      "key" : "rail__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.3,
+      "group" : "Rail sag",
+      "help" : "Brightness-dependent loss of gain and picture width.",
+      "key" : "rail__sag",
+      "label" : "Sag",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.3,
+      "group" : "Rail sag",
+      "help" : "Overload smear trailing to the right of highlights.",
+      "key" : "rail__streak",
+      "label" : "Streak",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Rail sag",
+      "help" : "Depth of the rolling mains hum bar.",
+      "key" : "rail__hum",
+      "label" : "Hum",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.3,
+      "group" : "Rail sag",
+      "help" : "Horizontal bending of lines by the hum, as from a ground loop in the deflection.",
+      "key" : "rail__hum_bend",
+      "label" : "Hum bend",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Rail sag",
+      "help" : "Supply ripple at the pixel-fetch rate: fixed vertical bars.",
+      "key" : "rail__bars",
+      "label" : "Bars",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 8,
+      "group" : "Rail sag",
+      "help" : "Bar period in pixels.",
+      "key" : "rail__bar_period",
+      "label" : "Bar period",
+      "max" : 16,
+      "min" : 2,
+      "type" : "int"
+    },
+    {
+      "default" : true,
+      "group" : "Oscillation",
+      "help" : "Switch the Oscillation bend into the chain.",
+      "key" : "osc__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : "chroma",
+      "group" : "Oscillation",
+      "help" : "Which components the oscillation leaks into.",
+      "key" : "osc__target",
+      "label" : "Target",
+      "labels" : [
+        "Luma",
+        "Chroma",
+        "Both"
+      ],
+      "options" : [
+        "luma",
+        "chroma",
+        "both"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 0.02,
+      "group" : "Oscillation",
+      "help" : "Oscillation frequency in cycles per pixel.",
+      "key" : "osc__frequency",
+      "label" : "Frequency",
+      "max" : 0.5,
+      "min" : 0.001,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : 0.4,
+      "group" : "Oscillation",
+      "help" : "Phase advance per row in cycles; tilts the bars.",
+      "key" : "osc__slant",
+      "label" : "Slant",
+      "max" : 2.0,
+      "min" : -2.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.2,
+      "group" : "Oscillation",
+      "help" : "Phase advance per frame in cycles; makes the bars crawl.",
+      "key" : "osc__drift",
+      "label" : "Drift",
+      "max" : 1.0,
+      "min" : -1.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.18,
+      "group" : "Oscillation",
+      "help" : "Strength of the interference.",
+      "key" : "osc__amplitude",
+      "label" : "Amplitude",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.5,
+      "group" : "Oscillation",
+      "help" : "How much the amplitude follows picture brightness.",
+      "key" : "osc__luma_coupling",
+      "label" : "Luma coupling",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Oscillation",
+      "help" : "Near-unstable amplifier: damped ringing after edges at the oscillation frequency.",
+      "key" : "osc__ringing",
+      "label" : "Ringing",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "Colour burst",
+      "help" : "Switch the Colour burst bend into the chain.",
+      "key" : "burst__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 20.0,
+      "group" : "Colour burst",
+      "help" : "Hue rotation in degrees.",
+      "key" : "burst__phase",
+      "label" : "Phase",
+      "max" : 180.0,
+      "min" : -180.0,
+      "type" : "float"
+    },
+    {
+      "default" : 30.0,
+      "group" : "Colour burst",
+      "help" : "Per-row phase error amplitude in degrees.",
+      "key" : "burst__wobble",
+      "label" : "Wobble",
+      "max" : 180.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 1.6,
+      "group" : "Colour burst",
+      "help" : "Chroma gain.",
+      "key" : "burst__saturation",
+      "label" : "Saturation",
+      "max" : 4.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.08,
+      "group" : "Colour burst",
+      "help" : "Per-8-row-band probability the colour killer blanks chroma.",
+      "key" : "burst__killer_rate",
+      "label" : "Killer rate",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Colour burst",
+      "help" : "PAL-style alternate-line phase error: odd lines take the opposite hue error.",
+      "key" : "burst__hanover",
+      "label" : "Hanover",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Colour burst",
+      "help" : "Encoder drops every other burst: odd lines lose colour.",
+      "key" : "burst__alternate_loss",
+      "label" : "Alternate loss",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Chroma bleed",
+      "help" : "Switch the Chroma bleed bend into the chain.",
+      "key" : "bleed__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.02,
+      "group" : "Chroma bleed",
+      "help" : "Chroma low-pass time constant as a fraction of width; colour trails to the right of edges.",
+      "key" : "bleed__smear",
+      "label" : "Smear",
+      "max" : 0.25,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.01,
+      "group" : "Chroma bleed",
+      "help" : "Chroma delay relative to luma as a fraction of width; positive moves colour right.",
+      "key" : "bleed__shift",
+      "label" : "Shift",
+      "max" : 0.1,
+      "min" : -0.1,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Composite link",
+      "help" : "Switch the Composite link bend into the chain.",
+      "key" : "composite__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : "notch",
+      "group" : "Composite link",
+      "help" : "Luma/chroma separation in the monitor.",
+      "key" : "composite__decoder",
+      "label" : "Decoder",
+      "labels" : [
+        "Notch",
+        "1H comb"
+      ],
+      "options" : [
+        "notch",
+        "comb"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Composite link",
+      "help" : "Chroma-trap depth in luma; lower leaves the dot pattern in the picture.",
+      "key" : "composite__trap",
+      "label" : "Chroma trap",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Composite link",
+      "help" : "Decoder subcarrier detuning: hue rolls across and down the picture.",
+      "key" : "composite__detune",
+      "label" : "Detune",
+      "max" : 1.0,
+      "min" : -1.0,
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "Composite link",
+      "help" : "Subcarrier phase flips each frame, so dots crawl.",
+      "key" : "composite__dot_crawl",
+      "label" : "Dot crawl",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Composite link",
+      "help" : "Luma peaking: outlines and ringing.",
+      "key" : "composite__peaking",
+      "label" : "Peaking",
+      "max" : 2.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Composite link",
+      "help" : "Cable/antenna reflection: a delayed echo to the right.",
+      "key" : "composite__ghost",
+      "label" : "Ghost",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Composite link",
+      "help" : "RF snow.",
+      "key" : "composite__noise",
+      "label" : "Noise",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Scan processor",
+      "help" : "Switch the Scan processor bend into the chain.",
+      "key" : "scan__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.5,
+      "group" : "Scan processor",
+      "help" : "Vertical lift of each scanline by its brightness; 1 = a quarter of the height.",
+      "key" : "scan__displace",
+      "label" : "Displace",
+      "max" : 1.0,
+      "min" : -1.0,
+      "type" : "float"
+    },
+    {
+      "default" : 4,
+      "group" : "Scan processor",
+      "help" : "Draw every Nth source line.",
+      "key" : "scan__line_spacing",
+      "label" : "Line spacing",
+      "max" : 16,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 1,
+      "group" : "Scan processor",
+      "help" : "Drawn line thickness in rows.",
+      "key" : "scan__thickness",
+      "label" : "Thickness",
+      "max" : 4,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : false,
+      "group" : "Scan processor",
+      "help" : "Lift by brightness relative to the line average (waveform only, no drift).",
+      "key" : "scan__ac_coupled",
+      "label" : "AC coupled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Scan processor",
+      "help" : "Wobbulator depth.",
+      "key" : "scan__wobble",
+      "label" : "Wobble",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.002,
+      "group" : "Scan processor",
+      "help" : "Wobble cycles per pixel of beam time.",
+      "key" : "scan__wobble_freq",
+      "label" : "Wobble frequency",
+      "max" : 0.05,
+      "min" : 0.0001,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Scan processor",
+      "help" : "1 = lines on black; lower shows the picture underneath.",
+      "key" : "scan__mix",
+      "label" : "Mix",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Feedback loop",
+      "help" : "Switch the Feedback loop bend into the chain.",
+      "key" : "feedback__enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.6,
+      "group" : "Feedback loop",
+      "help" : "How much of the fed-back picture is mixed in.",
+      "key" : "feedback__amount",
+      "label" : "Amount",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 1.03,
+      "group" : "Feedback loop",
+      "help" : "Scale per pass; above 1 tunnels outward.",
+      "key" : "feedback__zoom",
+      "label" : "Zoom",
+      "max" : 1.25,
+      "min" : 0.8,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : 2.0,
+      "group" : "Feedback loop",
+      "help" : "Rotation per pass in degrees.",
+      "key" : "feedback__rotate",
+      "label" : "Rotate",
+      "max" : 10.0,
+      "min" : -10.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Feedback loop",
+      "help" : "Horizontal drift per pass, fraction of width.",
+      "key" : "feedback__offset_x",
+      "label" : "Offset X",
+      "max" : 0.1,
+      "min" : -0.1,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Feedback loop",
+      "help" : "Vertical drift per pass, fraction of height.",
+      "key" : "feedback__offset_y",
+      "label" : "Offset Y",
+      "max" : 0.1,
+      "min" : -0.1,
+      "type" : "float"
+    },
+    {
+      "default" : 10.0,
+      "group" : "Feedback loop",
+      "help" : "Hue rotation per pass, in degrees.",
+      "key" : "feedback__hue_shift",
+      "label" : "Hue shift",
+      "max" : 180.0,
+      "min" : -180.0,
+      "type" : "float"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Feedback loop",
+      "help" : "Loop brightness gain; above 1 blooms, below fades.",
+      "key" : "feedback__gain",
+      "label" : "Gain",
+      "max" : 1.5,
+      "min" : 0.5,
+      "type" : "float"
+    },
+    {
+      "default" : 0.3,
+      "group" : "Feedback loop",
+      "help" : "CRT/lens softness in the loop.",
+      "key" : "feedback__blur",
+      "label" : "Blur",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Feedback loop",
+      "help" : "Feedback shows only where the live picture is darker than this (0 = everywhere).",
+      "key" : "feedback__key",
+      "label" : "Key",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "bend",
+    "bender",
+    "ffmpeg",
+    "jq"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "name" : "bend",
+      "script" : "# Rebuild a bender preset from the layer params: \"group__field\" keys nest\n# back into per-stage blocks. Order goes through --set so bender rejects\n# unknown stage ids instead of silently dropping them.\njq -c --argjson seed \"$VB_P_SEED\" 'reduce (to_entries[] | select(.key | contains(\"__\"))) as $e\n  ({version: 1, seed: $seed}; setpath($e.key | split(\"__\"); $e.value))' \"$VB_PARAMS\" > \"$VB_WORK/bender.json\"\norder=()\nif [ -n \"${VB_P_ORDER// /}\" ]; then order=(--set \"order=${VB_P_ORDER// /}\"); fi\nbend --preset \"$VB_WORK/bender.json\" \"${order[@]}\" --seed \"$VB_P_SEED\" --scanlines \"$VB_P_SCANLINES\" \\\n  -o \"$VB_OUT\" \"$VB_IN\"\n"
+    }
+  ],
+  "summary" : "Circuit-bent video hardware via bender-rs (pipelines/bend): each section is one stage of the video path, from camera sensor and tape to frame store, colour encoder, monitor, and feedback loop, broken the way a stray wire would. Defaults are bender's meltdown preset; Presets has the other bundled ones."
+}

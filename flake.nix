@@ -17,13 +17,17 @@
       url = "github:valadaptive/ntsc-rs/v0.9.4";
       flake = false;
     };
+
+    # Source for packages.bender-cli. A flake input (not flake = false) so its
+    # own nixpkgs pin, which carries the Rust >= 1.96 it requires, is locked too.
+    bender-rs.url = "github:kylegrantlucas/bender-rs/v0.2.0";
   };
 
   # flake-utils rather than flake-parts: this flake composes no modules, so the
   # module system would buy indirection (config/self'/inputs') and pay for it in
   # readability. eachSystem is one function whose body is a plain attrset.
   outputs =
-    { self, nixpkgs, flake-utils, ffglitch-scripts, ntsc-rs-src }:
+    { self, nixpkgs, flake-utils, ffglitch-scripts, ntsc-rs-src, bender-rs }:
     flake-utils.lib.eachSystem [ "aarch64-darwin" "x86_64-linux" ] (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -39,6 +43,11 @@
         ffglitch = pkgs.callPackage ./pkgs/ffglitch.nix { };
 
         ntsc-rs-cli = pkgs.callPackage ./pkgs/ntsc-rs-cli.nix { inherit ntsc-rs-src; };
+
+        # Built with bender-rs's own nixpkgs (Rust >= 1.96); see pkgs/bender-cli.nix.
+        bender-cli = bender-rs.inputs.nixpkgs.legacyPackages.${system}.callPackage ./pkgs/bender-cli.nix {
+          bender-src = bender-rs.outPath;
+        };
 
         # x86_64-linux only; see pkgs/glslviewer-headless.nix.
         glslviewer-headless =
@@ -107,7 +116,7 @@
           xvfb-run # --headless is a *hidden window*, still needs a display
         ];
 
-        ourTools = [ ffglitch ntsc-rs-cli reactive-vcr ]
+        ourTools = [ ffglitch ntsc-rs-cli reactive-vcr bender-cli ]
           ++ lib.optionals (!isDarwin) [ glslviewer-headless ];
 
         capabilityBanner = ''
@@ -118,6 +127,7 @@
         '' + (if isDarwin then ''
             ffglitch ${ffglitch.version}  (ffgac ffedit fflive qjs)
             reactive-vcr ${reactive-vcr.version}  (audio-reactive ntsc-rs, prebuilt release)
+            bender ${bender-cli.version}  (circuit-bent video hardware, bender-rs)
 
             unavailable on aarch64-darwin (upstream, not a config choice):
               supercollider  platforms = linux
@@ -130,11 +140,12 @@
             ffglitch ${ffglitch.version}  (built from source — upstream's x86_64
             prebuilt is a truncated upload; 0.9.4 predates -sp)
             reactive-vcr ${reactive-vcr.version}  (audio-reactive ntsc-rs, prebuilt release)
+            bender ${bender-cli.version}  (circuit-bent video hardware, bender-rs)
         '');
       in
       {
         packages = {
-          inherit ffglitch ntsc-rs-cli reactive-vcr;
+          inherit ffglitch ntsc-rs-cli reactive-vcr bender-cli;
           default = ffglitch;
         } // lib.optionalAttrs (!isDarwin) { inherit glslviewer-headless; };
 
@@ -149,6 +160,10 @@
           reactive-vcr = {
             type = "app";
             program = "${reactive-vcr}/bin/reactive-vcr";
+          };
+          bender = {
+            type = "app";
+            program = "${bender-cli}/bin/bender";
           };
         };
 
@@ -165,6 +180,9 @@
 
           # Pinned flake input; pipelines read scripts from here, never the network.
           FFGLITCH_SCRIPTS = "${ffglitch-scripts}";
+
+          # bender-rs's bundled presets, pinned with the binary.
+          BENDER_PRESETS = "${bender-cli}/share/bender/presets";
 
           VIDEOBED_PLATFORM = system;
 

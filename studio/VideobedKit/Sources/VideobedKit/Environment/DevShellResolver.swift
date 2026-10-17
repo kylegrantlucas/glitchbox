@@ -2,6 +2,11 @@ import CryptoKit
 import Foundation
 
 /// Captures the `nix develop` environment once per flake revision and caches it.
+///
+/// The capture is recorded as a nix profile (`out/studio/devshell-profile`), a GC
+/// root that keeps the environment's store paths alive; a cache whose store paths
+/// are gone anyway is treated as stale and re-captured, because PATH lookups would
+/// otherwise fall through to unrelated tools (e.g. a user ffmpeg without frei0r).
 public enum DevShellResolver {
     static let droppedKeys: Set<String> = ["TMPDIR", "TMP", "TEMP", "TEMPDIR", "NIX_BUILD_TOP", "PWD", "OLDPWD", "SHLVL", "_"]
 
@@ -19,7 +24,8 @@ public enum DevShellResolver {
         let cache = root.appending(path: "out/studio/devshell-\(try cacheKey(root: root)).env0")
         if !forceRefresh, let data = try? Data(contentsOf: cache) {
             let vars = parseEnv0(data)
-            if let r = vars["VIDEOBED_ROOT"], samePath(r, root.path), !(vars["PATH"] ?? "").isEmpty {
+            if let r = vars["VIDEOBED_ROOT"], samePath(r, root.path), !(vars["PATH"] ?? "").isEmpty,
+               storePathsExist(vars) {
                 return ToolEnvironment(root: root, variables: vars)
             }
         }
@@ -34,9 +40,11 @@ public enum DevShellResolver {
         let tmp = fm.temporaryDirectory.appending(path: "vb-devshell-\(UUID().uuidString).env0")
         defer { try? fm.removeItem(at: tmp) }
 
+        let profile = root.appending(path: "out/studio/devshell-profile")
         let code = try await Spawner.run(
             executable: URL(filePath: nix),
-            arguments: ["develop", root.path, "--command", "/bin/bash", "-c", "env -0 > \"$1\"", "_", tmp.path],
+            arguments: ["develop", root.path, "--profile", profile.path,
+                        "--command", "/bin/bash", "-c", "env -0 > \"$1\"", "_", tmp.path],
             environment: process, cwd: root, log: progressLog)
         guard code == 0 else { throw DevShellError.developFailed(code) }
 
@@ -48,6 +56,13 @@ public enum DevShellResolver {
         try fm.createDirectory(at: cache.deletingLastPathComponent(), withIntermediateDirectories: true)
         try encodeEnv0(vars).write(to: cache, options: .atomic)
         return ToolEnvironment(root: root, variables: vars)
+    }
+
+    /// False once any `/nix/store` entry on the captured PATH has been garbage-collected.
+    static func storePathsExist(_ vars: [String: String]) -> Bool {
+        (vars["PATH"] ?? "").split(separator: ":").allSatisfy { entry in
+            !entry.hasPrefix("/nix/store/") || FileManager.default.fileExists(atPath: String(entry))
+        }
     }
 
     /// Splits `env -0` output and drops shell-session variables.

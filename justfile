@@ -16,7 +16,7 @@ doctor:
     #!/usr/bin/env bash
     set -euo pipefail
     printf 'platform: %s\n\n' "${VIDEOBED_PLATFORM:-unknown}"
-    for t in ffmpeg ffgac ffedit ntsc-rs-cli reactive-vcr sox magick pd faust \
+    for t in ffmpeg ffgac ffedit ntsc-rs-cli reactive-vcr bender sox magick pd faust \
              glslviewer-headless sclang csound vspipe; do
       if command -v "$t" >/dev/null 2>&1; then
         printf '  %-20s %s\n' "$t" "ok"
@@ -25,7 +25,7 @@ doctor:
       fi
     done
     printf '\npipelines available here:\n'
-    for p in mv-mangle analog-pass reactive-vcr sonify shader-feedback; do
+    for p in mv-mangle analog-pass reactive-vcr bend sonify shader-feedback; do
       if "{{justfile_directory()}}/pipelines/$p" --check >/dev/null 2>&1; then
         printf '  %-20s ok\n' "$p"
       else
@@ -48,6 +48,10 @@ sonify INPUT *ARGS:
 # reactive-vcr only.
 reactive INPUT AUDIO *ARGS:
     @"{{justfile_directory()}}/pipelines/reactive-vcr" --audio "{{AUDIO}}" {{ARGS}} "{{INPUT}}"
+
+# bend only (circuit-bent hardware via bender-rs); ARGS e.g. --preset F --set sync.v_roll=0.3
+bend INPUT SEED="42" *ARGS:
+    @"{{justfile_directory()}}/pipelines/bend" --seed {{SEED}} {{ARGS}} "{{INPUT}}"
 
 # shader-feedback (linux only).
 shader *ARGS:
@@ -147,6 +151,13 @@ studio:
       xcodebuild -project VideobedStudio.xcodeproj -scheme VideobedStudio \
       -configuration Debug -destination "platform=macOS,arch=$(uname -m)" \
       -derivedDataPath .build/xcode -quiet build
+    # `open` only re-activates an already-running instance, which would keep the
+    # old binary; quit it first (session state is saved continuously).
+    if pgrep -qx VideobedStudio; then
+      osascript -e 'tell application id "com.kylegrantlucas.videobed-studio" to quit'
+      for _ in $(seq 50); do pgrep -qx VideobedStudio || break; sleep 0.2; done
+      if pgrep -qx VideobedStudio; then echo "Videobed Studio did not quit; close it and rerun" >&2; exit 1; fi
+    fi
     open .build/xcode/Build/Products/Debug/VideobedStudio.app
 
 # Remove all build artifacts.

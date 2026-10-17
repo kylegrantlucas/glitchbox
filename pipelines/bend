@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# bend — circuit-bent video hardware emulation via bender-rs (`bender`).
+#
+# Each bend models one stage of an analog-to-digital video path (sync
+# separator, pixel clock, data bus, frame store, DAC, colour encoder) and breaks
+# it the way a stray wire would. `bender --list-settings` documents every one.
+#
+# ON DETERMINISM:
+#   The run identity records the fully-resolved effect (`bender --dump-preset`
+#   of preset + --set + seed), so an implicit default and an explicit one
+#   collide correctly. bender muxes through GStreamer's matroskamux, which
+#   writes a random SegmentUID, so like analog-pass this renders FFV1 to an
+#   intermediate and remuxes through the bit-exact ffmpeg wrapper (stream copy).
+#
+# Knobs that matter:
+#   --preset F      bender JSON preset. Default $BENDER_PRESETS/meltdown.json;
+#                   `none` starts from bender's defaults (every bend off).
+#   --set ID=VALUE  Override one setting, e.g. sync.v_roll=0.3 (repeatable).
+#   --seed N        Random seed; overrides the preset's.
+#   --scanlines N   Processing height in lines; 0 (default) keeps the input's.
+#                   Pixel- and row-sized settings scale with it.
+
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/_lib.sh"
+
+PRESET="" SEED="" SCANLINES=0 INPUT="" OUTPUT="" CHECK=""
+declare -a SETS=()
+
+usage() { sed -n '2,21p' "$0" | sed 's/^# \?//'; exit "${1:-0}"; }
+
+while [ $# -gt 0 ]; do
+  case $1 in
+    --preset)    PRESET=$2; shift 2 ;;
+    --set)       SETS+=(--set "$2"); shift 2 ;;
+    --seed)      SEED=$2; shift 2 ;;
+    --scanlines) SCANLINES=$2; shift 2 ;;
+    -o|--output) OUTPUT=$2; shift 2 ;;
+    --check) CHECK=1; shift ;;
+    -h|--help) usage 0 ;;
+    -*) vb_die "unknown flag: $1" ;;
+    *)  INPUT=$1; shift ;;
+  esac
+done
+
+vb_require_cmd bender
+vb_require_cmd ffmpeg
+[ -n "$CHECK" ] && exit 0
+
+[ -n "$INPUT" ] || usage 1
+PRESET=${PRESET:-${BENDER_PRESETS:-}/meltdown.json}
+declare -a PRESET_ARGS=()
+if [ "$PRESET" != none ]; then
+  [ -f "$PRESET" ] || vb_die "preset not found: $PRESET"
+  PRESET_ARGS=(--preset "$PRESET")
+fi
+declare -a SEED_ARGS=()
+[ -n "$SEED" ] && SEED_ARGS=(--seed "$SEED")
+
+# Resolve preset + overrides + seed into the exact settings bender will use.
+EFFECT=$(bender "${PRESET_ARGS[@]}" "${SETS[@]}" "${SEED_ARGS[@]}" --dump-preset) \
+  || vb_die "bender rejected the settings"
+EFFECT=$(printf '%s' "$EFFECT" | jq -cS .)
+
+PARAMS=$(jq -cS -n \
+  --argjson effect "$EFFECT" \
+  --argjson scanlines "$SCANLINES" \
+  --arg preset "$(basename "$PRESET")" \
+  '{effect:$effect,scanlines:$scanlines,preset:$preset}')
+
+TOOLS=$(jq -cS -n \
+  --arg bender "$(vb_tool_version bender)" \
+  --arg ffmpeg "$(vb_tool_version ffmpeg)" \
+  '{bender:$bender,ffmpeg:$ffmpeg}')
+
+vb_begin bend "$INPUT" "$PARAMS" "$TOOLS"
+OUTPUT=${OUTPUT:-$VB_RUN_DIR/out.mkv}
+
+RAW="$VB_RUN_DIR/stage1-bender.mkv"
+printf '%s\n' "$EFFECT" > "$VB_RUN_DIR/preset.json"
+
+vb_log "bender: preset=$(basename "$PRESET") scanlines=$SCANLINES"
+bender -i "$INPUT" -o "$RAW" --codec ffv1 --scanlines "$SCANLINES" \
+  --preset "$VB_RUN_DIR/preset.json" --overwrite 2>"$VB_RUN_DIR/bender.log" \
+  || { tail -5 "$VB_RUN_DIR/bender.log" >&2; vb_die "bender failed"; }
+
+vb_log "remux: bit-exact container"
+vb_ffmpeg -i "$RAW" -- -map 0 -c copy -y "$OUTPUT"
+
+vb_finish "$OUTPUT"
