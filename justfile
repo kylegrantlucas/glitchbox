@@ -140,9 +140,13 @@ studio:
     set -euo pipefail
     cd "{{justfile_directory()}}/studio"
     xcodegen generate --quiet
-    env -u SDKROOT -u DEVELOPER_DIR -u NIX_CFLAGS_COMPILE -u NIX_LDFLAGS \
+    # xcodebuild imports environment variables as build settings, so the
+    # devshell's CC/LD/SDKROOT/MACOSX_DEPLOYMENT_TARGET would hijack the build
+    # (nix ld gets clang-driver flags). Build with a minimal environment.
+    env -i HOME="$HOME" USER="$USER" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
       xcodebuild -project VideobedStudio.xcodeproj -scheme VideobedStudio \
-      -configuration Debug -derivedDataPath .build/xcode -quiet build
+      -configuration Debug -destination "platform=macOS,arch=$(uname -m)" \
+      -derivedDataPath .build/xcode -quiet build
     open .build/xcode/Build/Products/Debug/VideobedStudio.app
 
 # Remove all build artifacts.
