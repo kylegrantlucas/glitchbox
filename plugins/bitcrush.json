@@ -1,0 +1,48 @@
+{
+  "assets" : [],
+  "id" : "bitcrush",
+  "name" : "Bitcrush",
+  "params" : [
+    {
+      "default" : 3,
+      "key" : "bits",
+      "label" : "Bits per channel",
+      "max" : 8,
+      "min" : 1,
+      "type" : "int"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "format=rgb24,lutrgb=r='bitand(val,256-pow(2,8-{p.bits}))':g='bitand(val,256-pow(2,8-{p.bits}))':b='bitand(val,256-pow(2,8-{p.bits}))',format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Reduce each RGB channel to a few bits (ffmpeg lutrgb bit masking): banding and posterized color."
+}

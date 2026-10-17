@@ -1,0 +1,109 @@
+{
+  "assets" : [],
+  "id" : "rgb-split",
+  "name" : "RGB Split",
+  "params" : [
+    {
+      "default" : -6,
+      "group" : "Red",
+      "key" : "rh",
+      "label" : "Red X",
+      "max" : 64,
+      "min" : -64,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "Red",
+      "key" : "rv",
+      "label" : "Red Y",
+      "max" : 64,
+      "min" : -64,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "Green",
+      "key" : "gh",
+      "label" : "Green X",
+      "max" : 64,
+      "min" : -64,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "Green",
+      "key" : "gv",
+      "label" : "Green Y",
+      "max" : 64,
+      "min" : -64,
+      "type" : "int"
+    },
+    {
+      "default" : 6,
+      "group" : "Blue",
+      "key" : "bh",
+      "label" : "Blue X",
+      "max" : 64,
+      "min" : -64,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "Blue",
+      "key" : "bv",
+      "label" : "Blue Y",
+      "max" : 64,
+      "min" : -64,
+      "type" : "int"
+    },
+    {
+      "default" : "smear",
+      "group" : "Edges",
+      "key" : "edge",
+      "label" : "Edge mode",
+      "labels" : [
+        "Smear",
+        "Wrap"
+      ],
+      "options" : [
+        "smear",
+        "wrap"
+      ],
+      "type" : "enum"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "rgbashift=rh={p.rh}:rv={p.rv}:gh={p.gh}:gv={p.gv}:bh={p.bh}:bv={p.bv}:edge={p.edge},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Offset the red, green, and blue planes independently (ffmpeg rgbashift)."
+}

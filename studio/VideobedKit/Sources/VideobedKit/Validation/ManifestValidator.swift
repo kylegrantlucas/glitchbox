@@ -40,6 +40,15 @@ public enum ManifestValidator {
             case .bool, .string, .file:
                 break
             }
+            if let labels = p.labels {
+                if p.type != .enumeration { issues.append("\(tag): labels are only for enum params") }
+                else if labels.count != (p.options ?? []).count { issues.append("\(tag): labels must match options one-to-one") }
+            }
+            if let scale = p.scale {
+                if p.type != .int && p.type != .float { issues.append("\(tag): scale is only for int/float params") }
+                else if scale == .log && (p.min == nil || p.max == nil) { issues.append("\(tag): log scale needs min and max") }
+            }
+            if p.optional == true && p.type != .file { issues.append("\(tag): optional is only for file params") }
         }
 
         if m.steps.isEmpty { issues.append("at least one step is required") }

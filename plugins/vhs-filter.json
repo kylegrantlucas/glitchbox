@@ -4,7 +4,71 @@
   "name" : "VHS Filter",
   "params" : [
     {
+      "default" : 0.02,
+      "group" : "Levels",
+      "help" : "Output level for black (curves)",
+      "key" : "black",
+      "label" : "Black lift",
+      "max" : 0.5,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 0.95,
+      "group" : "Levels",
+      "help" : "Output level for white (curves)",
+      "key" : "white",
+      "label" : "White clip",
+      "max" : 1.0,
+      "min" : 0.5,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 1.12,
+      "group" : "Levels",
+      "key" : "contrast",
+      "label" : "Contrast",
+      "max" : 2.0,
+      "min" : 0.5,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Levels",
+      "key" : "brightness",
+      "label" : "Brightness",
+      "max" : 1.0,
+      "min" : -1.0,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 0.98,
+      "group" : "Levels",
+      "key" : "gamma",
+      "label" : "Gamma",
+      "max" : 3.0,
+      "min" : 0.1,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 0.24,
+      "group" : "Levels",
+      "key" : "saturation",
+      "label" : "Saturation",
+      "max" : 2.0,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
       "default" : 8,
+      "group" : "Misregistration",
+      "help" : "Red left / blue right, in pixels",
       "key" : "shift",
       "label" : "RGB shift",
       "max" : 32,
@@ -12,7 +76,19 @@
       "type" : "int"
     },
     {
+      "default" : 0,
+      "group" : "Misregistration",
+      "help" : "Red down / blue up, in pixels",
+      "key" : "shift_v",
+      "label" : "RGB shift (vertical)",
+      "max" : 32,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
       "default" : 6,
+      "group" : "Misregistration",
+      "help" : "Cb right / Cr left, in pixels",
       "key" : "chroma",
       "label" : "Chroma shift",
       "max" : 32,
@@ -20,37 +96,96 @@
       "type" : "int"
     },
     {
+      "default" : 0,
+      "group" : "Misregistration",
+      "key" : "chroma_v",
+      "label" : "Chroma shift (vertical)",
+      "max" : 32,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : "smear",
+      "group" : "Misregistration",
+      "help" : "What fills the gap left by shifted planes",
+      "key" : "edge",
+      "label" : "Edge mode",
+      "labels" : [
+        "Smear",
+        "Wrap"
+      ],
+      "options" : [
+        "smear",
+        "wrap"
+      ],
+      "type" : "enum"
+    },
+    {
       "default" : 26,
+      "group" : "Noise",
       "key" : "noise",
-      "label" : "Noise",
+      "label" : "Luma noise",
       "max" : 100,
       "min" : 0,
       "type" : "int"
     },
     {
+      "default" : 6,
+      "group" : "Noise",
+      "key" : "chroma_noise",
+      "label" : "Chroma noise",
+      "max" : 100,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : "t+u",
+      "group" : "Noise",
+      "key" : "noise_mode",
+      "label" : "Noise mode",
+      "labels" : [
+        "Temporal + uniform",
+        "Uniform (static)",
+        "Temporal",
+        "Averaged temporal + uniform"
+      ],
+      "options" : [
+        "t+u",
+        "u",
+        "t",
+        "a+t+u"
+      ],
+      "type" : "enum"
+    },
+    {
       "default" : 0.5,
+      "group" : "Softness",
+      "help" : "Gaussian blur sigma",
       "key" : "blur",
       "label" : "Blur",
-      "max" : 5,
-      "min" : 0,
+      "max" : 5.0,
+      "min" : 0.0,
       "step" : 0.05,
       "type" : "float"
     },
     {
-      "default" : 1.12,
-      "key" : "contrast",
-      "label" : "Contrast",
-      "max" : 2,
-      "min" : 0.5,
-      "step" : 0.01,
-      "type" : "float"
+      "default" : 8,
+      "group" : "Softness",
+      "help" : "Vertical deband range; larger = streakier",
+      "key" : "deband",
+      "label" : "Deband range",
+      "max" : 64,
+      "min" : 1,
+      "type" : "int"
     },
     {
-      "default" : 0.24,
-      "key" : "saturation",
-      "label" : "Saturation",
-      "max" : 2,
-      "min" : 0,
+      "default" : 0.748,
+      "group" : "Vignette",
+      "help" : "Lens angle in radians; 0 = none",
+      "key" : "vignette",
+      "label" : "Vignette",
+      "max" : 1.5,
+      "min" : 0.0,
       "step" : 0.01,
       "type" : "float"
     }
@@ -70,7 +205,7 @@
         "-i",
         "{in}",
         "-vf",
-        "format=yuv444p,curves=all='0/0.02 0.5/0.5 1/0.95',rgbashift=rh=-{p.shift}:rv=0:bh={p.shift}:bv=0:edge=smear,chromashift=cbh={p.chroma}:crh=-{p.chroma}:edge=smear,noise=c0s={p.noise}:c0f=t+u:c1s=6:c1f=t+u:c2s=6:c2f=t+u,gblur=sigma={p.blur},deband=range=8:direction=1.5708:blur=false,eq=contrast={p.contrast}:saturation={p.saturation}:gamma=0.98,vignette=PI/4.2,format=yuv420p",
+        "format=yuv444p,curves=all='0/{p.black} 0.5/0.5 1/{p.white}',rgbashift=rh=-{p.shift}:rv={p.shift_v}:bh={p.shift}:bv=-{p.shift_v}:edge={p.edge},chromashift=cbh={p.chroma}:crh=-{p.chroma}:cbv={p.chroma_v}:crv=-{p.chroma_v}:edge={p.edge},noise=c0s={p.noise}:c0f={p.noise_mode}:c1s={p.chroma_noise}:c1f={p.noise_mode}:c2s={p.chroma_noise}:c2f={p.noise_mode},gblur=sigma={p.blur},deband=range={p.deband}:direction=1.5708:blur=false,eq=contrast={p.contrast}:brightness={p.brightness}:saturation={p.saturation}:gamma={p.gamma},vignette=angle={p.vignette},format=yuv420p",
         "-fflags",
         "+bitexact",
         "-flags:v",
@@ -87,5 +222,5 @@
       "name" : "vhs"
     }
   ],
-  "summary" : "ffmpeg VHS filtergraph (glitch-loop/filters/vhs2.filter)."
+  "summary" : "ffmpeg VHS filtergraph (from glitch-loop/filters/vhs2.filter) with levels, misregistration, noise, softness, and vignette controls."
 }

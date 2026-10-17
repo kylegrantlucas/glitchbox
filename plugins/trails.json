@@ -1,0 +1,50 @@
+{
+  "assets" : [],
+  "id" : "trails",
+  "name" : "Trails",
+  "params" : [
+    {
+      "default" : 0.95,
+      "help" : "How slowly trails fade; 1 = never",
+      "key" : "decay",
+      "label" : "Decay",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.005,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "lagfun=decay={p.decay},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Light trails: each pixel decays slowly instead of going dark (ffmpeg lagfun)."
+}

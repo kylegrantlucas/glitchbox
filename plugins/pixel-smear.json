@@ -1,0 +1,74 @@
+{
+  "assets" : [],
+  "id" : "pixel-smear",
+  "name" : "Pixel Smear",
+  "params" : [
+    {
+      "default" : 128,
+      "help" : "Brightness where smearing starts",
+      "key" : "threshold",
+      "label" : "Threshold",
+      "max" : 254,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : false,
+      "help" : "Drag pixels darker than the threshold instead",
+      "key" : "dark",
+      "label" : "Smear dark pixels",
+      "type" : "bool"
+    },
+    {
+      "default" : 80,
+      "help" : "Maximum horizontal drag in pixels",
+      "key" : "length_x",
+      "label" : "Length X",
+      "max" : 400,
+      "min" : -400,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "help" : "Maximum vertical drag in pixels",
+      "key" : "length_y",
+      "label" : "Length Y",
+      "max" : 400,
+      "min" : -400,
+      "type" : "int"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "format=gbrp,geq=r='r(X-({p.length_x})*clip(((255*{p.dark}+(1-2*{p.dark})*(r(X,Y)+g(X,Y)+b(X,Y))/3)-{p.threshold})/max(255-{p.threshold},1),0,1),Y-({p.length_y})*clip(((255*{p.dark}+(1-2*{p.dark})*(r(X,Y)+g(X,Y)+b(X,Y))/3)-{p.threshold})/max(255-{p.threshold},1),0,1))':g='g(X-({p.length_x})*clip(((255*{p.dark}+(1-2*{p.dark})*(r(X,Y)+g(X,Y)+b(X,Y))/3)-{p.threshold})/max(255-{p.threshold},1),0,1),Y-({p.length_y})*clip(((255*{p.dark}+(1-2*{p.dark})*(r(X,Y)+g(X,Y)+b(X,Y))/3)-{p.threshold})/max(255-{p.threshold},1),0,1))':b='b(X-({p.length_x})*clip(((255*{p.dark}+(1-2*{p.dark})*(r(X,Y)+g(X,Y)+b(X,Y))/3)-{p.threshold})/max(255-{p.threshold},1),0,1),Y-({p.length_y})*clip(((255*{p.dark}+(1-2*{p.dark})*(r(X,Y)+g(X,Y)+b(X,Y))/3)-{p.threshold})/max(255-{p.threshold},1),0,1))',format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Pixel-sort-style streaks: pixels past a brightness threshold are dragged along a direction, farther the brighter they are (ffmpeg geq; slow at high resolutions)."
+}

@@ -3,10 +3,13 @@ import VideobedKit
 
 struct LayerInspector: View {
     @Environment(StudioModel.self) private var model
+    /// Explicit expand/collapse choices, keyed by plugin id + group name.
+    @State private var expansion: [String: Bool] = [:]
 
     var body: some View {
         if let item = model.selectedItem {
             if let plugin = model.plugin(item.spec.plugin) {
+                let groups = ParamGroup.groups(of: plugin)
                 Form {
                     Section {
                         VStack(alignment: .leading, spacing: 4) {
@@ -20,15 +23,12 @@ struct LayerInspector: View {
                     if case .unavailable(let why) = item.status {
                         Section { Label(why, systemImage: "exclamationmark.triangle").foregroundStyle(.orange) }
                     }
-                    Section("Parameters") {
-                        if plugin.params.isEmpty {
-                            Text("No parameters").foregroundStyle(.secondary)
-                        }
-                        ForEach(plugin.params, id: \.key) { spec in
-                            ParamControl(spec: spec, value: item.spec.params[spec.key] ?? spec.default) {
-                                model.setParam(item.id, key: spec.key, value: $0)
-                            }
-                        }
+                    if groups.isEmpty {
+                        Section { Text("No parameters").foregroundStyle(.secondary) }
+                    }
+                    ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                        ParamSection(group: group, item: item,
+                                     isExpanded: expandedBinding(plugin.id, group.name, defaultValue: groups.count <= 3 || index == 0))
                     }
                 }
                 .formStyle(.grouped)
@@ -39,5 +39,11 @@ struct LayerInspector: View {
         } else {
             ContentUnavailableView("No Layer Selected", systemImage: "slider.horizontal.3")
         }
+    }
+
+    /// Plugins with many sections start with only the first one open.
+    private func expandedBinding(_ plugin: String, _ group: String, defaultValue: Bool) -> Binding<Bool> {
+        let key = "\(plugin)\u{1F}\(group)"
+        return Binding(get: { expansion[key] ?? defaultValue }, set: { expansion[key] = $0 })
     }
 }

@@ -67,6 +67,39 @@ final class LayerRunnerTests {
         #expect(try String(contentsOf: d2.output, encoding: .utf8) == "2")
     }
 
+    @Test func scriptsSeeTypedParamsOptionalFilesAndSourceAudio() async throws {
+        let audio = root.appending(path: "audio.wav")
+        try Data("pcm".utf8).write(to: audio)
+        let m = PluginManifest(id: "env", name: "env", params: [
+            ParamSpec(key: "on", label: "On", type: .bool, default: .bool(true)),
+            ParamSpec(key: "mode", label: "Mode", type: .enumeration, default: .string("2"), options: ["1", "2"]),
+            ParamSpec(key: "track", label: "Track", type: .file, default: .string(""), optional: true),
+        ], steps: [PluginStep(name: "dump", script: """
+            jq -c --arg a "$VB_SOURCE_AUDIO" --arg t "$VB_P_TRACK" '. + {audio: $a, track_env: $t}' "$VB_PARAMS" > "$VB_OUT"
+            """)])
+        let out = try await runner.run(manifest: m, params: m.defaults(), input: input, parentKey: "p",
+                                       sourceAudio: audio, onStep: { _, _, _, _ in })
+        let json = try JSONSerialization.jsonObject(with: Data(contentsOf: out.output)) as? [String: Any]
+        #expect(json?["on"] as? Bool == true)
+        #expect(json?["mode"] as? String == "2")
+        #expect(json?["track"] as? String == "")
+        #expect(json?["track_env"] as? String == "")
+        #expect(json?["audio"] as? String == audio.path)
+    }
+
+    @Test func requiredEmptyFileParamFailsBeforeSpawning() async throws {
+        let m = PluginManifest(id: "req", name: "req",
+                               params: [ParamSpec(key: "track", label: "Track", type: .file, default: .string(""))],
+                               steps: [PluginStep(name: "go", script: "cp \"$VB_IN\" \"$VB_OUT\"")])
+        await #expect {
+            _ = try await run(m)
+        } throws: { error in
+            if case RenderError.missingFile(_, let param) = error { return param == "track" }
+            return false
+        }
+        #expect(cacheEntries().isEmpty)
+    }
+
     @Test func failingStepKeepsFailedDir() async throws {
         let m = plugin("fail", script: "echo boom >&2; exit 3")
         do {

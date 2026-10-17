@@ -7,11 +7,13 @@ struct EditableParam: Identifiable, Hashable {
     var spec: ParamSpec
     var optionsText: String
     var extensionsText: String
+    var labelsText: String
 
     init(_ spec: ParamSpec) {
         self.spec = spec
         optionsText = (spec.options ?? []).joined(separator: ", ")
         extensionsText = (spec.extensions ?? []).joined(separator: ", ")
+        labelsText = (spec.labels ?? []).joined(separator: ", ")
     }
 
     static func list(_ text: String) -> [String] {
@@ -28,7 +30,12 @@ struct EditableParam: Identifiable, Hashable {
         if s.type != .float { s.step = nil }
         s.options = s.type == .enumeration ? options : nil
         s.extensions = s.type == .file ? Self.list(extensionsText) : nil
+        let labels = Self.list(labelsText)
+        s.labels = s.type == .enumeration && !labels.isEmpty ? labels : nil
+        if !numeric || s.scale == .linear { s.scale = nil }
+        if s.type != .file || s.optional == false { s.optional = nil }
         if s.help?.isEmpty == true { s.help = nil }
+        if s.group?.trimmingCharacters(in: .whitespaces).isEmpty ?? true { s.group = nil }
         return s
     }
 

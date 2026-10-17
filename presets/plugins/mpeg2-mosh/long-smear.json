@@ -1,0 +1,14 @@
+{
+  "name" : "Long smear",
+  "params" : {
+    "gop" : 0,
+    "h_scale" : 100,
+    "pan_x" : 0,
+    "pan_y" : 0,
+    "qscale" : 0,
+    "tail" : 30,
+    "v_scale" : 100
+  },
+  "plugin" : "mpeg2-mosh",
+  "schema" : 1
+}

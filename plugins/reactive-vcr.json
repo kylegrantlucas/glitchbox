@@ -12,9 +12,10 @@
         "aiff",
         "m4a"
       ],
-      "help" : "Driving audio track",
+      "help" : "Track that drives the effect; empty = the source video's audio",
       "key" : "audio",
       "label" : "Audio",
+      "optional" : true,
       "type" : "file"
     },
     {
@@ -22,7 +23,7 @@
       "extensions" : [
         "toml"
       ],
-      "help" : "Audio-feature → effect mapping",
+      "help" : "Audio-feature → ntsc-rs mapping (TOML)",
       "key" : "map",
       "label" : "Map",
       "type" : "file"
@@ -35,20 +36,9 @@
   "schema" : 1,
   "steps" : [
     {
-      "argv" : [
-        "reactive-vcr",
-        "--audio",
-        "{p.audio}",
-        "--map",
-        "{p.map}",
-        "--audio-mode",
-        "none",
-        "-o",
-        "{out}",
-        "{in}"
-      ],
-      "name" : "render"
+      "name" : "render",
+      "script" : "audio=${VB_P_AUDIO:-$VB_SOURCE_AUDIO}\nif [ -z \"$audio\" ]; then\n  echo \"reactive-vcr: the source has no audio track; choose an Audio file\" >&2\n  exit 1\nfi\nreactive-vcr --audio \"$audio\" --map \"$VB_P_MAP\" --audio-mode none -o \"$VB_OUT\" \"$VB_IN\"\n"
     }
   ],
-  "summary" : "Audio-reactive VCR artifacts (pipelines/reactive-vcr)."
+  "summary" : "Audio-reactive VCR artifacts (pipelines/reactive-vcr). Driven by the source video's own audio unless an audio file is chosen."
 }

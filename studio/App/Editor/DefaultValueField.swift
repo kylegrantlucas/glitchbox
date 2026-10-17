@@ -21,7 +21,10 @@ struct DefaultValueField: View {
                 .labelsHidden()
         case .enumeration:
             Picker("Default", selection: Binding(get: { value.stringValue ?? "" }, set: { param.spec.default = .string($0) })) {
-                ForEach(param.options, id: \.self) { Text($0).tag($0) }
+                ForEach(Array(param.options.enumerated()), id: \.element) { i, option in
+                    let labels = EditableParam.list(param.labelsText)
+                    Text(labels.indices.contains(i) ? labels[i] : option).tag(option)
+                }
             }
             .labelsHidden()
         case .string, .file:

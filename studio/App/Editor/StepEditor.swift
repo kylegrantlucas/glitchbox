@@ -33,8 +33,9 @@ struct StepEditor: View {
             steps.append(EditableStep(.init(name: "step\(steps.count + 1)", argv: ["ffmpeg"])))
         }
         VStack(alignment: .leading, spacing: 4) {
-            Text("Argv placeholders: {in} {out} {work} {root} {p.<key>} — write {{ and }} for literal braces.")
-            Text("Script variables: $VB_IN $VB_OUT $VB_WORK $VB_ROOT $VB_P_<KEY> (scripts are not template-expanded).")
+            Text("Argv placeholders: {in} {out} {work} {root} {params} {source_audio} {p.<key>} — write {{ and }} for literal braces.")
+            Text("Script variables: $VB_IN $VB_OUT $VB_WORK $VB_ROOT $VB_PARAMS $VB_SOURCE_AUDIO $VB_P_<KEY> (scripts are not template-expanded).")
+            Text("{params} / $VB_PARAMS is a JSON file of the resolved params; {source_audio} is the source's trimmed audio, or empty.")
         }
         .font(.caption)
         .foregroundStyle(.secondary)

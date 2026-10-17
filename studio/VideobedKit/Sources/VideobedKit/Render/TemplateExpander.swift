@@ -1,12 +1,16 @@
 /// Expands `{name}` placeholders in argv templates.
 ///
 /// Grammar: `{{` → `{`, `}}` → `}`, `{name}` → value, unterminated `{` is an
-/// error, a lone `}` is literal. Names: `in`, `out`, `work`, `root`, `p.<key>`.
+/// error, a lone `}` is literal. Names: `builtinNames` and `p.<key>`.
 public struct TemplateExpander {
     private enum Piece { case literal(String), placeholder(String) }
 
+    /// `params` is the resolved-params JSON file; `source_audio` the source's
+    /// trimmed audio track ("" when the source has none).
+    public static let builtinNames: Set<String> = ["in", "out", "work", "root", "params", "source_audio"]
+
     public static func isValidName(_ name: String) -> Bool {
-        if ["in", "out", "work", "root"].contains(name) { return true }
+        if builtinNames.contains(name) { return true }
         guard name.hasPrefix("p.") else { return false }
         let key = name.dropFirst(2)
         guard let first = key.first, first.isASCII, first.isLowercase else { return false }

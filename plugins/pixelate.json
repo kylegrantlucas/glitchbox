@@ -1,0 +1,72 @@
+{
+  "assets" : [],
+  "id" : "pixelate",
+  "name" : "Pixelate",
+  "params" : [
+    {
+      "default" : 16,
+      "key" : "width",
+      "label" : "Block width",
+      "max" : 256,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 16,
+      "key" : "height",
+      "label" : "Block height",
+      "max" : 256,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : "avg",
+      "key" : "mode",
+      "label" : "Block color",
+      "labels" : [
+        "Average",
+        "Darkest",
+        "Brightest"
+      ],
+      "options" : [
+        "avg",
+        "min",
+        "max"
+      ],
+      "type" : "enum"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "pixelize=width={p.width}:height={p.height}:mode={p.mode},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Mosaic blocks (ffmpeg pixelize)."
+}

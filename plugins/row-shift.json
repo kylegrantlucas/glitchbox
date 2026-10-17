@@ -1,0 +1,79 @@
+{
+  "assets" : [],
+  "id" : "row-shift",
+  "name" : "Row Shift",
+  "params" : [
+    {
+      "default" : 0.1,
+      "key" : "intensity",
+      "label" : "Shift intensity",
+      "max" : 1.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "step" : 0.005,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "help" : "0 = random heights between min and max",
+      "key" : "block_height",
+      "label" : "Block height",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.005,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0083,
+      "key" : "min",
+      "label" : "Min block height",
+      "max" : 1.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "step" : 0.001,
+      "type" : "float"
+    },
+    {
+      "default" : 0.1,
+      "key" : "max",
+      "label" : "Max block height",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.005,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "frei0r=filter_name=pixs0r:filter_params={p.intensity}|{p.block_height}|{p.min}|{p.max},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Shift bands of rows to and fro (frei0r pixs0r). frei0r effect; random-driven effects differ between renders (the cache keeps the first)."
+}

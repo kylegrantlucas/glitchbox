@@ -1,0 +1,152 @@
+{
+  "assets" : [],
+  "id" : "mv-script",
+  "name" : "MV Script",
+  "params" : [
+    {
+      "default" : "dd_gravity.js",
+      "group" : "Script",
+      "help" : "Scripts marked with a parameter in parentheses take Amount",
+      "key" : "script",
+      "label" : "Script",
+      "labels" : [
+        "Average bastard (window)",
+        "Average bastard 2 (window)",
+        "Average bastard 3",
+        "Anti-gravity (gravity)",
+        "Circle",
+        "Circular",
+        "Delay (delay)",
+        "Double right",
+        "Double speed",
+        "Gravity (gravity)",
+        "Horizontal zoom (speed)",
+        "Max zero (threshold)",
+        "Min zero (threshold)",
+        "Mirror X",
+        "Mirror Y",
+        "Only fall",
+        "Only rise",
+        "Reverse",
+        "Ring buffer (delay)",
+        "Rotate 180",
+        "Rotate 180 negative",
+        "Slam zoom (zoom)",
+        "Split phase (frames per phase)",
+        "Swap",
+        "Vertical zoom (speed)",
+        "Zoom in (zoom)",
+        "Zoom in/out (zoom)",
+        "Zoom out (zoom)",
+        "Zoom whoops (zoom)",
+        "RP average",
+        "RP sink and rise"
+      ],
+      "options" : [
+        "dd_AverageBastard.js",
+        "dd_AverageBastard2.js",
+        "dd_AverageBastard3.js",
+        "dd_antiGravity.js",
+        "dd_circle.js",
+        "dd_circular.js",
+        "dd_delay.js",
+        "dd_doubleRight.js",
+        "dd_doubleSpeed.js",
+        "dd_gravity.js",
+        "dd_horizontalZoom.js",
+        "dd_maxZero.js",
+        "dd_minZero.js",
+        "dd_mirrorX.js",
+        "dd_mirrorY.js",
+        "dd_onlyFall.js",
+        "dd_onlyRise.js",
+        "dd_reverse.js",
+        "dd_ringBuffer.js",
+        "dd_rotate180.js",
+        "dd_rotate180Negative.js",
+        "dd_slamZoom.js",
+        "dd_splitPhase.js",
+        "dd_swap.js",
+        "dd_verticalZoom.js",
+        "dd_zoomIn.js",
+        "dd_zoomInOut.js",
+        "dd_zoomOut.js",
+        "dd_zoomWhoops.js",
+        "RP_average.js",
+        "RP_mv_sink_and_rise.js"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 0,
+      "group" : "Script",
+      "help" : "Passed to scripts that take a parameter; 0 = the script's own default",
+      "key" : "amount",
+      "label" : "Amount",
+      "max" : 100,
+      "min" : -100,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "Encode",
+      "help" : "MPEG-2 quantizer; 0 = encoder default",
+      "key" : "qscale",
+      "label" : "Quantizer",
+      "max" : 31,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "Encode",
+      "help" : "Frames between keyframes; 0 = one keyframe for the whole clip",
+      "key" : "gop",
+      "label" : "GOP size",
+      "max" : 9999,
+      "min" : 0,
+      "type" : "int"
+    }
+  ],
+  "requires" : [
+    "ffgac",
+    "ffedit",
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "name" : "encode",
+      "script" : "gop=$VB_P_GOP\n[ \"$gop\" -gt 0 ] || gop=max\nffgac -hide_banner -nostdin -loglevel error -y -i \"$VB_IN\" -an \\\n  -mpv_flags +nopimb+forcemv -qscale:v \"$VB_P_QSCALE\" -g \"$gop\" -bf 0 -sc_threshold max \\\n  -vcodec mpeg2video -f rawvideo \"$VB_WORK/enc.mpg\"\n"
+    },
+    {
+      "name" : "mosh",
+      "script" : "args=()\nif [ \"$VB_P_AMOUNT\" -ne 0 ]; then args=(-sp \"$VB_P_AMOUNT\"); fi\nffedit -i \"$VB_WORK/enc.mpg\" -f mv \\\n  -s \"$FFGLITCH_SCRIPTS/free-for-all/dd-glitch-assist-scriptsv10/instant_damage/$VB_P_SCRIPT\" \\\n  \"${args[@]}\" -o \"$VB_WORK/mosh.mpg\"\n"
+    },
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{work}/mosh.mpg",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "decode"
+    }
+  ],
+  "summary" : "Forced-MV MPEG-2 encode + one of the deterministic DD-GlitchAssist ffedit scripts from $FFGLITCH_SCRIPTS (pinned by flake.lock)."
+}

@@ -51,11 +51,14 @@ public struct Renderer: Sendable {
             throw Self.attribute(error, index: -1, plugin: "source")
         }
         emit(.layerFinished(index: -1, current))
+        let audio = current.dir.appending(path: SourcePrep.audioFileName)
+        let sourceAudio = FileManager.default.fileExists(atPath: audio.path) ? audio : nil
 
         for (i, m, params) in resolved {
             emit(.layerStarted(index: i, plugin: m.id))
             do {
                 current = try await runner.run(manifest: m, params: params, input: current.output, parentKey: current.key,
+                                               sourceAudio: sourceAudio,
                                                onStep: { emit(.step(index: i, step: $0, of: $1, name: $2, log: $3)) })
             } catch {
                 throw Self.attribute(error, index: i, plugin: m.id)

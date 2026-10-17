@@ -50,4 +50,19 @@ struct ManifestValidatorTests {
     @Test func rejectsFileNameMismatch() {
         #expect(messages(base(), fileName: "other.json").contains { $0.contains("must be 'demo.json'") })
     }
+
+    @Test func checksLabelsScaleAndOptional() {
+        var m = base()
+        m.params = [
+            ParamSpec(key: "mode", label: "Mode", type: .enumeration, default: .string("0"), options: ["0", "1"], labels: ["Only one"]),
+            ParamSpec(key: "gain", label: "Gain", type: .float, default: .float(0), scale: .log),
+            ParamSpec(key: "name", label: "Name", type: .string, default: .string(""), optional: true),
+        ]
+        m.steps[0].argv = ["ffmpeg", "{source_audio}", "{params}"]
+        let found = messages(m)
+        #expect(found.contains { $0.contains("labels must match options") })
+        #expect(found.contains { $0.contains("log scale needs min and max") })
+        #expect(found.contains { $0.contains("optional is only for file params") })
+        #expect(found.count == 3)
+    }
 }

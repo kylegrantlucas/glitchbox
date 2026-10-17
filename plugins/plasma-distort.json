@@ -1,0 +1,83 @@
+{
+  "assets" : [],
+  "id" : "plasma-distort",
+  "name" : "Plasma Distort",
+  "params" : [
+    {
+      "default" : 1.0,
+      "key" : "amplitude",
+      "label" : "Amplitude",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 0.005,
+      "key" : "frequency",
+      "label" : "Frequency",
+      "max" : 1.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "step" : 0.001,
+      "type" : "float"
+    },
+    {
+      "default" : "n",
+      "key" : "time_based",
+      "label" : "Velocity mode",
+      "labels" : [
+        "Time based",
+        "Adjustable velocity"
+      ],
+      "options" : [
+        "n",
+        "y"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 0.5,
+      "help" : "Used in adjustable-velocity mode",
+      "key" : "velocity",
+      "label" : "Velocity",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "frei0r=filter_name=distort0r:filter_params={p.amplitude}|{p.frequency}|{p.time_based}|{p.velocity},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Wobble the image along a moving plasma field (frei0r distort0r)."
+}

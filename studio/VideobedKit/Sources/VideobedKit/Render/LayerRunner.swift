@@ -17,26 +17,36 @@ public struct LayerRunner: Sendable {
     }
 
     /// `params` must already be resolved (see `Workspace.resolveParams`).
+    /// `sourceAudio` is the source layer's trimmed audio track, when it has one.
     public func run(manifest: PluginManifest, params: [String: ParamValue], input: URL, parentKey: String,
+                    sourceAudio: URL? = nil,
                     onStep: @Sendable (_ step: Int, _ of: Int, _ name: String, _ log: URL) -> Void) async throws -> LayerOutput {
         let fm = FileManager.default
         let missing = env.missing(manifest.requires)
         guard missing.isEmpty else { throw RenderError.unavailable(plugin: manifest.id, missing: missing) }
 
         var rendered: [String: String] = [:]
+        var typed: [String: ParamValue] = [:]
         var files: [String: String] = [:]
         for spec in manifest.params {
             let value = params[spec.key] ?? spec.default
             if spec.type == .file {
                 let s = value.stringValue ?? ""
+                if s.isEmpty, spec.isOptional {
+                    rendered[spec.key] = ""
+                    typed[spec.key] = .string("")
+                    continue
+                }
                 let url = resolveFile(s)
                 guard !s.isEmpty, fm.fileExists(atPath: url.path) else {
                     throw RenderError.missingFile(plugin: manifest.id, param: spec.key)
                 }
                 files[spec.key] = try Hashing.sha256Hex(fileAt: url)
                 rendered[spec.key] = url.path
+                typed[spec.key] = .string(url.path)
             } else {
                 rendered[spec.key] = value.rendered
+                typed[spec.key] = value
             }
         }
         var assets: [String: String] = [:]
@@ -65,13 +75,20 @@ public struct LayerRunner: Sendable {
         let log = partial.appending(path: "log.txt")
         try fm.createDirectory(at: work, withIntermediateDirectories: true)
         fm.createFile(atPath: log.path, contents: nil)
+        // Typed resolved params for scripts that build config files (jq-friendly).
+        let paramsFile = partial.appending(path: "params.json")
+        try CanonicalJSON.data(typed).write(to: paramsFile)
+        let audioPath = sourceAudio?.path ?? ""
 
-        var values = ["in": input.path, "out": out.path, "work": work.path, "root": root.path]
+        var values = ["in": input.path, "out": out.path, "work": work.path, "root": root.path,
+                      "params": paramsFile.path, "source_audio": audioPath]
         var stepEnv = env.variables
         stepEnv["VB_IN"] = input.path
         stepEnv["VB_OUT"] = out.path
         stepEnv["VB_WORK"] = work.path
         stepEnv["VB_ROOT"] = root.path
+        stepEnv["VB_PARAMS"] = paramsFile.path
+        stepEnv["VB_SOURCE_AUDIO"] = audioPath
         stepEnv["VB_OUT_DIR"] = work.appending(path: "vb").path
         for (k, v) in rendered {
             values["p.\(k)"] = v

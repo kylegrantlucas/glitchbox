@@ -1,0 +1,119 @@
+{
+  "assets" : [],
+  "id" : "datascope",
+  "name" : "Datascope",
+  "params" : [
+    {
+      "default" : "1280x720",
+      "key" : "size",
+      "label" : "Output size",
+      "labels" : [
+        "640×360",
+        "1280×720",
+        "1920×1080"
+      ],
+      "options" : [
+        "640x360",
+        "1280x720",
+        "1920x1080"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 0,
+      "help" : "Left edge of the sampled window",
+      "key" : "x",
+      "label" : "Window X",
+      "max" : 3840,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "help" : "Top edge of the sampled window",
+      "key" : "y",
+      "label" : "Window Y",
+      "max" : 2160,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : "color2",
+      "key" : "mode",
+      "label" : "Mode",
+      "labels" : [
+        "Mono",
+        "Color text",
+        "Color background"
+      ],
+      "options" : [
+        "mono",
+        "color",
+        "color2"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : "hex",
+      "key" : "format",
+      "label" : "Number format",
+      "labels" : [
+        "Hex",
+        "Decimal"
+      ],
+      "options" : [
+        "hex",
+        "dec"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : false,
+      "key" : "axis",
+      "label" : "Axis labels",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.75,
+      "key" : "opacity",
+      "label" : "Background opacity",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "datascope=size={p.size}:x={p.x}:y={p.y}:mode={p.mode}:format={p.format}:axis={p.axis}:opacity={p.opacity},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Render the pixels under a window as their numeric values (ffmpeg datascope). Output takes the chosen size."
+}

@@ -1,0 +1,98 @@
+{
+  "assets" : [],
+  "id" : "kaleidoscope",
+  "name" : "Kaleidoscope",
+  "params" : [
+    {
+      "default" : 0.5,
+      "key" : "origin_x",
+      "label" : "Origin X",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 0.5,
+      "key" : "origin_y",
+      "label" : "Origin Y",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 0.125,
+      "help" : "×128 = number of segments; 1, 2, or multiples of 4 work best",
+      "key" : "segmentation",
+      "label" : "Segments",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.0078125,
+      "type" : "float"
+    },
+    {
+      "default" : "1.0",
+      "key" : "direction",
+      "label" : "Direction",
+      "labels" : [
+        "None",
+        "Counter-clockwise",
+        "Clockwise"
+      ],
+      "options" : [
+        "0.0",
+        "0.5",
+        "1.0"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : "y",
+      "key" : "reflect",
+      "label" : "Reflect edges",
+      "labels" : [
+        "On",
+        "Off"
+      ],
+      "options" : [
+        "y",
+        "n"
+      ],
+      "type" : "enum"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "frei0r=filter_name=kaleid0sc0pe:filter_params={p.origin_x}|{p.origin_y}|{p.segmentation}|n|0|{p.direction}|{p.reflect},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Mirror segments around a point (frei0r kaleid0sc0pe)."
+}

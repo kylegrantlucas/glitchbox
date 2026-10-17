@@ -20,13 +20,13 @@ struct ParamControl: View {
 
     @ViewBuilder private var control: some View {
         switch spec.type {
-        case .int: intControl
-        case .float: floatControl
+        case .int: numericControl(isInt: true)
+        case .float: numericControl(isInt: false)
         case .bool:
             Toggle(spec.label, isOn: Binding(get: { value.boolValue ?? false }, set: { onChange(.bool($0)) }))
         case .enumeration:
             Picker(spec.label, selection: Binding(get: { value.stringValue ?? "" }, set: { onChange(.string($0)) })) {
-                ForEach(spec.options ?? [], id: \.self) { Text(($0 as NSString).lastPathComponent).tag($0) }
+                ForEach(spec.options ?? [], id: \.self) { Text(optionTitle($0)).tag($0) }
             }
         case .string:
             TextField(spec.label, text: Binding(get: { value.stringValue ?? "" }, set: { onChange(.string($0)) }))
@@ -34,71 +34,78 @@ struct ParamControl: View {
         }
     }
 
-    private var intValue: Binding<Int> {
-        Binding(get: { Int(value.doubleValue ?? 0) }, set: { onChange(spec.clamp(.int($0))) })
+    private func optionTitle(_ option: String) -> String {
+        if spec.labels != nil { return spec.label(forOption: option) }
+        return option.contains("/") ? (option as NSString).lastPathComponent : option
     }
 
-    private var doubleValue: Binding<Double> {
-        Binding(get: { value.doubleValue ?? 0 }, set: { onChange(spec.clamp(.float($0))) })
+    private var number: Double { value.doubleValue ?? 0 }
+
+    private func set(_ d: Double, isInt: Bool) {
+        onChange(spec.clamp(isInt ? .int(Int(d.rounded())) : .float(d)))
     }
 
-    @ViewBuilder private var intControl: some View {
-        if let lo = spec.min, let hi = spec.max, lo < hi {
-            LabeledContent(spec.label) {
-                HStack {
-                    let value = Binding(get: { Double(intValue.wrappedValue) }, set: { intValue.wrappedValue = Int($0.rounded()) })
-                    if hi - lo <= Self.maxSliderStops {
-                        Slider(value: value, in: lo...hi, step: 1)
-                    } else {
-                        // A stepped slider materializes every stop (2^31 for a seed).
-                        Slider(value: value, in: lo...hi)
-                    }
-                    TextField(spec.label, value: intValue, format: .number.grouping(.never))
-                        .labelsHidden()
-                        .frame(width: 80)
+    @ViewBuilder private func numericControl(isInt: Bool) -> some View {
+        LabeledContent(spec.label) {
+            HStack {
+                if let lo = spec.min, let hi = spec.max, lo < hi {
+                    slider(lo: lo, hi: hi, isInt: isInt)
                 }
-            }
-        } else {
-            LabeledContent(spec.label) {
-                HStack {
-                    TextField(spec.label, value: intValue, format: .number.grouping(.never))
+                if isInt {
+                    TextField(spec.label, value: Binding(get: { Int(number) }, set: { set(Double($0), isInt: true) }),
+                              format: .number.grouping(.never))
                         .labelsHidden()
                         .frame(width: 80)
-                    Stepper(spec.label, value: intValue).labelsHidden()
+                    if spec.min == nil || spec.max == nil {
+                        Stepper(spec.label, value: Binding(get: { Int(number) }, set: { set(Double($0), isInt: true) }))
+                            .labelsHidden()
+                    }
+                } else {
+                    TextField(spec.label, value: Binding(get: { number }, set: { set($0, isInt: false) }),
+                              format: .number.precision(.significantDigits(1...6)))
+                        .labelsHidden()
+                        .frame(width: 80)
                 }
             }
         }
     }
 
-    @ViewBuilder private var floatControl: some View {
-        LabeledContent(spec.label) {
-            HStack {
-                if let lo = spec.min, let hi = spec.max, lo < hi {
-                    let step = spec.step ?? (hi - lo) / 100
-                    if step > 0, (hi - lo) / step <= Self.maxSliderStops {
-                        Slider(value: doubleValue, in: lo...hi, step: step)
-                    } else {
-                        Slider(value: doubleValue, in: lo...hi)
-                    }
-                }
-                TextField(spec.label, value: doubleValue, format: .number.precision(.fractionLength(0...4)))
-                    .labelsHidden()
-                    .frame(width: 80)
+    @ViewBuilder private func slider(lo: Double, hi: Double, isInt: Bool) -> some View {
+        if spec.scale == .log {
+            Slider(value: Binding(get: { LogScale.position(of: number, lo: lo, hi: hi) },
+                                  set: { set(LogScale.value(at: $0, lo: lo, hi: hi), isInt: isInt) }),
+                   in: 0...1)
+        } else {
+            let binding = Binding(get: { number }, set: { set($0, isInt: isInt) })
+            let step = isInt ? 1 : (spec.step ?? (hi - lo) / 100)
+            if step > 0, (hi - lo) / step <= Self.maxSliderStops {
+                Slider(value: binding, in: lo...hi, step: step)
+            } else {
+                // A stepped slider materializes every stop (2^31 for a seed).
+                Slider(value: binding, in: lo...hi)
             }
         }
     }
 
     private var fileControl: some View {
         LabeledContent(spec.label) {
-            HStack {
-                let path = value.stringValue ?? ""
-                Text(path.isEmpty ? "None" : path)
-                    .foregroundStyle(path.isEmpty ? .secondary : .primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .help(path)
-                Spacer()
-                Button("Choose…") { importing = true }
+            VStack(alignment: .trailing, spacing: 2) {
+                HStack {
+                    let path = value.stringValue ?? ""
+                    Text(path.isEmpty ? "None" : path)
+                        .foregroundStyle(path.isEmpty ? .secondary : .primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(path)
+                    Spacer()
+                    if spec.isOptional, !path.isEmpty {
+                        Button("Clear") { onChange(.string("")) }
+                    }
+                    Button("Choose…") { importing = true }
+                }
+                if spec.isOptional, (value.stringValue ?? "").isEmpty, let help = spec.help {
+                    Text(help).font(.caption).foregroundStyle(.secondary)
+                }
             }
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: contentTypes) { result in

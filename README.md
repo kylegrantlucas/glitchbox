@@ -94,12 +94,29 @@ just plug render --chain analog-mosh-vhs --duration 3 --height 240 in.mp4
 ```
 
 - A plugin (`plugins/<id>.json`) declares typed params and steps. An `argv` step
-  expands `{in} {out} {work} {root} {p.<key>}` (`{{`/`}}` escape braces); a
-  `script` step runs under `bash -euo pipefail` with `$VB_IN $VB_OUT $VB_WORK
-  $VB_ROOT $VB_P_<KEY>` and is not template-expanded. `requires` names commands
-  that must be on the devshell PATH; `assets` are repo files hashed into the key.
+  expands `{in} {out} {work} {root} {params} {source_audio} {p.<key>}`
+  (`{{`/`}}` escape braces); a `script` step runs under `bash -euo pipefail` with
+  `$VB_IN $VB_OUT $VB_WORK $VB_ROOT $VB_PARAMS $VB_SOURCE_AUDIO $VB_P_<KEY>` and
+  is not template-expanded. `{params}`/`$VB_PARAMS` is a JSON file of the
+  resolved, typed params (handy for building tool configs with `jq`).
+  `requires` names commands that must be on the devshell PATH; `assets` are repo
+  files hashed into the key.
+- Params may set `group` (inspector section), `labels` (display names for enum
+  `options`), `scale: "log"` (slider favors small values), and, for files,
+  `optional: true` (empty is passed through instead of failing).
 - Every chain starts with an implicit source layer that trims, scales, and
-  normalizes to constant-fps, video-only FFV1. Layers pass FFV1 `.mkv` along.
+  normalizes to constant-fps, video-only FFV1, and extracts the source's audio
+  (same trim) as `audio.wav`; later layers get it as `{source_audio}`. Layers
+  pass FFV1 `.mkv` along.
+- Plugins: `analog-pass` (every ntsc-rs setting; defaults reproduce
+  `presets/vhs.json` frame-for-frame), `mpeg2-mosh` (`scripts/mosh.js`: average
+  window, axis scales, drift; presets for sink-and-rise and pan), `mv-script`
+  (deterministic DD-GlitchAssist ffedit scripts), `mv-mangle`, `reactive-vcr`
+  (uses the source's audio unless a file is chosen), `vhs-filter`, ffmpeg
+  effects (`trails`, `frame-blend`, `datascope`, `rgb-split`, `pixel-smear`,
+  `pixelate`, `bitcrush`), and frei0r effects (`block-glitch`, `row-shift`,
+  `plasma-distort`, `kaleidoscope`, `vertigo`). `block-glitch` and `row-shift`
+  are random-driven, so re-renders differ; the cache keeps the first.
 - Each layer is cached in `out/studio/layers/<id>-<key>/` with a `manifest.json`;
   the key covers the parent layer's key, the manifest, resolved params, file-param
   and asset digests, and `flake.lock`. Editing one layer re-renders only it and the

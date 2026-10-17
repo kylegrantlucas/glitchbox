@@ -11,14 +11,32 @@ public struct ParamSpec: Codable, Hashable, Sendable {
     public var options: [String]?
     public var extensions: [String]?
     public var help: String?
+    /// Inspector section; params sharing a group are shown together.
+    public var group: String?
+    /// Display names for enum `options`, index-aligned.
+    public var labels: [String]?
+    /// Slider mapping for int/float params; nil means linear.
+    public var scale: ParamScale?
+    /// File params only: an empty value is allowed and passed as "".
+    public var optional: Bool?
 
     public init(key: String, label: String, type: ParamType, default: ParamValue,
                 min: Double? = nil, max: Double? = nil, step: Double? = nil,
-                options: [String]? = nil, extensions: [String]? = nil, help: String? = nil) {
+                options: [String]? = nil, extensions: [String]? = nil, help: String? = nil,
+                group: String? = nil, labels: [String]? = nil, scale: ParamScale? = nil, optional: Bool? = nil) {
         self.key = key; self.label = label; self.type = type; self.default = `default`
         self.min = min; self.max = max; self.step = step
         self.options = options; self.extensions = extensions; self.help = help
+        self.group = group; self.labels = labels; self.scale = scale; self.optional = optional
     }
+
+    /// Display name for an enum option.
+    public func label(forOption option: String) -> String {
+        guard let labels, let i = options?.firstIndex(of: option), labels.indices.contains(i) else { return option }
+        return labels[i]
+    }
+
+    public var isOptional: Bool { optional ?? false }
 
     /// Converts `v` to this spec's type, or nil when it is not representable.
     public func coerce(_ v: ParamValue) -> ParamValue? {

@@ -261,6 +261,13 @@ final class StudioModel {
         setParams(id, m.defaults())
     }
 
+    func resetParams(_ id: LayerItem.ID, keys: [String]) {
+        guard let item = item(id), let m = plugin(item.spec.plugin) else { return }
+        var params = item.spec.params
+        for key in keys { params[key] = m.spec(key)?.default }
+        setParams(id, params)
+    }
+
     func pluginPresetExists(plugin: String, name: String) -> Bool {
         guard let url = try? workspace.pluginPresetURL(plugin: plugin, name: name) else { return false }
         return FileManager.default.fileExists(atPath: url.path)

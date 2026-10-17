@@ -1,85 +1,96 @@
 {
   "assets" : [
-    "glitch-loop/scripts/mv_average.js",
-    "glitch-loop/scripts/mv_sink_and_rise.js",
-    "glitch-loop/scripts/mv_sink_and_rise_fast.js",
-    "glitch-loop/scripts/mv_pan.js"
+    "scripts/mosh.js"
   ],
   "id" : "mpeg2-mosh",
   "name" : "MPEG-2 Mosh",
   "params" : [
     {
-      "default" : "glitch-loop/scripts/mv_average.js",
-      "help" : "ffedit motion-vector script",
-      "key" : "script",
-      "label" : "Script",
-      "options" : [
-        "glitch-loop/scripts/mv_average.js",
-        "glitch-loop/scripts/mv_sink_and_rise.js",
-        "glitch-loop/scripts/mv_sink_and_rise_fast.js",
-        "glitch-loop/scripts/mv_pan.js"
-      ],
-      "type" : "enum"
-    },
-    {
       "default" : 0,
-      "help" : "0 = encoder default",
+      "group" : "Encode",
+      "help" : "MPEG-2 quantizer; 0 = encoder default. Higher = blockier smear",
       "key" : "qscale",
       "label" : "Quantizer",
       "max" : 31,
       "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "Encode",
+      "help" : "Frames between keyframes; 0 = one keyframe for the whole clip, so motion accumulates",
+      "key" : "gop",
+      "label" : "GOP size",
+      "max" : 9999,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 10,
+      "group" : "Motion",
+      "help" : "Average each motion vector over this many frames; 1 = off",
+      "key" : "tail",
+      "label" : "Average window",
+      "max" : 60,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 100,
+      "group" : "Motion",
+      "help" : "Scale horizontal motion; 100 = unchanged, 0 = sink & rise, negative = reverse",
+      "key" : "h_scale",
+      "label" : "Horizontal scale (%)",
+      "max" : 400,
+      "min" : -400,
+      "type" : "int"
+    },
+    {
+      "default" : 100,
+      "group" : "Motion",
+      "help" : "Scale vertical motion; negative = reverse",
+      "key" : "v_scale",
+      "label" : "Vertical scale (%)",
+      "max" : 400,
+      "min" : -400,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "Drift",
+      "help" : "Constant horizontal drift added to every vector",
+      "key" : "pan_x",
+      "label" : "Pan X",
+      "max" : 32,
+      "min" : -32,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "Drift",
+      "help" : "Constant vertical drift added to every vector",
+      "key" : "pan_y",
+      "label" : "Pan Y",
+      "max" : 32,
+      "min" : -32,
       "type" : "int"
     }
   ],
   "requires" : [
     "ffgac",
     "ffedit",
-    "ffmpeg"
+    "ffmpeg",
+    "jq"
   ],
   "schema" : 1,
   "steps" : [
     {
-      "argv" : [
-        "ffgac",
-        "-hide_banner",
-        "-nostdin",
-        "-loglevel",
-        "error",
-        "-y",
-        "-i",
-        "{in}",
-        "-an",
-        "-mpv_flags",
-        "+nopimb+forcemv",
-        "-qscale:v",
-        "{p.qscale}",
-        "-g",
-        "max",
-        "-bf",
-        "0",
-        "-sc_threshold",
-        "max",
-        "-vcodec",
-        "mpeg2video",
-        "-f",
-        "rawvideo",
-        "{work}/enc.mpg"
-      ],
-      "name" : "encode"
+      "name" : "encode",
+      "script" : "gop=$VB_P_GOP\n[ \"$gop\" -gt 0 ] || gop=max\nffgac -hide_banner -nostdin -loglevel error -y -i \"$VB_IN\" -an \\\n  -mpv_flags +nopimb+forcemv -qscale:v \"$VB_P_QSCALE\" -g \"$gop\" -bf 0 -sc_threshold max \\\n  -vcodec mpeg2video -f rawvideo \"$VB_WORK/enc.mpg\"\n"
     },
     {
-      "argv" : [
-        "ffedit",
-        "-i",
-        "{work}/enc.mpg",
-        "-f",
-        "mv",
-        "-s",
-        "{root}/{p.script}",
-        "-o",
-        "{work}/mosh.mpg"
-      ],
-      "name" : "mosh"
+      "name" : "mosh",
+      "script" : "ffedit -i \"$VB_WORK/enc.mpg\" -f mv -s \"$VB_ROOT/scripts/mosh.js\" \\\n  -sp \"$(jq -c '{tail, h_scale, v_scale, pan_x, pan_y}' \"$VB_PARAMS\")\" -o \"$VB_WORK/mosh.mpg\"\n"
     },
     {
       "argv" : [
@@ -106,5 +117,5 @@
       "name" : "decode"
     }
   ],
-  "summary" : "Forced-MV MPEG-2 encode + ffedit motion script (glitch-loop technique)."
+  "summary" : "Forced-MV MPEG-2 encode + ffedit motion-vector mosh (scripts/mosh.js). Defaults match glitch-loop's mv_average; see Presets for sink-and-rise and pan."
 }

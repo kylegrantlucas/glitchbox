@@ -1,0 +1,60 @@
+{
+  "assets" : [],
+  "id" : "vertigo",
+  "name" : "Vertigo",
+  "params" : [
+    {
+      "default" : 0.02,
+      "help" : "Rotation speed",
+      "key" : "phase",
+      "label" : "Phase increment",
+      "max" : 1.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "step" : 0.005,
+      "type" : "float"
+    },
+    {
+      "default" : 0.202,
+      "key" : "zoom",
+      "label" : "Zoom rate",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.005,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "frei0r=filter_name=vertigo:filter_params={p.phase}|{p.zoom},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Feedback blend with a zoomed, rotating copy of the previous frame (frei0r vertigo)."
+}

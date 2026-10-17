@@ -1,0 +1,99 @@
+{
+  "assets" : [],
+  "id" : "frame-blend",
+  "name" : "Frame Blend",
+  "params" : [
+    {
+      "default" : "difference",
+      "key" : "mode",
+      "label" : "Mode",
+      "labels" : [
+        "Addition",
+        "Average",
+        "Difference",
+        "Multiply",
+        "Screen",
+        "Overlay",
+        "Lighten",
+        "Darken",
+        "Xor",
+        "Grainmerge",
+        "Grainextract",
+        "Glow",
+        "Heat",
+        "Phoenix",
+        "Reflect",
+        "Negation",
+        "Exclusion",
+        "Hardmix",
+        "Softdifference",
+        "Extremity"
+      ],
+      "options" : [
+        "addition",
+        "average",
+        "difference",
+        "multiply",
+        "screen",
+        "overlay",
+        "lighten",
+        "darken",
+        "xor",
+        "grainmerge",
+        "grainextract",
+        "glow",
+        "heat",
+        "phoenix",
+        "reflect",
+        "negation",
+        "exclusion",
+        "hardmix",
+        "softdifference",
+        "extremity"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 1.0,
+      "key" : "opacity",
+      "label" : "Opacity",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "tblend=all_mode={p.mode}:all_opacity={p.opacity},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffv1",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Blend each frame with the previous one (ffmpeg tblend): ghosting, motion edges, temporal XOR."
+}

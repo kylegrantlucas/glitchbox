@@ -34,14 +34,29 @@ struct ParamSpecEditor: View {
                     }
                     .labelsHidden()
                 }
+                if param.spec.type == .int || param.spec.type == .float {
+                    Picker("Slider", selection: Binding(get: { param.spec.scale ?? .linear }, set: { param.spec.scale = $0 })) {
+                        Text("Linear slider").tag(ParamScale.linear)
+                        Text("Log slider").tag(ParamScale.log)
+                    }
+                    .labelsHidden()
+                    .help("Log sliders favor small values near min; they need min and max")
+                }
                 if param.spec.type == .enumeration {
                     TextField("Options", text: $param.optionsText, prompt: Text("option-a, option-b"))
+                        .labelsHidden()
+                    TextField("Labels", text: $param.labelsText, prompt: Text("Display names, one per option (optional)"))
                         .labelsHidden()
                 }
                 if param.spec.type == .file {
                     TextField("Extensions", text: $param.extensionsText, prompt: Text("json, toml"))
                         .labelsHidden()
+                    Toggle("Optional (empty value allowed)", isOn: Binding(get: { param.spec.optional ?? false },
+                                                                         set: { param.spec.optional = $0 }))
                 }
+                TextField("Group", text: Binding(get: { param.spec.group ?? "" }, set: { param.spec.group = $0 }),
+                          prompt: Text("Inspector section (optional)"))
+                    .labelsHidden()
                 TextField("Help", text: Binding(get: { param.spec.help ?? "" }, set: { param.spec.help = $0 }), prompt: Text("Help text"))
                     .labelsHidden()
             }

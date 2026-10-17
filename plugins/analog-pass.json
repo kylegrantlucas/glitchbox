@@ -1,12 +1,11 @@
 {
-  "assets" : [
-    "presets/vhs.json"
-  ],
+  "assets" : [],
   "id" : "analog-pass",
   "name" : "Analog Pass",
   "params" : [
     {
       "default" : 42,
+      "group" : "General",
       "help" : "ntsc-rs random_seed",
       "key" : "seed",
       "label" : "Seed",
@@ -15,36 +14,692 @@
       "type" : "int"
     },
     {
-      "default" : "presets/vhs.json",
-      "extensions" : [
-        "json"
-      ],
-      "help" : "ntsc-rs effect settings JSON",
-      "key" : "preset",
-      "label" : "Preset",
-      "type" : "file"
-    },
-    {
       "default" : 0,
-      "help" : "0 = native",
+      "group" : "General",
+      "help" : "Resize to this many lines before the effect; 0 = native",
       "key" : "scale",
       "label" : "Scale (lines)",
       "max" : 2160,
       "min" : 0,
       "type" : "int"
+    },
+    {
+      "default" : "1",
+      "group" : "Signal",
+      "help" : "Choose which rows (\"fields\" in NTSC parlance) of the source image will be used.",
+      "key" : "use_field",
+      "label" : "Use field",
+      "labels" : [
+        "Alternating",
+        "Upper only",
+        "Lower only",
+        "Interleaved (upper first)",
+        "Interleaved (lower first)",
+        "Both"
+      ],
+      "options" : [
+        "0",
+        "1",
+        "2",
+        "4",
+        "5",
+        "3"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : "0",
+      "group" : "Signal",
+      "help" : "The low-pass filter to use throughout the effect.",
+      "key" : "filter_type",
+      "label" : "Lowpass filter type",
+      "labels" : [
+        "Constant K (blurry)",
+        "Butterworth (sharper)"
+      ],
+      "options" : [
+        "0",
+        "1"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : "2",
+      "group" : "Signal",
+      "help" : "Filter the input luminance to decrease rainbow artifacts.",
+      "key" : "input_luma_filter",
+      "label" : "Input luma filter",
+      "labels" : [
+        "Notch",
+        "Box",
+        "None"
+      ],
+      "options" : [
+        "2",
+        "1",
+        "0"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : "2",
+      "group" : "Signal",
+      "help" : "Apply a low-pass filter to the input chrominance (color) signal.",
+      "key" : "chroma_lowpass_in",
+      "label" : "Chroma low-pass in",
+      "labels" : [
+        "Full",
+        "Light",
+        "None"
+      ],
+      "options" : [
+        "2",
+        "1",
+        "0"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Signal",
+      "help" : "Boost high frequencies in the NTSC signal, sharpening the image and intensifying colors.",
+      "key" : "composite_preemphasis",
+      "label" : "Composite signal sharpening",
+      "max" : 2.0,
+      "min" : -1.0,
+      "type" : "float"
+    },
+    {
+      "default" : "2",
+      "group" : "Signal",
+      "help" : "Phase shift of the chrominance (color) signal each scanline. Usually 180 degrees.",
+      "key" : "video_scanline_phase_shift",
+      "label" : "Scanline phase shift",
+      "labels" : [
+        "0 degrees",
+        "90 degrees",
+        "180 degrees",
+        "270 degrees"
+      ],
+      "options" : [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 0,
+      "group" : "Signal",
+      "key" : "video_scanline_phase_shift_offset",
+      "label" : "Scanline phase shift offset",
+      "max" : 3,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : "1",
+      "group" : "Signal",
+      "help" : "Filter used to modulate the chrominance (color) data out of the composite NTSC signal.",
+      "key" : "chroma_demodulation",
+      "label" : "Chroma demodulation filter",
+      "labels" : [
+        "Box",
+        "Notch",
+        "1-line comb",
+        "2-line comb"
+      ],
+      "options" : [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Signal",
+      "key" : "luma_smear",
+      "label" : "Luma smear",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : "2",
+      "group" : "Signal",
+      "help" : "Apply a low-pass filter to the output chroma signal.",
+      "key" : "chroma_lowpass_out",
+      "label" : "Chroma low-pass out",
+      "labels" : [
+        "Full",
+        "Light",
+        "None"
+      ],
+      "options" : [
+        "2",
+        "1",
+        "0"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : true,
+      "group" : "Composite signal noise",
+      "help" : "Noise applied to the composite NTSC signal.",
+      "key" : "composite_noise",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.01,
+      "group" : "Composite signal noise",
+      "help" : "Intensity of the noise.",
+      "key" : "composite_noise_intensity",
+      "label" : "Intensity",
+      "max" : 1.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : 0.25,
+      "group" : "Composite signal noise",
+      "help" : "Base wavelength, in pixels, of the noise.",
+      "key" : "composite_noise_frequency",
+      "label" : "Frequency",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 1,
+      "group" : "Composite signal noise",
+      "help" : "Octaves of noise.",
+      "key" : "composite_noise_detail",
+      "label" : "Detail",
+      "max" : 5,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 0.003,
+      "group" : "Snow",
+      "help" : "Frequency of random speckles in the image.",
+      "key" : "snow_intensity",
+      "label" : "Snow",
+      "max" : 100.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : 0.5,
+      "group" : "Snow",
+      "help" : "Determines whether the speckles are placed truly randomly or concentrated in certain rows.",
+      "key" : "snow_anisotropy",
+      "label" : "Snow anisotropy",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "Head switching",
+      "help" : "Emulate VHS head-switching artifacts at the bottom of the image.",
+      "key" : "head_switching",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 8,
+      "group" : "Head switching",
+      "help" : "Total height of the head-switching artifact.",
+      "key" : "head_switching_height",
+      "label" : "Height",
+      "max" : 24,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 0,
+      "group" : "Head switching",
+      "help" : "How much of the head-switching artifact is off-screen.",
+      "key" : "head_switching_offset",
+      "label" : "Offset",
+      "max" : 24,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 72.0,
+      "group" : "Head switching",
+      "help" : "How much the head-switching artifact shifts rows horizontally.",
+      "key" : "head_switching_horizontal_shift",
+      "label" : "Horizontal shift",
+      "max" : 100.0,
+      "min" : -100.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Head switching: mid-line",
+      "help" : "Start the head-switching artifact mid-scanline, with some static where it begins.",
+      "key" : "head_switching_start_mid_line",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.95,
+      "group" : "Head switching: mid-line",
+      "help" : "Horizontal position at which the head-switching starts.",
+      "key" : "head_switching_mid_line_position",
+      "label" : "Position",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.03,
+      "group" : "Head switching: mid-line",
+      "help" : "How much the head-switching artifact \"jitters\" horizontally.",
+      "key" : "head_switching_mid_line_jitter",
+      "label" : "Jitter",
+      "max" : 1.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "Tracking noise",
+      "help" : "Emulate noise from VHS tracking error.",
+      "key" : "tracking_noise",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 24,
+      "group" : "Tracking noise",
+      "help" : "Total height of the tracking artifacts.",
+      "key" : "tracking_noise_height",
+      "label" : "Height",
+      "max" : 120,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 5.0,
+      "group" : "Tracking noise",
+      "help" : "How much the affected scanlines \"wave\" back and forth.",
+      "key" : "tracking_noise_wave_intensity",
+      "label" : "Wave intensity",
+      "max" : 50.0,
+      "min" : -50.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.03,
+      "group" : "Tracking noise",
+      "help" : "Frequency of speckle-type noise in the artifacts.",
+      "key" : "tracking_noise_snow_intensity",
+      "label" : "Snow intensity",
+      "max" : 1.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : 0.25,
+      "group" : "Tracking noise",
+      "help" : "How much the speckles are clustered by scanline.",
+      "key" : "tracking_noise_snow_anisotropy",
+      "label" : "Snow anisotropy",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.25,
+      "group" : "Tracking noise",
+      "help" : "Intensity of non-speckle noise.",
+      "key" : "tracking_noise_noise_intensity",
+      "label" : "Noise intensity",
+      "max" : 1.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "Ringing",
+      "help" : "Additional ringing artifacts, simulated with a notch filter.",
+      "key" : "ringing",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.45,
+      "group" : "Ringing",
+      "help" : "Frequency/period of the ringing, in \"rings per pixel\".",
+      "key" : "ringing_frequency",
+      "label" : "Frequency",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 4.0,
+      "group" : "Ringing",
+      "help" : "The power of the notch filter / how far out the ringing extends.",
+      "key" : "ringing_power",
+      "label" : "Power",
+      "max" : 10.0,
+      "min" : 1.0,
+      "type" : "float"
+    },
+    {
+      "default" : 4.0,
+      "group" : "Ringing",
+      "help" : "Intensity of the ringing.",
+      "key" : "ringing_scale",
+      "label" : "Scale",
+      "max" : 10.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Luma noise",
+      "help" : "Noise applied to the luminance signal. Useful for higher-frequency noise than the \"Composite noise\" setting can provide.",
+      "key" : "luma_noise",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.01,
+      "group" : "Luma noise",
+      "help" : "Intensity of the noise.",
+      "key" : "luma_noise_intensity",
+      "label" : "Intensity",
+      "max" : 1.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : 0.5,
+      "group" : "Luma noise",
+      "help" : "Base wavelength, in pixels, of the noise.",
+      "key" : "luma_noise_frequency",
+      "label" : "Frequency",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 1,
+      "group" : "Luma noise",
+      "help" : "Octaves of noise.",
+      "key" : "luma_noise_detail",
+      "label" : "Detail",
+      "max" : 5,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : true,
+      "group" : "Chroma noise",
+      "help" : "Noise applied to the chrominance (color) signal.",
+      "key" : "chroma_noise",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 0.01,
+      "group" : "Chroma noise",
+      "help" : "Intensity of the noise.",
+      "key" : "chroma_noise_intensity",
+      "label" : "Intensity",
+      "max" : 1.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : 0.05,
+      "group" : "Chroma noise",
+      "help" : "Base wavelength, in pixels, of the noise.",
+      "key" : "chroma_noise_frequency",
+      "label" : "Frequency",
+      "max" : 0.5,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 1,
+      "group" : "Chroma noise",
+      "help" : "Octaves of noise.",
+      "key" : "chroma_noise_detail",
+      "label" : "Detail",
+      "max" : 5,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Chroma",
+      "help" : "Phase error for the chrominance (color) signal.",
+      "key" : "chroma_phase_error",
+      "label" : "Chroma phase error",
+      "max" : 1.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.01,
+      "group" : "Chroma",
+      "help" : "Noise applied per-scanline to the phase of the chrominance (color) signal.",
+      "key" : "chroma_phase_noise_intensity",
+      "label" : "Chroma phase noise",
+      "max" : 1.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "group" : "Chroma",
+      "help" : "Horizontal offset of the chrominance (color) signal.",
+      "key" : "chroma_delay_horizontal",
+      "label" : "Chroma delay (horizontal)",
+      "max" : 40.0,
+      "min" : -40.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0,
+      "group" : "Chroma",
+      "help" : "Vertical offset of the chrominance (color) signal. Usually increases with VHS generation loss.",
+      "key" : "chroma_delay_vertical",
+      "label" : "Chroma delay (vertical)",
+      "max" : 20,
+      "min" : -20,
+      "type" : "int"
+    },
+    {
+      "default" : true,
+      "group" : "Chroma",
+      "help" : "Vertically blend each scanline's chrominance with the scanline above it.",
+      "key" : "vhs_chroma_vert_blend",
+      "label" : "Vertically blend chroma",
+      "type" : "bool"
+    },
+    {
+      "default" : true,
+      "group" : "VHS emulation",
+      "key" : "vhs_settings",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : "2",
+      "group" : "VHS emulation",
+      "help" : "Emulate cutoff of high-frequency data at various VHS recording speeds.",
+      "key" : "vhs_tape_speed",
+      "label" : "Tape speed",
+      "labels" : [
+        "SP (Standard Play)",
+        "LP (Long Play)",
+        "EP (Extended Play)",
+        "None"
+      ],
+      "options" : [
+        "1",
+        "2",
+        "3",
+        "0"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 0.0,
+      "group" : "VHS emulation",
+      "help" : "Chance that the chrominance (color) signal is completely lost in each scanline.",
+      "key" : "vhs_chroma_loss",
+      "label" : "Chroma loss",
+      "max" : 1.0,
+      "min" : 0.0,
+      "scale" : "log",
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "VHS: sharpen",
+      "help" : "Sharpening of the image, as done by some VHS decks.",
+      "key" : "vhs_sharpen_enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 1.5,
+      "group" : "VHS: sharpen",
+      "help" : "Amount of sharpening to apply.",
+      "key" : "vhs_sharpen",
+      "label" : "Intensity",
+      "max" : 5.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 1.0,
+      "group" : "VHS: sharpen",
+      "help" : "Frequency / radius of the sharpening, relative to the tape speed's cutoff frequency.",
+      "key" : "vhs_sharpen_frequency",
+      "label" : "Frequency",
+      "max" : 4.0,
+      "min" : 0.5,
+      "type" : "float"
+    },
+    {
+      "default" : true,
+      "group" : "VHS: edge wave",
+      "help" : "Horizontal waving of the image.",
+      "key" : "vhs_edge_wave_enabled",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 1.0,
+      "group" : "VHS: edge wave",
+      "help" : "Horizontal waving of the image, in pixels.",
+      "key" : "vhs_edge_wave",
+      "label" : "Intensity",
+      "max" : 20.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 4.0,
+      "group" : "VHS: edge wave",
+      "help" : "Speed at which the horizontal waving occurs.",
+      "key" : "vhs_edge_wave_speed",
+      "label" : "Speed",
+      "max" : 10.0,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 0.05,
+      "group" : "VHS: edge wave",
+      "help" : "Base wavelength for the horizontal waving.",
+      "key" : "vhs_edge_wave_frequency",
+      "label" : "Frequency",
+      "max" : 0.5,
+      "min" : 0.0,
+      "type" : "float"
+    },
+    {
+      "default" : 1,
+      "group" : "VHS: edge wave",
+      "help" : "Octaves of noise for the waves.",
+      "key" : "vhs_edge_wave_detail",
+      "label" : "Detail",
+      "max" : 5,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : true,
+      "group" : "Scale",
+      "help" : "Scale the effect by these factors.",
+      "key" : "scale_settings",
+      "label" : "Enabled",
+      "type" : "bool"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Scale",
+      "help" : "Horizontally scale the effect by this amount. For 480p video, leave this at 1.0 for the most physically-accurate result.",
+      "key" : "bandwidth_scale",
+      "label" : "Horizontal scale",
+      "max" : 8.0,
+      "min" : 0.125,
+      "type" : "float"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Scale",
+      "help" : "Vertically scale the effect by this amount. You should probably leave this at 1.0.",
+      "key" : "vertical_scale",
+      "label" : "Vertical scale",
+      "max" : 8.8,
+      "min" : 0.125,
+      "type" : "float"
+    },
+    {
+      "default" : false,
+      "group" : "Scale",
+      "help" : "Multiply the scaling factors by the video's height. Prefer scaling the input video to 480p instead, which gives much more accurate-looking results.",
+      "key" : "scale_with_video_size",
+      "label" : "Scale with video size",
+      "type" : "bool"
     }
   ],
   "requires" : [
     "analog-pass",
     "ntsc-rs-cli",
-    "ffmpeg"
+    "ffmpeg",
+    "jq"
   ],
   "schema" : 1,
   "steps" : [
     {
       "name" : "ntsc",
-      "script" : "args=(--seed \"$VB_P_SEED\" --preset \"$VB_P_PRESET\" -o \"$VB_OUT\")\nif [ \"$VB_P_SCALE\" -gt 0 ]; then args+=(--scale \"$VB_P_SCALE\"); fi\nanalog-pass \"${args[@]}\" \"$VB_IN\"\n"
+      "script" : "# Build an ntsc-rs settings preset from the layer params: enum values arrive as\n# strings (\"2\") and ntsc-rs wants numbers; seed and scale are pipeline flags.\njq -c 'del(.seed, .scale)\n  | with_entries(if (.value | type) == \"string\" then .value |= tonumber else . end)\n  | . + {version: 1}' \"$VB_PARAMS\" > \"$VB_WORK/settings.json\"\nargs=(--seed \"$VB_P_SEED\" --preset \"$VB_WORK/settings.json\" -o \"$VB_OUT\")\nif [ \"$VB_P_SCALE\" -gt 0 ]; then args+=(--scale \"$VB_P_SCALE\"); fi\nanalog-pass \"${args[@]}\" \"$VB_IN\"\n"
     }
   ],
-  "summary" : "NTSC/VHS analog simulation via ntsc-rs (pipelines/analog-pass)."
+  "summary" : "NTSC/VHS analog simulation via ntsc-rs (pipelines/analog-pass) with every ntsc-rs setting exposed. Defaults reproduce presets/vhs.json exactly (ntsc-rs legacy values fill keys that preset omits)."
 }
