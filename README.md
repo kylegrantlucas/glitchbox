@@ -1,5 +1,7 @@
 # Glitchbox
 
+[![build](https://github.com/kylegrantlucas/glitchbox/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/kylegrantlucas/glitchbox/actions/workflows/build.yml)
+
 Glitchbox is a macOS app for breaking video on purpose. You stack plugins into a
 chain (datamosh, VHS and NTSC artifacts, circuit-bent video hardware, frei0r and
 ffmpeg effects), tweak each layer's parameters, and watch the result in the
@@ -210,6 +212,22 @@ PATH can't end up in the bundle. The build finishes by checking that:
 Set `GLITCHBOX_SIGN_IDENTITY` to sign with a real identity, which also turns on
 the hardened runtime. The default is ad-hoc. The version comes from
 `packaging/VERSION`.
+
+### CI and releases
+
+`.github/workflows/build.yml` runs on pushes to `main`, pull requests, `v*` tags,
+and manual dispatch. It uses GitHub's `xcode-27` Apple silicon runner with Xcode
+27.0 and Rust 1.97.0 pinned, runs `swift test` in `app/GlitchboxKit`, then
+`packaging/build.sh all`, and uploads the DMG and its `.sha256` as a workflow
+artifact for 14 days. Downloads are cached by `packaging/sources.json`, and the
+stamped stage outputs by `sources.json`, `build.sh`, and the Xcode and Rust
+versions. A cold build takes about 12 minutes and a cached one about 3.
+
+To release, push a tag `v<packaging/VERSION>`. CI builds the DMG and creates a
+draft GitHub Release with the DMG and checksum attached; a tag that doesn't match
+`packaging/VERSION` fails before building. Publish the draft by hand. Publishing
+also runs `.github/workflows/pages.yml`, which deploys `site/` to GitHub Pages
+once Pages is enabled for the repo with GitHub Actions as its source.
 
 ### What's in the bundle
 
