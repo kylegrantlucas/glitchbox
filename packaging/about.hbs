@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rust crates and their licences</title>
+<style>
+body { font: 14px/1.5 -apple-system, sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; }
+pre { white-space: pre-wrap; background: #f4f4f4; padding: 1rem; font-size: 12px; }
+@media (prefers-color-scheme: dark) { body { background: #1e1e1e; color: #ddd; } pre { background: #2a2a2a; } a { color: #8ab4f8; } }
+</style>
+</head>
+<body>
+<h1>Rust crates and their licences</h1>
+<p>Every crate compiled into this tool, grouped by licence.</p>
+<ul>
+{{#each overview}}<li><a href="#{{id}}">{{name}}</a> ({{count}})</li>
+{{/each}}
+</ul>
+{{#each licenses}}
+<h2 id="{{id}}">{{name}}</h2>
+<ul>
+{{#each used_by}}<li><a href="{{#if crate.repository}}{{crate.repository}}{{else}}https://crates.io/crates/{{crate.name}}{{/if}}">{{crate.name}} {{crate.version}}</a></li>
+{{/each}}
+</ul>
+<pre>{{text}}</pre>
+{{/each}}
+</body>
+</html>

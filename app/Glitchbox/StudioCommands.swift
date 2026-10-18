@@ -19,7 +19,14 @@ struct StudioCommands: Commands {
             Button("Clear Render Cache…") { model.confirmClearCache = true }
                 .disabled(model.isExporting)
         }
+        CommandGroup(replacing: .help) {
+            Button("Third-Party Licenses") { NSWorkspace.shared.open(Self.licenses) }
+                .disabled(!FileManager.default.fileExists(atPath: Self.licenses.path))
+        }
     }
+
+    /// Licence texts of every bundled tool, staged by packaging/build.sh (absent from Debug builds).
+    private static let licenses = Bundle.main.bundleURL.appending(path: "Contents/Resources/licenses", directoryHint: .isDirectory)
 
     private func exportCurrentFrame() {
         let panel = NSSavePanel()

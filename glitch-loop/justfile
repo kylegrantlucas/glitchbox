@@ -21,7 +21,9 @@ helpers := here / "../build/Glitchbox.app/Contents/Helpers"
 export PATH := helpers + ":" + env_var("PATH")
 ffedit  := "ffedit"
 ffgac   := "ffgac"
-
+# The input still. The original source.jpg is the owner's and isn't in the repo;
+# put any image there or pass `just source=/path/to/image.jpg base`.
+source  := here + "/source.jpg"
 # Artistic constants — change these if you want a different loop
 loop_s  := "112.111"
 fps     := "30"
@@ -31,13 +33,14 @@ h       := "1080"
 default:
     @just --list
 
-# Full base pipeline: source.jpg -> loop_mosh.mp4
+# Full base pipeline: source image -> loop_mosh.mp4
 base: judder mpeg2 mosh vhs
 
 # Motion pass: enveloped multi-harmonic judder (loop-seamless)
 judder:
+    @test -f "{{source}}" || { echo "glitch-loop: no source image at {{source}} (it isn't in the repo; pass source=PATH)" >&2; exit 1; }
     mkdir -p {{work}} {{out}}
-    ffmpeg -y -loop 1 -framerate {{fps}} -t {{loop_s}} -i {{here}}/source.jpg \
+    ffmpeg -y -loop 1 -framerate {{fps}} -t {{loop_s}} -i "{{source}}" \
       -filter_script:v {{filters}}/judder.filter \
       -c:v libx264 -crf 14 -preset veryfast \
       {{work}}/judder.mp4

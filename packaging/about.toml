@@ -1,0 +1,28 @@
+# cargo-about config for the Rust tools build.sh compiles (ntsc-rs-cli, bender):
+# their crates' licence texts ship in Contents/Resources/licenses, as ntsc-rs
+# does for its own app. The accepted list mirrors ntsc-rs's about.toml.
+accepted = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "ISC",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "OFL-1.1",
+    "LicenseRef-UFL-1.0",
+    "GPL-3.0",
+    "CDDL-1.0",
+    "Zlib",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "MPL-2.0",
+    "Ubuntu-font-1.0",
+    "CDLA-Permissive-2.0",
+]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+# Only the crates that build into the shipped arm64 macOS binaries.
+targets = ["aarch64-apple-darwin"]
+# build.sh runs it with --frozen: licence texts come from the crate sources in
+# the build's CARGO_HOME, never the network.

@@ -163,6 +163,7 @@ stage_deps() {
     x264 | frei0r | sox | bash) echo gst ;; # gst provides pkg-config
     ffmpeg) echo "gst x264 frei0r" ;;
     ntsc_rs | bender) echo gst ;;
+    licenses) echo gst ;; # GStreamer's share/licenses
   esac
 }
 stage_srcs() {
@@ -172,6 +173,7 @@ stage_srcs() {
     ntsc_rs) echo ntsc-rs ;;
     bender) echo bender-rs ;;
     bash) echo "bash bash-patch" ;;
+    licenses) echo "ffmpeg x264 frei0r sox bash ntsc-rs bender-rs ffglitch ffglitch-scripts reactive-vcr" ;;
     *) echo "$1" ;;
   esac
 }
@@ -180,6 +182,11 @@ stage_recipe() { # what else, besides build_<stage>, a stage's output depends on
     gst) declare -f merge_pkg thin_arm64 ;;
     gst_runtime) declare -f gst_closure gst_copy_deps; echo "plugins: $GST_PLUGINS" ;;
     ntsc_rs | bender) declare -f cargo_build ;;
+    licenses)
+      declare -f lic_copy crate_licenses
+      cat "$PKG/about.toml" "$PKG/about.hbs" "$PKG/licenses/jq/COPYING"
+      echo "cargo-about: $("$CARGO_ABOUT" --version 2>/dev/null || true)"
+      ;;
   esac
 }
 stage_key() {
@@ -499,7 +506,90 @@ build_bender() {
   rm -rf "$WORK/bender-target"
 }
 
-TOOL_STAGES="gst gst_runtime x264 frei0r ffmpeg sox bash ntsc_rs bender"
+# --- Licences ----------------------------------------------------------------
+# Every bundled component's licence texts, the way ntsc-rs ships its own: the
+# upstream files from each pinned input, GStreamer's share/licenses, and
+# cargo-about credits for the Rust crates compiled into ntsc-rs-cli and bender
+# (ntsc-rs-cli is a bin of the GPL-3.0 ntsc-rs-gui crate; its core is MIT/ISC/
+# Apache). assemble_stage copies the tree to Contents/Resources/licenses and
+# writes Credits.html, which the standard About panel shows.
+CARGO_ABOUT=${CARGO_ABOUT:-$(command -v cargo-about || true)}
+LIC=$PREFIX/share/glitchbox-licenses
+
+lic_copy() { # NAME DIR FILE...: FILEs from the top of NAME's archive -> $LIC/DIR
+  local name=$1 dir=$2 t=$WORK/lic-x f
+  shift 2
+  rm -rf "$t"
+  mkdir -p "$t" "$LIC/$dir"
+  local -a inc=()
+  for f in "$@"; do inc+=(--include "*/$f"); done
+  tar -xf "$(src "$name")" -C "$t" --strip-components 1 "${inc[@]}"
+  for f in "$@"; do
+    [ -f "$t/$f" ] || die "licenses: $name has no $f"
+    cp "$t/$f" "$LIC/$dir/$f"
+  done
+  rm -rf "$t"
+}
+
+crate_licenses() { # NAME MANIFEST OUT: cargo-about over the crates of a Rust input
+  local s=$WORK/lic-src
+  unpack "$1" "$s"
+  (cd "$s" && menv CARGO_HOME="$DL/cargo-home" "$CARGO_ABOUT" generate --locked \
+    -c "$PKG/about.toml" -m "$s/$2" -o "$3" "$PKG/about.hbs")
+  rm -rf "$s"
+}
+
+build_licenses() {
+  [ -n "$CARGO_ABOUT" ] || die "licenses: cargo-about not found (cargo install cargo-about --locked --version 0.9.2)"
+  rm -rf "$LIC"
+  lic_copy ffmpeg ffmpeg COPYING.GPLv2 COPYING.GPLv3 COPYING.LGPLv2.1 COPYING.LGPLv3 LICENSE.md
+  lic_copy x264 x264 COPYING
+  lic_copy frei0r frei0r COPYING
+  lic_copy sox sox COPYING LICENSE.GPL LICENSE.LGPL
+  lic_copy bash bash COPYING
+  lic_copy ntsc-rs ntsc-rs LICENSE-MIT LICENSE-APACHE-2.0 LICENSE-ISC
+  lic_copy bender-rs bender-rs LICENSE-MIT LICENSE-APACHE
+  lic_copy ffglitch-scripts ffglitch-scripts LICENSE
+  lic_copy reactive-vcr reactive-vcr LICENSE THIRD_PARTY_LICENSES.html GSTREAMER-NOTICE.txt
+  mkdir -p "$LIC/ffglitch" "$LIC/jq"
+  unzip -p "$(src ffglitch)" '*/readme.txt' > "$LIC/ffglitch/readme.txt"
+  cp "$PKG/licenses/jq/COPYING" "$LIC/jq/COPYING"
+  cp -R "$GST_SDK/$GST_V/share/licenses" "$LIC/gstreamer"
+  crate_licenses ntsc-rs crates/gui/Cargo.toml "$LIC/ntsc-rs/crates.html"
+  crate_licenses bender-rs crates/bender-cli/Cargo.toml "$LIC/bender-rs/crates.html"
+}
+
+# Credits.html rows: sources.json name|shown name|licence|role|source (empty:
+# its pinned URL)|licenses/ dir. Versions come from sources.json.
+CREDITS='ffmpeg|FFmpeg|GPL-2.0-or-later (built with --enable-gpl)|decoding, encoding, and the ffmpeg filters||ffmpeg
+x264|x264|GPL-2.0-or-later|H.264 encoding, linked into FFmpeg||x264
+frei0r|frei0r|GPL-2.0-or-later|the frei0r effect plugins||frei0r
+gstreamer-runtime|GStreamer|LGPL-2.1-or-later; plugins under their own licences (x264enc is GPL)|media framework for ntsc-rs, bender, and reactive-vcr|https://gstreamer.freedesktop.org/src/|gstreamer
+ntsc-rs|ntsc-rs|GPL-3.0 (ntsc-rs-cli); core MIT, ISC, or Apache-2.0|NTSC and VHS emulation||ntsc-rs
+bender-rs|bender-rs|MIT or Apache-2.0|circuit-bent video hardware||bender-rs
+reactive-vcr|reactive-vcr|MIT|audio-reactive VCR artifacts|https://github.com/kylegrantlucas/reactive-vcr|reactive-vcr
+ffglitch|FFglitch|GPL-2.0-or-later; includes QuickJS (MIT)|bitstream editing: ffgac, ffedit, fflive, qjs|https://ffglitch.org/pub/src/ffglitch-{v}.tar.xz|ffglitch
+ffglitch-scripts|ffglitch-scripts|Unlicense|the DD-GlitchAssist scripts behind MV Script||ffglitch-scripts
+sox|SoX|GPL-2.0-or-later|audio in the pipelines||sox
+bash|GNU Bash|GPL-3.0-or-later|runs the pipeline and plugin scripts||bash
+jq|jq|MIT|JSON in the pipelines|https://github.com/jqlang/jq|jq'
+
+write_credits() { # OUT
+  local name shown lic role url dir ver
+  {
+    printf '%s\n' '<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font:11px -apple-system,sans-serif}td{vertical-align:top;padding:2px 6px 2px 0}</style></head><body>'
+    printf '<p>Glitchbox is MIT licensed: <a href="https://github.com/kylegrantlucas/glitchbox">github.com/kylegrantlucas/glitchbox</a>. It runs these tools, each under its own licence. Their full licence texts are in Help &gt; Third-Party Licenses (Glitchbox.app/Contents/Resources/licenses).</p>\n<table>\n'
+    while IFS='|' read -r name shown lic role url dir; do
+      ver=$(lock_field "$name" version)
+      [ -n "$url" ] || url=$(lock_field "$name" url)
+      url=${url//\{v\}/$ver}
+      printf '<tr><td><a href="%s">%s</a> %s</td><td>%s</td><td>%s</td></tr>\n' "$url" "$shown" "$ver" "$lic" "$role"
+    done <<< "$CREDITS"
+    printf '</table></body></html>\n'
+  } > "$1"
+}
+
+TOOL_STAGES="gst gst_runtime x264 frei0r ffmpeg sox bash ntsc_rs bender licenses"
 
 # --- Staging -------------------------------------------------------------------
 digest() { cat "$LOCK" "$PKG/build.sh" | shasum -a 256 | cut -d' ' -f1; }
@@ -584,6 +674,10 @@ assemble_stage() {
   tar -xf "$(src bender-rs)" -C "$x/bender" --strip-components 1
   cp -R "$x/bender/presets" "$c/Resources/bender-presets"
   write_toolchain_json "$c/Resources/toolchain.json"
+  cp -R "$LIC" "$c/Resources/licenses"
+  mkdir -p "$c/Resources/licenses/glitchbox"
+  cp "$ROOT/LICENSE" "$c/Resources/licenses/glitchbox/LICENSE"
+  write_credits "$c/Resources/Credits.html"
   rm -rf "$x"
 }
 
@@ -807,9 +901,23 @@ smoke_relocated() { # BUNDLE-DIR (the .app, or build/stage)
   rm -rf "$t"
 }
 
+check_licenses() { # CONTENTS: every credited component ships its licence texts
+  local c=$1 name shown lic role url dir
+  [ -s "$c/Resources/Credits.html" ] || die "verify: no Resources/Credits.html"
+  [ -s "$c/Resources/licenses/glitchbox/LICENSE" ] || die "verify: no Glitchbox LICENSE"
+  while IFS='|' read -r name shown lic role url dir; do
+    [ -n "$(ls -A "$c/Resources/licenses/$dir" 2>/dev/null)" ] || die "verify: no licence texts for $shown"
+  done <<< "$CREDITS"
+  for dir in ntsc-rs bender-rs; do
+    grep -q '<pre>' "$c/Resources/licenses/$dir/crates.html" || die "verify: empty crate licences for $dir"
+  done
+  log "verify: licence texts for $(printf '%s\n' "$CREDITS" | wc -l | tr -d ' ') components plus Rust crates"
+}
+
 verify_contents() { # BUNDLE-DIR
   local c=$1/Contents
   log "verify: $c"
+  check_licenses "$c"
   check_linkage "$c"
   smoke_all "$c"
   smoke_relocated "$1"

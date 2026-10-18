@@ -141,3 +141,10 @@ Glitchbox runs these projects, all of which ship inside the app:
 [SoX](https://sourceforge.net/projects/sox/),
 [jq](https://jqlang.org), and
 [bash](https://www.gnu.org/software/bash/).
+
+## License
+
+Glitchbox is released under the [MIT License](LICENSE). The tools it bundles keep
+their own licences; FFmpeg, x264, FFglitch, frei0r, SoX, and bash are GPL. The
+About window lists each one with a link to its source, and Help → Third-Party
+Licenses opens the full texts.

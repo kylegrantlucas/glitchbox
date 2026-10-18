@@ -4,7 +4,9 @@ work/
 /build/
 .direnv/
 .DS_Store
-# media outputs/intermediates (glitch-loop/source.jpg is the tracked exception)
+# glitch-loop's input image is the owner's own and not part of the repo or its licence
+glitch-loop/source.jpg
+# media outputs/intermediates
 *.mp4
 *.mpg
 *.mkv
