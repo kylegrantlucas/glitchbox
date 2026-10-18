@@ -49,7 +49,7 @@
         "-map_chapters",
         "-1",
         "-c:v",
-        "ffv1",
+        "ffvhuff",
         "-y",
         "{out}"
       ],

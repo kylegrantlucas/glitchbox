@@ -53,7 +53,7 @@
         "-i",
         "{in}",
         "-vf",
-        "format=gbrp,geq=r='r(X-({p.length_x})*clip(((255*{p.dark}+(1-2*{p.dark})*(r(X,Y)+g(X,Y)+b(X,Y))/3)-{p.threshold})/max(255-{p.threshold},1),0,1),Y-({p.length_y})*clip(((255*{p.dark}+(1-2*{p.dark})*(r(X,Y)+g(X,Y)+b(X,Y))/3)-{p.threshold})/max(255-{p.threshold},1),0,1))':g='g(X-({p.length_x})*clip(((255*{p.dark}+(1-2*{p.dark})*(r(X,Y)+g(X,Y)+b(X,Y))/3)-{p.threshold})/max(255-{p.threshold},1),0,1),Y-({p.length_y})*clip(((255*{p.dark}+(1-2*{p.dark})*(r(X,Y)+g(X,Y)+b(X,Y))/3)-{p.threshold})/max(255-{p.threshold},1),0,1))':b='b(X-({p.length_x})*clip(((255*{p.dark}+(1-2*{p.dark})*(r(X,Y)+g(X,Y)+b(X,Y))/3)-{p.threshold})/max(255-{p.threshold},1),0,1),Y-({p.length_y})*clip(((255*{p.dark}+(1-2*{p.dark})*(r(X,Y)+g(X,Y)+b(X,Y))/3)-{p.threshold})/max(255-{p.threshold},1),0,1))',format=yuv420p",
+        "format=gbrp,split[c][m];[m]colorchannelmixer=rr=1/3:rg=1/3:rb=1/3,extractplanes=r,lut=c0='clip(((255*{p.dark}+(1-2*{p.dark})*val)-{p.threshold})/max(255-{p.threshold},1),0,1)*255+0.5'[a];[c][a]alphamerge,geq=r='r(X-({p.length_x})*alpha(X,Y)/255,Y-({p.length_y})*alpha(X,Y)/255)':g='g(X-({p.length_x})*alpha(X,Y)/255,Y-({p.length_y})*alpha(X,Y)/255)':b='b(X-({p.length_x})*alpha(X,Y)/255,Y-({p.length_y})*alpha(X,Y)/255)':a=255,format=yuv420p",
         "-fflags",
         "+bitexact",
         "-flags:v",
@@ -63,12 +63,12 @@
         "-map_chapters",
         "-1",
         "-c:v",
-        "ffv1",
+        "ffvhuff",
         "-y",
         "{out}"
       ],
       "name" : "filter"
     }
   ],
-  "summary" : "Pixel-sort-style streaks: pixels past a brightness threshold are dragged along a direction, farther the brighter they are (ffmpeg geq; slow at high resolutions)."
+  "summary" : "Pixel-sort-style streaks: pixels past a brightness threshold are dragged along a direction, farther the brighter they are (ffmpeg: a brightness mask, computed once per frame, drives a geq displacement)."
 }

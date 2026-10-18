@@ -85,36 +85,8 @@
   "schema" : 1,
   "steps" : [
     {
-      "name" : "encode",
-      "script" : "gop=$GB_P_GOP\n[ \"$gop\" -gt 0 ] || gop=max\nffgac -hide_banner -nostdin -loglevel error -y -i \"$GB_IN\" -an \\\n  -mpv_flags +nopimb+forcemv -qscale:v \"$GB_P_QSCALE\" -g \"$gop\" -bf 0 -sc_threshold max \\\n  -vcodec mpeg2video -f rawvideo \"$GB_WORK/enc.mpg\"\n"
-    },
-    {
       "name" : "mosh",
-      "script" : "ffedit -i \"$GB_WORK/enc.mpg\" -f mv -s \"$GB_ROOT/scripts/mosh.js\" \\\n  -sp \"$(jq -c '{tail, h_scale, v_scale, pan_x, pan_y}' \"$GB_PARAMS\")\" -o \"$GB_WORK/mosh.mpg\"\n"
-    },
-    {
-      "argv" : [
-        "ffmpeg",
-        "-hide_banner",
-        "-nostdin",
-        "-loglevel",
-        "error",
-        "-i",
-        "{work}/mosh.mpg",
-        "-fflags",
-        "+bitexact",
-        "-flags:v",
-        "+bitexact",
-        "-map_metadata",
-        "-1",
-        "-map_chapters",
-        "-1",
-        "-c:v",
-        "ffv1",
-        "-y",
-        "{out}"
-      ],
-      "name" : "decode"
+      "script" : "# Forced-MV MPEG-2 encode | ffedit mosh | lossless decode, over pipes (no MPEG-2 temp files).\ngop=$GB_P_GOP\n[ \"$gop\" -gt 0 ] || gop=max\nffgac -hide_banner -nostdin -loglevel error -i \"$GB_IN\" -an \\\n  -mpv_flags +nopimb+forcemv -qscale:v \"$GB_P_QSCALE\" -g \"$gop\" -bf 0 -sc_threshold max \\\n  -vcodec mpeg2video -f rawvideo - \\\n| ffedit -i - -f mv -s \"$GB_ROOT/scripts/mosh.js\" \\\n  -sp \"$(jq -c '{tail, h_scale, v_scale, pan_x, pan_y}' \"$GB_PARAMS\")\" -o - \\\n| ffmpeg -hide_banner -nostdin -loglevel error -f mpegvideo -i - \\\n  -fflags +bitexact -flags:v +bitexact -map_metadata -1 -map_chapters -1 \\\n  -c:v ffvhuff -y \"$GB_OUT\"\n"
     }
   ],
   "summary" : "Forced-MV MPEG-2 encode + ffedit motion-vector mosh (scripts/mosh.js). Defaults match glitch-loop's mv_average; see Presets for sink-and-rise and pan."

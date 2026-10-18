@@ -88,6 +88,6 @@ ffedit -t -i "$ENC" -f mv -s "$SCRIPT" \
   -o "$GLITCHED" 2>/dev/null
 
 gb_log "ffmpeg: lossless re-encode"
-gb_ffmpeg -i "$GLITCHED" -- -c:v ffv1 -y "$OUTPUT"
+gb_ffmpeg -i "$GLITCHED" -- -c:v ffvhuff -y "$OUTPUT"
 
 gb_finish "$OUTPUT"

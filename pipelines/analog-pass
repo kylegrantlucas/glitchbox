@@ -7,8 +7,11 @@
 #   That asymmetry matters, because the effect is frame-index dependent: running
 #   it once per PNG would render every frame as frame 0 and produce static,
 #   identical noise instead of temporal artifacting. So this reads video and
-#   writes FFV1 (default, for lossless chaining) or a PNG sequence (--frames,
-#   for inspection) — either way from ONE continuous render.
+#   writes 4:2:0 FFV1 (default, for lossless chaining) or a PNG sequence
+#   (--frames, for inspection) — either way from ONE continuous render.
+#   4:2:0 (--chroma-subsampling) instead of ntsc-rs's 4:4:4 default: about 20%
+#   faster and 42% smaller at 1080p; luma is identical and the layers after it
+#   work in 4:2:0 anyway.
 #
 # ON DETERMINISM:
 #   ntsc-rs's RENDER is deterministic given random_seed — verified via framemd5,
@@ -30,7 +33,7 @@
 
 PRESET="" SEED=0 SCALE="" FRAMES="" INPUT="" OUTPUT="" CHECK=""
 
-usage() { sed -n '2,29p' "$0" | sed -E 's/^# ?//'; exit "${1:-0}"; }
+usage() { sed -n '2,30p' "$0" | sed -E 's/^# ?//'; exit "${1:-0}"; }
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -64,7 +67,7 @@ PARAMS=$(jq -cS -n \
   --arg frames "${FRAMES:+yes}" \
   --arg preset "$(basename "$PRESET")" \
   --argjson settings "$SETTINGS" \
-  '{seed:$seed,scale:$scale,frames:($frames|length>0),preset:$preset,settings:$settings}')
+  '{seed:$seed,scale:$scale,frames:($frames|length>0),preset:$preset,settings:$settings,chroma:"420"}')
 
 TOOLS=$(jq -cS -n \
   --arg ntsc "$(gb_tool_version ntsc-rs-cli)" \
@@ -80,7 +83,7 @@ declare -a scale_args=()
 [ -n "$SCALE" ] && scale_args=(--scale "$SCALE")
 
 gb_log "ntsc-rs: preset=$(basename "$PRESET") seed=$SEED scale=${SCALE:-native}"
-ntsc-rs-cli -i "$INPUT" -o "$RAW" -c ffv1 -y \
+ntsc-rs-cli -i "$INPUT" -o "$RAW" -c ffv1 --chroma-subsampling -y \
   -j "$SETTINGS" "${scale_args[@]}" >/dev/null 2>&1 \
   || gb_die "ntsc-rs-cli failed"
 

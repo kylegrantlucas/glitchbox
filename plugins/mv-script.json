@@ -116,36 +116,8 @@
   "schema" : 1,
   "steps" : [
     {
-      "name" : "encode",
-      "script" : "gop=$GB_P_GOP\n[ \"$gop\" -gt 0 ] || gop=max\nffgac -hide_banner -nostdin -loglevel error -y -i \"$GB_IN\" -an \\\n  -mpv_flags +nopimb+forcemv -qscale:v \"$GB_P_QSCALE\" -g \"$gop\" -bf 0 -sc_threshold max \\\n  -vcodec mpeg2video -f rawvideo \"$GB_WORK/enc.mpg\"\n"
-    },
-    {
       "name" : "mosh",
-      "script" : "args=()\nif [ \"$GB_P_AMOUNT\" -ne 0 ]; then args=(-sp \"$GB_P_AMOUNT\"); fi\nffedit -i \"$GB_WORK/enc.mpg\" -f mv \\\n  -s \"$FFGLITCH_SCRIPTS/free-for-all/dd-glitch-assist-scriptsv10/instant_damage/$GB_P_SCRIPT\" \\\n  \"${args[@]}\" -o \"$GB_WORK/mosh.mpg\"\n"
-    },
-    {
-      "argv" : [
-        "ffmpeg",
-        "-hide_banner",
-        "-nostdin",
-        "-loglevel",
-        "error",
-        "-i",
-        "{work}/mosh.mpg",
-        "-fflags",
-        "+bitexact",
-        "-flags:v",
-        "+bitexact",
-        "-map_metadata",
-        "-1",
-        "-map_chapters",
-        "-1",
-        "-c:v",
-        "ffv1",
-        "-y",
-        "{out}"
-      ],
-      "name" : "decode"
+      "script" : "# Forced-MV MPEG-2 encode | ffedit script | lossless decode, over pipes (no MPEG-2 temp files).\ngop=$GB_P_GOP\n[ \"$gop\" -gt 0 ] || gop=max\nargs=()\nif [ \"$GB_P_AMOUNT\" -ne 0 ]; then args=(-sp \"$GB_P_AMOUNT\"); fi\nffgac -hide_banner -nostdin -loglevel error -i \"$GB_IN\" -an \\\n  -mpv_flags +nopimb+forcemv -qscale:v \"$GB_P_QSCALE\" -g \"$gop\" -bf 0 -sc_threshold max \\\n  -vcodec mpeg2video -f rawvideo - \\\n| ffedit -i - -f mv \\\n  -s \"$FFGLITCH_SCRIPTS/free-for-all/dd-glitch-assist-scriptsv10/instant_damage/$GB_P_SCRIPT\" \\\n  \"${args[@]}\" -o - \\\n| ffmpeg -hide_banner -nostdin -loglevel error -f mpegvideo -i - \\\n  -fflags +bitexact -flags:v +bitexact -map_metadata -1 -map_chapters -1 \\\n  -c:v ffvhuff -y \"$GB_OUT\"\n"
     }
   ],
   "summary" : "Forced-MV MPEG-2 encode + one of the deterministic DD-GlitchAssist ffedit scripts from $FFGLITCH_SCRIPTS (pinned in the bundled toolchain)."
