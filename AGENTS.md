@@ -1,6 +1,6 @@
 # glitchbox — agent notes
 
-macOS app (Glitchbox.app) that layers glitch plugins into chains, plus the seeded terminal pipelines it grew out of and `glitch-loop/`, an ffmpeg + FFglitch datamosh piece. Every tool ships inside the app bundle; there is no Nix. README.md has the bundle contents, data locations, and reproducibility notes; read it before changing pipelines or packaging.
+macOS app (Glitchbox.app) that layers glitch plugins into chains, plus the seeded terminal pipelines it grew out of and `glitch-loop/`, an ffmpeg + FFglitch datamosh piece. Every tool ships inside the app bundle; there is no Nix. README.md is the product page (features, install, credits) and carries no development detail; the engineering facts live in this file, `packaging/build.sh`'s comments, and each pipeline's `--help` header.
 
 ## Layout
 - `packaging/` — `build.sh [tools|app|dmg|all|verify]` builds the toolchain from `sources.json` (URL + sha256 per input), stages it in `build/stage/Contents`, builds the app/CLI, assembles `build/Glitchbox.app`, signs inside-out, verifies, and makes `build/dist/Glitchbox-<VERSION>.dmg`. Stages are stamped by recipe/input hash in `build/stamps`; downloads cached in `build/downloads`. Must stay runnable by `/bin/bash` 3.2.
