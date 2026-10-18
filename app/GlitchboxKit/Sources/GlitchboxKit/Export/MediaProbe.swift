@@ -37,10 +37,13 @@ public struct MediaProbe: Hashable, Sendable {
             abs(rotation) % 180 == 90 ? (height, width) : (width, height)
         }
 
-        /// Size after autorotation and `scale=trunc(iw*sar/2)*2:ih`.
+        /// Size after autorotation and `scale=trunc(iw*sar/2)*2:ih`. A 90° autorotate
+        /// (`transpose`) inverts the SAR along with the axes.
         public var squareSize: (width: Int, height: Int) {
             let (w, h) = rotatedSize
-            return hasSquarePixels ? (w, h) : (Int(Double(w) * sar / 2) * 2, h)
+            guard !hasSquarePixels else { return (w, h) }
+            let ratio = abs(rotation) % 180 == 90 ? 1 / sar : sar
+            return (Int(Double(w) * ratio / 2) * 2, h)
         }
 
         public var isRGB: Bool {

@@ -16,7 +16,16 @@ extension CLI {
         if let i = args.firstIndex(of: "--settings") {
             guard i + 1 < args.count else { throw CLIError("--settings needs a value") }
             let url = URL(filePath: args[i + 1], relativeTo: cwd)
-            do { s = try JSONDecoder().decode(ExportSettings.self, from: Data(contentsOf: url)) } catch {
+            // The app saves `{"settings": {...}, "directory": ...}`; a bare settings object works too.
+            struct Saved: Decodable { var settings: ExportSettings }
+            do {
+                let data = try Data(contentsOf: url)
+                if let saved = try? JSONDecoder().decode(Saved.self, from: data) {
+                    s = saved.settings
+                } else {
+                    s = try JSONDecoder().decode(ExportSettings.self, from: data)
+                }
+            } catch {
                 throw CLIError("cannot read export settings \(url.path): \(error.localizedDescription)")
             }
         }

@@ -22,6 +22,13 @@ public struct Exporter: Sendable {
     public func export(source: URL, layers: [LayerSpec], render: RenderSettings, settings: ExportSettings,
                        to destination: URL, events: @escaping @Sendable (ExportEvent) -> Void) async throws -> URL {
         let enabled = layers.indices.filter { layers[$0].enabled }
+        // Resolve a chosen audio file before the (possibly long) render, and only when the
+        // format carries audio.
+        var audioFile: URL?
+        if settings.format.hasAudio, case .file(let path) = settings.audio {
+            guard FileManager.default.fileExists(atPath: path) else { throw ExportError.missingAudioFile(path) }
+            audioFile = URL(filePath: path)
+        }
         let (final, sourceAudio) = try await Renderer(env: env, workspace: workspace)
             .render(source: source, layers: layers, settings: render) { event in
                 if case .layerStarted(let index, let plugin) = event {
@@ -37,9 +44,8 @@ public struct Exporter: Sendable {
             audio = nil
         case .source:
             audio = sourceAudio.map { .source($0) }
-        case .file(let path):
-            guard FileManager.default.fileExists(atPath: path) else { throw ExportError.missingAudioFile(path) }
-            audio = .file(URL(filePath: path))
+        case .file:
+            audio = audioFile.map { .file($0) }
         }
         let url = try await encode(input: final.output, sourceTags: ColorTags.resolve(sourceVideo), audio: audio,
                                    settings: settings, to: destination) { events(.encoding($0)) }

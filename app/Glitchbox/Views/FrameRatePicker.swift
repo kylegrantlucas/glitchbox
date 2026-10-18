@@ -1,7 +1,7 @@
 import GlitchboxKit
 import SwiftUI
 
-/// Standard rates plus "Match source", which shows the rate it snaps to when known.
+/// Standard rates plus "Source" (match the source), which shows the rate it snaps to when known.
 struct FrameRatePicker: View {
     @Binding var selection: FrameRate?
     /// The source's own rate, when probed.
@@ -16,7 +16,7 @@ struct FrameRatePicker: View {
     }
 
     private var matchLabel: String {
-        guard let sourceRate else { return "Match source" }
-        return "Match source (\(FrameRate.nearestStandard(to: sourceRate).label))"
+        guard let sourceRate else { return "Source" }
+        return "Source (\(FrameRate.nearestStandard(to: sourceRate).label))"
     }
 }

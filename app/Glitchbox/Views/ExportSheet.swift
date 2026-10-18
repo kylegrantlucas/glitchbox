@@ -72,8 +72,10 @@ struct ExportSheet: View {
             crf = settings.effectiveX264CRF
             vtQuality = settings.effectiveVideoToolboxQuality
         }
-        .onChange(of: crf) { if crf != settings.quality.x264CRF { settings.x264CRF = crf } }
-        .onChange(of: vtQuality) { if vtQuality != settings.quality.videoToolboxQuality { settings.videoToolboxQuality = vtQuality } }
+        .onChange(of: crf) { settings.x264CRF = crf == settings.quality.x264CRF ? nil : crf }
+        .onChange(of: vtQuality) {
+            settings.videoToolboxQuality = vtQuality == settings.quality.videoToolboxQuality ? nil : vtQuality
+        }
         .onAppear { normalizeAudioCodec() }
         .fileImporter(isPresented: $choosingAudio, allowedContentTypes: [.audio, .movie]) { result in
             if case .success(let url) = result {

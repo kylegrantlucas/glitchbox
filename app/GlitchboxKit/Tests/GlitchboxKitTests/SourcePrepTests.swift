@@ -21,7 +21,9 @@ struct SourcePrepTests {
     }
 
     @Test(arguments: [(23.0, FrameRate.fps23_976), (29.97002997, .fps29_97), (17.0, .fps23_976), (120.0, .fps60),
-                      (24.0, .fps24), (59.94, .fps59_94), (48.0, .fps50)])
+                      (24.0, .fps24), (59.94, .fps59_94), (48.0, .fps50), (30.0, .fps30), (25.0, .fps25),
+                      // Low rates go to a whole multiple, so every frame repeats the same number of times.
+                      (15.0, .fps30), (12.0, .fps24), (10.0, .fps30), (20.0, .fps60), (14.985014985, .fps29_97)])
     func matchSourceSnapsToStandardRates(source: Double, expected: FrameRate) {
         let snapped = SourcePrep.frameRate(settings: RenderSettings(fps: nil),
                                            video: MediaProbe.Video(width: 640, height: 480, frameRate: source), still: false)
@@ -59,6 +61,13 @@ struct SourcePrepTests {
         #expect(prepare(RenderSettings(), dv).vf.contains("scale=trunc(iw*sar/2)*2:ih:flags=lanczos,setsar=1"))
         #expect(SourcePrep.outputSize(settings: RenderSettings(), video: dv) == (640, 480))
         #expect(!prepare(RenderSettings(), MediaProbe.Video(width: 720, height: 480)).vf.contains("sar"))
+    }
+
+    @Test func rotatedAnamorphicSourceInvertsItsAspect() {
+        // 1440×1080 HDV (SAR 4:3) shot rotated: ffmpeg's transpose turns it 1080×1440 at SAR 3:4.
+        let hdv = MediaProbe.Video(width: 1440, height: 1080, sarNumerator: 4, sarDenominator: 3, rotation: 90)
+        #expect(hdv.squareSize == (810, 1440))
+        #expect(SourcePrep.outputSize(settings: RenderSettings(height: 480), video: hdv) == (480, 854))
     }
 
     @Test func tagsComeFromTheProbeWithSizeFallback() {

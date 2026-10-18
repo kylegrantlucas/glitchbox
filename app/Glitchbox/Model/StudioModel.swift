@@ -566,7 +566,9 @@ final class StudioModel {
         exportTask = nil
         exportPhase = ""
         exportFraction = nil
-        if autoRender, canRender, finalOutput == nil, !isRendering { render() }
+        // `render()` cancels and awaits any in-flight preview render, which may be rendering a
+        // snapshot that edits made during the export have already invalidated.
+        if autoRender, canRender, finalOutput == nil { render() }
     }
 
     /// Saves the frame under the playhead of the viewed layer as a PNG.
@@ -601,6 +603,7 @@ final class StudioModel {
     }
 
     func clearCache() {
+        guard !isExporting else { return }
         cancelRender()
         do { try workspace.clearLayerCache() } catch { notices.append(error.localizedDescription) }
         sourceStatus = .idle

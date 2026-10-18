@@ -46,6 +46,7 @@ struct RenderSettingsView: View {
                 FrameRatePicker(selection: $model.renderOptions.fps,
                                 sourceRate: model.sourceIsStill ? nil : model.sourceProbe?.video?.frameRate)
                     .labelsHidden()
+                    .fixedSize()
             }
         }
         .textFieldStyle(.roundedBorder)

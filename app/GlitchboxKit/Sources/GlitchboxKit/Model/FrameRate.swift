@@ -38,10 +38,16 @@ public struct FrameRate: Codable, Hashable, Sendable {
         return value.formatted(.number.precision(.fractionLength(0...3)).grouping(.never).locale(Locale(identifier: "en_US_POSIX")))
     }
 
-    /// The standard rate closest to `fps` by ratio.
+    /// The standard rate for a source at `fps`: the lowest standard rate that is a whole
+    /// multiple of it (15 → 30, 12 → 24, 29.97 → 29.97), so frames repeat evenly; otherwise
+    /// the closest by ratio (17 → 23.976, 120 → 60).
     public static func nearestStandard(to fps: Double) -> FrameRate {
         guard fps.isFinite, fps > 0 else { return .fps30 }
-        return standard.min { abs(log($0.value / fps)) < abs(log($1.value / fps)) }!
+        let multiple = standard.first { rate in
+            let k = (rate.value / fps).rounded()
+            return k >= 1 && abs(rate.value - k * fps) <= rate.value * 0.0002
+        }
+        return multiple ?? standard.min { abs(log($0.value / fps)) < abs(log($1.value / fps)) }!
     }
 
     /// Parses `30000/1001`, `30`, or a decimal such as `29.97`. A decimal within 0.01 of a

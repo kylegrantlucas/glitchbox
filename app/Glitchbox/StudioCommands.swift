@@ -17,6 +17,7 @@ struct StudioCommands: Commands {
         CommandMenu("Render") {
             Button("Reload Toolchain") { model.reloadToolchain() }
             Button("Clear Render Cache…") { model.confirmClearCache = true }
+                .disabled(model.isExporting)
         }
     }
 
