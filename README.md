@@ -23,16 +23,26 @@ no FFmpeg fork to compile.
 ### Effects in layers
 
 A chain is a stack of layers, and every layer is one effect with its own
-controls. Add, reorder, switch off, and remove layers, then render. Preview mode
-renders a short slice at a size and frame rate you pick, and Full renders the
-whole clip at its own resolution.
+controls. Add, reorder, switch off, and remove layers, then render. Work on a
+few seconds at a small size while you dial it in, then render the whole clip at
+its own resolution. The frame rate can follow the source or be any of the
+standard rates, NTSC ones included.
 
 ### Only the part you changed renders again
 
 Every layer's output is cached. Nudge a slider on the third layer and Glitchbox
 re-renders that layer and the ones below it, while everything above comes
-straight from the cache. Layers hand each other lossless FFV1 video, so stacking
-them adds no extra compression in between.
+straight from the cache. Layers hand each other lossless video, so stacking them
+adds no extra compression in between.
+
+### Export
+
+Export the finished chain as H.264 or HEVC, ProRes from 422 LT up to 4444,
+lossless FFV1, an animated GIF, or a folder of PNG frames. Keep the clip's own
+audio, swap in another track, or leave it silent. Resize on the way out to a
+set height, a custom frame, or a 9:16, 1:1, or 4:5 crop for social posts.
+Changing export settings never re-renders the chain, and the frame under the
+playhead can be saved as a PNG.
 
 ### Presets for chains and for single effects
 
@@ -52,10 +62,10 @@ whole bash script that gets every parameter as a variable.
 ### A command line, too
 
 The app carries a `glitchbox` command that uses the same engine, effects, and
-cache, so a chain you saved in the app renders headless:
+cache, so a chain you saved in the app renders and exports headless:
 
 ```sh
-glitchbox render --chain analog-mosh-vhs --duration 3 --height 240 clip.mp4
+glitchbox export --chain analog-mosh-vhs --format prores -o clip-vhs.mov clip.mp4
 ```
 
 ## The effects

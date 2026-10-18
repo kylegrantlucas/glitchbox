@@ -68,8 +68,9 @@
 <section id="chains" class="section" aria-labelledby="chains-h">
   <h2 id="chains-h">How a chain works</h2>
   <div class="chains-text">
-    <p>A chain starts with a source layer. It trims and scales your clip, converts it to constant-frame-rate FFV1, and pulls the audio out as a WAV file. Every layer after that runs one plugin with its own parameters.</p>
-    <p>Layers hand lossless FFV1 files down the stack, and each one is cached. Change a layer and only that layer and the ones below it render again.</p>
+    <p>A chain starts with a source layer. It trims and scales your clip, converts it to constant-frame-rate lossless video, and pulls the audio out as a WAV file. Every layer after that runs one plugin with its own parameters.</p>
+    <p>Layers hand lossless files down the stack, and each one is cached. Change a layer and only that layer and the ones below it render again.</p>
+    <p>Export the last layer as H.264, HEVC, ProRes, FFV1, an animated GIF, or PNG frames, with the source audio or another track. Export is its own pass, so trying a different codec or size doesn't re-render the chain.</p>
     <p>Save a stack as a chain preset. Your presets and plugins live in <code>~/Library/Application Support/Glitchbox</code>, and a file there with the same name as a built-in one replaces it.</p>
   </div>
 
@@ -299,8 +300,8 @@ just verify-repro input.mkv 42</code></pre>
     <li><a href="https://ffglitch.org/">FFglitch</a> <span class="ver">0.10.2</span><span class="role">ffgac and ffedit, for motion-vector datamosh</span></li>
     <li><a href="https://github.com/ramiropolla/ffglitch-scripts">ffglitch-scripts</a><span class="role">the DD-GlitchAssist scripts behind MV Script</span></li>
     <li><a href="https://github.com/valadaptive/ntsc-rs">ntsc-rs</a> <span class="ver">0.9.4</span><span class="role">NTSC and VHS emulation</span></li>
-    <li><a href="https://github.com/kylegrantlucas/bender-rs">bender-rs</a> <span class="ver">0.2.0</span><span class="role">circuit-bent video hardware</span></li>
-    <li><a href="https://github.com/kylegrantlucas/reactive-vcr">reactive-vcr</a> <span class="ver">0.4.0</span><span class="role">audio-reactive VCR artifacts</span></li>
+    <li><a href="https://github.com/kylegrantlucas/bender-rs">bender-rs</a> <span class="ver">0.2.1</span><span class="role">circuit-bent video hardware</span></li>
+    <li><a href="https://github.com/kylegrantlucas/reactive-vcr">reactive-vcr</a> <span class="ver">0.4.1</span><span class="role">audio-reactive VCR artifacts</span></li>
     <li><a href="https://ffmpeg.org/">FFmpeg</a> <span class="ver">8.1.2</span><span class="role">decoding, encoding, and the ffmpeg filters</span></li>
     <li><a href="https://www.videolan.org/developers/x264.html">x264</a><span class="role">H.264 encoding, linked into ffmpeg</span></li>
     <li><a href="https://github.com/dyne/frei0r">frei0r</a> <span class="ver">2.5.1</span><span class="role">the frei0r effect plugins</span></li>

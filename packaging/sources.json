@@ -47,12 +47,12 @@
       "check": "tofu; rev is the old flake.lock ntsc-rs-src (v0.9.4)"
     },
     {
-      "name": "bender-rs", "version": "0.2.0",
-      "rev": "e5b754c2bbea7ab924c078f857241c7a23c17ea1",
-      "url": "https://github.com/kylegrantlucas/bender-rs/archive/e5b754c2bbea7ab924c078f857241c7a23c17ea1.tar.gz",
-      "file": "bender-rs-e5b754c2bbea7ab924c078f857241c7a23c17ea1.tar.gz",
-      "sha256": "ee05fe15d14834d955796def2e0e449383c784f27f9ed446b785569c4e7473d5",
-      "check": "tofu; rev is the old flake.lock bender-rs (v0.2.0)"
+      "name": "bender-rs", "version": "0.2.1",
+      "rev": "1ddcf66e08e34e01fb8113b4a872762d0132cbb1",
+      "url": "https://github.com/kylegrantlucas/bender-rs/archive/1ddcf66e08e34e01fb8113b4a872762d0132cbb1.tar.gz",
+      "file": "bender-rs-1ddcf66e08e34e01fb8113b4a872762d0132cbb1.tar.gz",
+      "sha256": "5f6f02458bb3089a1e965a8d7ce456b1b8500dcf160914adbcb985d933ce8dc7",
+      "check": "tofu; rev is the v0.2.1 tag commit (threaded FFV1 encode)"
     },
     {
       "name": "ffglitch", "version": "0.10.2",
@@ -62,10 +62,10 @@
       "check": "matches pkgs/ffglitch.nix sha256-JaWn1RIXkZ21oJOyEf2KHieEUoTvsKb2FrjzcfZjju8="
     },
     {
-      "name": "reactive-vcr", "version": "0.4.0",
-      "url": "https://github.com/kylegrantlucas/reactive-vcr/releases/download/v0.4.0/reactive-vcr-v0.4.0-aarch64-apple-darwin.tar.gz",
-      "file": "reactive-vcr-v0.4.0-aarch64-apple-darwin.tar.gz",
-      "sha256": "aeef9568b0726e34ae122fafc11aa487b18145f01fc09a1b133566011792fb6f",
+      "name": "reactive-vcr", "version": "0.4.1",
+      "url": "https://github.com/kylegrantlucas/reactive-vcr/releases/download/v0.4.1/reactive-vcr-v0.4.1-aarch64-apple-darwin.tar.gz",
+      "file": "reactive-vcr-v0.4.1-aarch64-apple-darwin.tar.gz",
+      "sha256": "79d5001ee3788bb289941d6e5955265fa71175f659b1fbe237d79a6dba843b88",
       "check": "upstream SHA256SUMS; only the CLI (reactive-vcr.app/Contents/MacOS/reactive-vcr) ships. It is built against the same official GStreamer 1.28.8 runtime and loads it via @executable_path/../Frameworks, so it runs on the bundled framework"
     },
     {
