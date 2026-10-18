@@ -37,6 +37,7 @@ final class StudioModel {
 
     // UI requests raised from menus.
     var showNewPlugin = false
+    var showSaveChain = false
     var confirmClearCache = false
     var showExport = false
 

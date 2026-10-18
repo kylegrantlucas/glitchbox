@@ -5,8 +5,6 @@ struct MainView: View {
     @Environment(StudioModel.self) private var model
     @Environment(\.openWindow) private var openWindow
     @State private var showInspector = true
-    @State private var savingChain = false
-    @AppStorage(LogPanel.visibleKey) private var showLog = false
 
     var body: some View {
         @Bindable var model = model
@@ -29,7 +27,7 @@ struct MainView: View {
         .sheet(isPresented: $model.showExport) {
             ExportSheet(settings: model.exportSettings, render: exportRender)
         }
-        .sheet(isPresented: $savingChain) {
+        .sheet(isPresented: $model.showSaveChain) {
             NameSheet(title: "Save Chain", actionTitle: "Save", existsMessage: "A chain with this name exists. Replace it?",
                       exists: model.chainExists(name:)) { name in
                 try model.saveChain(name: name)
@@ -57,15 +55,20 @@ struct MainView: View {
                 EnvStatusView()
             }
         }
+        // Four items: everything else lives in the File and Render menus.
         ToolbarItemGroup(placement: .primaryAction) {
-            Button("Render", systemImage: "play.fill") { model.render() }
-                .keyboardShortcut("r")
+            if model.isRendering {
+                Button("Stop", systemImage: "stop.fill") { model.cancelRender() }
+                    .help("Stop the render (⌘.)")
+            } else {
+                Menu("Render", systemImage: "play.fill") {
+                    Toggle("Auto-render After Edits", isOn: $model.autoRender)
+                } primaryAction: {
+                    model.render()
+                }
                 .disabled(!model.canRender)
-                .help("Render the chain (⌘R)")
-            Button("Cancel", systemImage: "stop.fill") { model.cancelRender() }
-                .keyboardShortcut(".")
-                .disabled(!model.isRendering)
-                .help("Cancel the render (⌘.)")
+                .help(model.autoRender ? "Render the chain (⌘R). Auto-render is on." : "Render the chain (⌘R)")
+            }
             if model.isExporting {
                 ExportProgressView()
             } else {
@@ -75,15 +78,6 @@ struct MainView: View {
             }
             Toggle("View Final", systemImage: "film.stack", isOn: $model.viewFinal)
                 .help("Play the final output instead of the selected layer")
-            Toggle("Auto-render", systemImage: "bolt", isOn: $model.autoRender)
-                .help("Re-render automatically after edits")
-            Toggle("Log", systemImage: "text.alignleft", isOn: $showLog)
-                .help("Show the render log under the player")
-            Button("Save Chain", systemImage: "square.and.arrow.down") { savingChain = true }
-                .keyboardShortcut("s")
-                .disabled(model.stack.isEmpty)
-            Button("Reveal in Finder", systemImage: "folder") { model.revealInFinder() }
-                .disabled(model.viewedOutput == nil && model.selectedItem?.output == nil)
             Button("Inspector", systemImage: "sidebar.right") { showInspector.toggle() }
         }
     }

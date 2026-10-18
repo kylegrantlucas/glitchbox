@@ -3,18 +3,37 @@ import SwiftUI
 
 struct StudioCommands: Commands {
     let model: StudioModel
+    @AppStorage(LogPanel.visibleKey) private var showLog = false
 
     var body: some Commands {
         CommandGroup(after: .newItem) {
             Button("New Plugin…") { model.showNewPlugin = true }
+            Button("Save Chain…") { model.showSaveChain = true }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+                .disabled(model.stack.isEmpty)
             Divider()
             Button("Export…") { model.showExport = true }
                 .keyboardShortcut("e")
                 .disabled(!model.canRender || model.isExporting)
             Button("Export Current Frame…") { exportCurrentFrame() }
                 .disabled(model.viewedOutput == nil)
+            Button("Reveal Output in Finder") { model.revealInFinder() }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(model.viewedOutput == nil && model.selectedItem?.output == nil)
         }
         CommandMenu("Render") {
+            Button("Render") { model.render() }
+                .keyboardShortcut("r")
+                .disabled(!model.canRender)
+            Button("Stop Render") { model.cancelRender() }
+                .keyboardShortcut(".")
+                .disabled(!model.isRendering)
+            Divider()
+            Toggle("Auto-render After Edits", isOn: Bindable(model).autoRender)
+            Toggle("Play Final Output", isOn: Bindable(model).viewFinal)
+            Toggle("Show Log", isOn: $showLog)
+                .keyboardShortcut("l")
+            Divider()
             Button("Reload Toolchain") { model.reloadToolchain() }
             Button("Clear Render Cache…") { model.confirmClearCache = true }
                 .disabled(model.isExporting)
