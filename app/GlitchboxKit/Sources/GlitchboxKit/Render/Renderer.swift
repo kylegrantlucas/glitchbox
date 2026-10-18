@@ -9,12 +9,13 @@ public struct Renderer: Sendable {
         self.env = env; self.workspace = workspace
     }
 
-    /// Cancelling the consuming task cancels the render and kills running steps.
+    /// Cancelling the consuming task cancels the render and kills running steps. The stream
+    /// ends at cancellation without waiting for that cleanup; use `render(…emit:)` to wait.
     public func render(source: URL, layers: [LayerSpec], settings: RenderSettings) -> AsyncThrowingStream<RenderEvent, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    try await run(source: source, layers: layers, settings: settings) { continuation.yield($0) }
+                    try await render(source: source, layers: layers, settings: settings) { continuation.yield($0) }
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -24,8 +25,11 @@ public struct Renderer: Sendable {
         }
     }
 
-    private func run(source: URL, layers: [LayerSpec], settings: RenderSettings,
-                     emit: @Sendable (RenderEvent) -> Void) async throws {
+    /// Renders in the calling task and returns what `.finished` carries. On cancellation it
+    /// returns only after running steps are killed and their partial outputs removed.
+    @discardableResult
+    public func render(source: URL, layers: [LayerSpec], settings: RenderSettings,
+                       emit: @Sendable (RenderEvent) -> Void) async throws -> (output: LayerOutput, sourceAudio: URL?) {
         let plugins = Dictionary(workspace.loadPlugins().plugins.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         var resolved: [(Int, PluginManifest, [String: ParamValue])] = []
         for (i, layer) in layers.enumerated() where layer.enabled {
@@ -39,8 +43,16 @@ public struct Renderer: Sendable {
         guard FileManager.default.fileExists(atPath: source.path) else {
             throw RenderFailure(index: -1, plugin: "source", underlying: RenderError.missingSource(source))
         }
-        let sourceManifest = SourcePrep.manifest(settings: settings, still: SourcePrep.isStill(source))
         emit(.layerStarted(index: -1, plugin: "source"))
+        let still = SourcePrep.isStill(source)
+        let sourceManifest: PluginManifest
+        do {
+            let probe = try await MediaProbe.probe(source, env: env)
+            guard let video = probe.video else { throw ExportError.noVideo(source) }
+            sourceManifest = SourcePrep.manifest(settings: settings, video: video, audio: probe.audio, still: still)
+        } catch {
+            throw Self.attribute(error, index: -1, plugin: "source")
+        }
         var current: LayerOutput
         do {
             current = try await runner.run(
@@ -65,7 +77,8 @@ public struct Renderer: Sendable {
             }
             emit(.layerFinished(index: i, current))
         }
-        emit(.finished(current))
+        emit(.finished(current, sourceAudio: sourceAudio))
+        return (current, sourceAudio)
     }
 
     private static func attribute(_ error: any Error, index: Int, plugin: String) -> any Error {

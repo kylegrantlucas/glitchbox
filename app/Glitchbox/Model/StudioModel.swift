@@ -18,9 +18,10 @@ final class StudioModel {
     private(set) var chainOrigins: [String: LibraryOrigin] = [:]
     private(set) var pluginPresetOrigins: [String: [String: LibraryOrigin]] = [:]
 
-    var source: URL?
-    var mode: RenderMode = .preview
-    var previewSettings = RenderSettings(start: 0, duration: 5, height: 480, fps: 30)
+    var source: URL? { didSet { if source != oldValue { probeSource() } } }
+    var renderOptions = RenderOptions() { didSet { if renderOptions != oldValue { scheduleSave() } } }
+    /// ffprobe of `source`; nil until probed or when probing fails.
+    private(set) var sourceProbe: MediaProbe?
     private(set) var stack: [LayerItem] = []
     var selection: LayerItem.ID? { didSet { if selection != oldValue { selectionChanged() } } }
     var viewFinal = true { didSet { if viewFinal != oldValue { updatePlayer() } } }
@@ -37,11 +38,25 @@ final class StudioModel {
     // UI requests raised from menus.
     var showNewPlugin = false
     var confirmClearCache = false
+    var showExport = false
+
+    // MARK: Export state
+
+    /// Plays the viewed layer's proxy; its playhead picks the frame for Export Current Frame.
+    let player = PlayerController()
+    var exportSettings: ExportSettings { didSet { if exportSettings != oldValue { saveExportPreferences() } } }
+    var exportDirectory: URL? { didSet { if exportDirectory != oldValue { saveExportPreferences() } } }
+    private(set) var exportTask: Task<Void, Never>?
+    /// Phase text and progress of the running export.
+    private(set) var exportPhase = ""
+    private(set) var exportFraction: Double?
+    var exportOutcome: ExportOutcome?
 
     private var renderGeneration = 0
     private var autoRenderTask: Task<Void, Never>?
     private var saveTask: Task<Void, Never>?
     private var proxyTask: Task<Void, Never>?
+    private var probeTask: Task<Void, Never>?
     private var activeObserver: (any NSObjectProtocol)?
 
     init(paths: AppPaths) {
@@ -49,8 +64,12 @@ final class StudioModel {
         self.workspace = workspace
         toolchainContents = paths.toolchain
         envState = Self.loadToolchain(workspace: workspace, contents: paths.toolchain)
+        let prefs = ExportPreferences.load(from: workspace.user.appending(path: "export.json"))
+        exportSettings = prefs.settings
+        exportDirectory = prefs.directory.map { URL(filePath: $0, directoryHint: .isDirectory) }
         reloadLibrary()
         loadSession()
+        probeSource()
         activeObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -60,12 +79,11 @@ final class StudioModel {
 
     // MARK: Derived
 
-    var effectiveSettings: RenderSettings {
-        switch mode {
-        case .preview: previewSettings
-        case .full: RenderSettings(start: 0, duration: nil, height: nil, fps: previewSettings.fps)
-        }
-    }
+    var sourceIsStill: Bool { source.map(SourcePrep.isStill) ?? false }
+
+    var effectiveSettings: RenderSettings { renderOptions.settings(still: sourceIsStill) }
+
+    var isExporting: Bool { exportTask != nil }
 
     var environment: ToolEnvironment? { envState.environment }
     var canRender: Bool { environment != nil && source != nil }
@@ -92,6 +110,7 @@ final class StudioModel {
     func reloadToolchain() {
         envState = Self.loadToolchain(workspace: workspace, contents: toolchainContents)
         refreshBaseStatuses()
+        if sourceProbe == nil { probeSource() }
     }
 
     private static func loadToolchain(workspace: Workspace, contents: URL) -> EnvState {
@@ -233,7 +252,8 @@ final class StudioModel {
 
     private func didEdit() {
         scheduleSave()
-        guard autoRender, canRender else { return }
+        // Exports pause auto-render; `exportFinished` catches up.
+        guard autoRender, canRender, !isExporting else { return }
         autoRenderTask?.cancel()
         autoRenderTask = Task {
             try? await Task.sleep(for: .milliseconds(800))
@@ -321,7 +341,7 @@ final class StudioModel {
         }
         let m = PluginManifest(id: id, name: name, summary: "", requires: ["ffmpeg"], steps: [
             PluginStep(name: "encode", argv: ["ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error",
-                                              "-i", "{in}", "-c:v", "ffv1", "-y", "{out}"]),
+                                              "-i", "{in}", "-c:v", "ffvhuff", "-y", "{out}"]),
         ])
         try workspace.savePlugin(m)
         reloadLibrary()
@@ -412,7 +432,7 @@ final class StudioModel {
                 case .layerFinished(let index, let out):
                     setStatus(snap, index, .done(cached: out.cached), output: out)
                     logURL = out.dir.appending(path: "log.txt")
-                case .finished(let out):
+                case .finished(let out, _):
                     if stillCurrent(snap, through: nil) { finalOutput = out }
                 }
             }
@@ -470,6 +490,116 @@ final class StudioModel {
         NSWorkspace.shared.activateFileViewerSelecting([dir])
     }
 
+    // MARK: Source probe
+
+    private func probeSource() {
+        probeTask?.cancel()
+        sourceProbe = nil
+        guard let source, let env = environment else { return }
+        probeTask = Task {
+            do {
+                let probe = try await MediaProbe.probe(source, env: env)
+                guard !Task.isCancelled, self.source == source else { return }
+                sourceProbe = probe
+                if let video = probe.video, ColorTags.isHDR(video) {
+                    let kind = video.colorTransfer == "smpte2084" ? "PQ" : "HLG"
+                    notices.append("\(source.lastPathComponent) is HDR (\(kind)). Glitchbox renders it as SDR without tone mapping, so colours and brightness will look different from the original.")
+                }
+            } catch is CancellationError {
+            } catch {
+                notices.append("probe: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    // MARK: Export
+
+    /// Renders a snapshot of the chain with `render` and encodes it to `destination`. Runs
+    /// beside preview renders; auto-render waits until it ends.
+    func startExport(render: RenderSettings, to destination: URL) {
+        guard let env = environment, let source, exportTask == nil else { return }
+        autoRenderTask?.cancel()
+        exportOutcome = nil
+        exportDirectory = destination.deletingLastPathComponent()
+        exportPhase = "Starting"
+        exportFraction = nil
+        let exporter = Exporter(env: env, workspace: workspace)
+        let layers = stack.map(\.spec), settings = exportSettings
+        exportTask = Task {
+            let (events, sink) = AsyncStream.makeStream(of: ExportEvent.self)
+            // Runs as a child, so cancelling the export waits for ffmpeg to die and the
+            // partial file to be deleted before the toolbar clears.
+            async let exported: URL = {
+                defer { sink.finish() }
+                return try await exporter.export(source: source, layers: layers, render: render, settings: settings,
+                                                 to: destination, events: { sink.yield($0) })
+            }()
+            for await event in events {
+                exportPhase = event.label
+                switch event {
+                case .rendering(let k, let n, _): exportFraction = Double(k) / Double(n + 1)
+                case .encoding(let f): exportFraction = f
+                case .finished: break
+                }
+            }
+            do {
+                exportOutcome = .finished(try await exported)
+            } catch is CancellationError {
+            } catch let e as ExportError {
+                exportOutcome = .failed(message: e.localizedDescription, tail: e.tail)
+            } catch let e as RenderFailure {
+                exportOutcome = .failed(message: e.localizedDescription, tail: (e.underlying as? RenderError)?.tail ?? [])
+            } catch {
+                exportOutcome = .failed(message: error.localizedDescription, tail: [])
+            }
+            exportFinished()
+        }
+    }
+
+    func cancelExport() {
+        guard let exportTask else { return }
+        exportPhase = "Cancelling"
+        exportTask.cancel()
+    }
+
+    private func exportFinished() {
+        exportTask = nil
+        exportPhase = ""
+        exportFraction = nil
+        if autoRender, canRender, finalOutput == nil, !isRendering { render() }
+    }
+
+    /// Saves the frame under the playhead of the viewed layer as a PNG.
+    func exportCurrentFrame(to destination: URL) {
+        guard let out = viewedOutput, let env = environment else { return }
+        let time = player.player.currentTime().seconds
+        let tags = sourceProbe?.video.map(ColorTags.resolve) ?? .bt709
+        exportDirectory = destination.deletingLastPathComponent()
+        Task {
+            do {
+                try await Exporter(env: env, workspace: workspace)
+                    .exportFrame(of: out.output, at: time.isFinite ? time : 0, sourceTags: tags, to: destination)
+                exportOutcome = .finished(destination)
+            } catch let e as ExportError {
+                exportOutcome = .failed(message: e.localizedDescription, tail: e.tail)
+            } catch {
+                exportOutcome = .failed(message: error.localizedDescription, tail: [])
+            }
+        }
+    }
+
+    func revealExport() {
+        guard case .finished(let url) = exportOutcome else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    private func saveExportPreferences() {
+        let prefs = ExportPreferences(settings: exportSettings, directory: exportDirectory?.path)
+        do { try Workspace.write(prefs, to: workspace.user.appending(path: "export.json")) } catch {
+            notices.append("export settings: \(error.localizedDescription)")
+        }
+    }
+
     func clearCache() {
         cancelRender()
         do { try workspace.clearLayerCache() } catch { notices.append(error.localizedDescription) }
@@ -492,7 +622,7 @@ final class StudioModel {
     }
 
     func saveSession() {
-        let state = SessionState(source: source?.path, mode: mode, previewSettings: previewSettings, layers: stack.map(\.spec))
+        let state = SessionState(source: source?.path, render: renderOptions, layers: stack.map(\.spec))
         do { try Workspace.write(state, to: sessionURL) } catch { notices.append("session: \(error.localizedDescription)") }
     }
 
@@ -500,8 +630,7 @@ final class StudioModel {
         guard let data = try? Data(contentsOf: sessionURL),
               let state = try? JSONDecoder().decode(SessionState.self, from: data) else { return }
         if let path = state.source, FileManager.default.fileExists(atPath: path) { source = URL(filePath: path) }
-        mode = state.mode
-        previewSettings = state.previewSettings
+        renderOptions = state.render
         stack = state.layers.map { LayerItem(spec: $0, status: baseStatus($0)) }
         selection = stack.first?.id
         reresolveStack()

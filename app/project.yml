@@ -19,6 +19,14 @@ targets:
         CFBundleDisplayName: Glitchbox
         # Debug only: the repo checkout, whose library and build/Glitchbox.app toolchain the app uses.
         GBDevRoot: $(GB_DEV_ROOT)
+        # Export saves MKV through NSSavePanel, which needs a declared type.
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: org.matroska.mkv
+            UTTypeDescription: Matroska video
+            UTTypeConformsTo: [public.movie]
+            UTTypeTagSpecification:
+              public.filename-extension: [mkv]
+              public.mime-type: [video/x-matroska]
     settings:
       base:
         PRODUCT_NAME: Glitchbox

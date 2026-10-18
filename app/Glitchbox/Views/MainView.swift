@@ -1,3 +1,4 @@
+import GlitchboxKit
 import SwiftUI
 
 struct MainView: View {
@@ -24,7 +25,9 @@ struct MainView: View {
         .toolbar { toolbar }
         .onChange(of: model.source) { model.inputsChanged() }
         .onChange(of: model.effectiveSettings) { model.inputsChanged() }
-        .onChange(of: model.mode) { model.saveSession() }
+        .sheet(isPresented: $model.showExport) {
+            ExportSheet(settings: model.exportSettings, render: exportRender)
+        }
         .sheet(isPresented: $savingChain) {
             NameSheet(title: "Save Chain", actionTitle: "Save", existsMessage: "A chain with this name exists. Replace it?",
                       exists: model.chainExists(name:)) { name in
@@ -60,11 +63,13 @@ struct MainView: View {
                 .keyboardShortcut(".")
                 .disabled(!model.isRendering)
                 .help("Cancel the render (⌘.)")
-            Picker("Mode", selection: $model.mode) {
-                ForEach(RenderMode.allCases) { Text($0.title).tag($0) }
+            if model.isExporting {
+                ExportProgressView()
+            } else {
+                Button("Export…", systemImage: "square.and.arrow.up") { model.showExport = true }
+                    .disabled(!model.canRender)
+                    .help("Export the chain to a movie, GIF, or image sequence (⌘E)")
             }
-            .pickerStyle(.segmented)
-            .help("Preview renders a short low-resolution clip; Full renders the whole source natively")
             Toggle("View Final", systemImage: "film.stack", isOn: $model.viewFinal)
                 .help("Play the final output instead of the selected layer")
             Toggle("Auto-render", systemImage: "bolt", isOn: $model.autoRender)
@@ -76,5 +81,13 @@ struct MainView: View {
                 .disabled(model.viewedOutput == nil && model.selectedItem?.output == nil)
             Button("Inspector", systemImage: "sidebar.right") { showInspector.toggle() }
         }
+    }
+
+    /// The export renders the whole clip at native size by default, at the current frame rate.
+    private var exportRender: RenderOptions {
+        var options = model.renderOptions
+        options.range = .whole
+        options.height = nil
+        return options
     }
 }

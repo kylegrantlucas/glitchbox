@@ -6,5 +6,6 @@ public enum RenderEvent: Sendable {
     /// `log` is the layer's in-progress log file.
     case step(index: Int, step: Int, of: Int, name: String, log: URL)
     case layerFinished(index: Int, LayerOutput)
-    case finished(LayerOutput)
+    /// `sourceAudio` is the source layer's trimmed `audio.wav`, when the source has audio.
+    case finished(LayerOutput, sourceAudio: URL?)
 }

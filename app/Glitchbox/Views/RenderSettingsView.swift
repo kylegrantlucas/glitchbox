@@ -1,3 +1,4 @@
+import GlitchboxKit
 import SwiftUI
 
 struct RenderSettingsView: View {
@@ -5,32 +6,46 @@ struct RenderSettingsView: View {
 
     var body: some View {
         @Bindable var model = model
-        let preview = model.mode == .preview
         Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 6) {
-            GridRow {
-                Text("Start")
-                TextField("Start", value: $model.previewSettings.start, format: .number)
-                    .frame(width: 70)
-                    .disabled(!preview)
-                Text("Duration")
-                TextField("Duration", value: $model.previewSettings.duration, format: .number)
-                    .frame(width: 70)
-                    .disabled(!preview)
-                    .help("Seconds; empty renders to the end")
+            if model.sourceIsStill {
+                GridRow {
+                    Text("Duration")
+                    TextField("Duration", value: $model.renderOptions.stillDuration, format: .number)
+                        .frame(width: 70)
+                        .help("Seconds of video made from the still image")
+                }
+            } else {
+                GridRow {
+                    Text("Range")
+                    Picker("Range", selection: $model.renderOptions.range) {
+                        Text("Whole clip").tag(RenderOptions.Range.whole)
+                        Text("In/Out").tag(RenderOptions.Range.inOut)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .gridCellColumns(3)
+                }
+                if model.renderOptions.range == .inOut {
+                    GridRow {
+                        Text("In")
+                        TextField("In", value: $model.renderOptions.inPoint, format: .number)
+                            .frame(width: 70)
+                            .help("Seconds into the source")
+                        Text("Out")
+                        TextField("Out", value: $model.renderOptions.outPoint, format: .number)
+                            .frame(width: 70)
+                            .help("Seconds into the source; empty renders to the end")
+                    }
+                }
             }
             GridRow {
-                Text("Height")
-                Picker("Height", selection: $model.previewSettings.height) {
-                    ForEach([360, 480, 720, 1080], id: \.self) { Text("\($0)p").tag(Int?.some($0)) }
-                    Text("Native").tag(Int?.none)
-                }
-                .labelsHidden()
-                .disabled(!preview)
+                Text("Size")
+                ResolutionPicker(title: "Size", selection: $model.renderOptions.height)
+                    .labelsHidden()
                 Text("FPS")
-                Picker("FPS", selection: $model.previewSettings.fps) {
-                    ForEach([24, 25, 30, 60], id: \.self) { Text("\($0)").tag($0) }
-                }
-                .labelsHidden()
+                FrameRatePicker(selection: $model.renderOptions.fps,
+                                sourceRate: model.sourceIsStill ? nil : model.sourceProbe?.video?.frameRate)
+                    .labelsHidden()
             }
         }
         .textFieldStyle(.roundedBorder)

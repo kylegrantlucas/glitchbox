@@ -2,13 +2,12 @@ import SwiftUI
 
 struct ViewerView: View {
     @Environment(StudioModel.self) private var model
-    @State private var controller = PlayerController()
 
     var body: some View {
         VStack(spacing: 0) {
             Group {
                 if model.playerItemURL != nil {
-                    PlayerView(player: controller.player)
+                    PlayerView(player: model.player.player)
                         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 } else if case .failed(let message) = model.envState {
                     ContentUnavailableView {
@@ -29,7 +28,7 @@ struct ViewerView: View {
             LogPanel()
                 .frame(height: 200)
         }
-        .onChange(of: model.playerItemURL, initial: true) { controller.load(model.playerItemURL) }
+        .onChange(of: model.playerItemURL, initial: true) { model.player.load(model.playerItemURL) }
     }
 
     private var placeholder: String {

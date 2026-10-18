@@ -29,6 +29,7 @@ struct StackView: View {
                 }
             }
             NoticesView()
+            ExportOutcomeView()
         }
     }
 }
