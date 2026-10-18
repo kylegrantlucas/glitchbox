@@ -45,11 +45,15 @@ struct LibrarySidebar: View {
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            Button("New Plugin…", systemImage: "plus") { model.showNewPlugin = true }
-                .buttonStyle(.borderless)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                Divider()
+                Button("New Plugin…", systemImage: "plus") { model.showNewPlugin = true }
+                    .buttonStyle(.borderless)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+            }
+            .background(.bar)
         }
         .confirmationDialog("Replace current stack?", isPresented: Binding(get: { pendingChain != nil }, set: { if !$0 { pendingChain = nil } }),
                             presenting: pendingChain) { preset in

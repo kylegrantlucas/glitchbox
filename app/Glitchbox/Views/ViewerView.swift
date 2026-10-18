@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ViewerView: View {
     @Environment(StudioModel.self) private var model
+    @AppStorage(LogPanel.visibleKey) private var showLog = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,9 +25,11 @@ struct ViewerView: View {
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 240, maxHeight: .infinity)
-            Divider()
-            LogPanel()
-                .frame(height: 200)
+            if showLog {
+                Divider()
+                LogPanel()
+                    .frame(height: 200)
+            }
         }
         .onChange(of: model.playerItemURL, initial: true) { model.player.load(model.playerItemURL) }
     }

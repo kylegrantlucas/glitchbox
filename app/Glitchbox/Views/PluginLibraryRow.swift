@@ -10,7 +10,7 @@ struct PluginLibraryRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(plugin.name)
-                availability
+                unavailability
             }
             Spacer()
             Button("Add Layer", systemImage: "plus.circle") { model.addLayer(plugin: plugin.id) }
@@ -25,11 +25,10 @@ struct PluginLibraryRow: View {
         }
     }
 
-    @ViewBuilder private var availability: some View {
+    /// Shown only when the plugin can't run.
+    @ViewBuilder private var unavailability: some View {
         if let missing = model.missingTools(plugin) {
-            if missing.isEmpty {
-                Text("available").font(.caption).foregroundStyle(.green)
-            } else {
+            if !missing.isEmpty {
                 Text("missing: \(missing.joined(separator: ", "))").font(.caption).foregroundStyle(.orange)
             }
         } else {

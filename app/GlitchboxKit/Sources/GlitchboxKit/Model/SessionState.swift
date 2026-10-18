@@ -1,4 +1,5 @@
-/// `<user library>/session.json`: the app's last source, render controls, and stack.
+/// `<user library>/session.json`: the app's last source, render controls, stack, and
+/// whether auto-render was on.
 ///
 /// Schema 1 stored a Preview/Full `mode` plus `previewSettings`; decoding migrates it:
 /// preview becomes an in/out range at the preview height, full becomes the whole clip at
@@ -10,14 +11,16 @@ public struct SessionState: Codable, Sendable {
     public var source: String?
     public var render: RenderOptions
     public var layers: [LayerSpec]
+    /// Absent in older sessions, which read as off.
+    public var autoRender: Bool
 
-    public init(source: String?, render: RenderOptions, layers: [LayerSpec]) {
+    public init(source: String?, render: RenderOptions, layers: [LayerSpec], autoRender: Bool = false) {
         schema = Self.schemaVersion
-        self.source = source; self.render = render; self.layers = layers
+        self.source = source; self.render = render; self.layers = layers; self.autoRender = autoRender
     }
 
     private enum CodingKeys: String, CodingKey {
-        case schema, source, render, layers
+        case schema, source, render, layers, autoRender
         case mode, previewSettings
     }
 
@@ -34,6 +37,7 @@ public struct SessionState: Codable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         source = try c.decodeIfPresent(String.self, forKey: .source)
         layers = try c.decode([LayerSpec].self, forKey: .layers)
+        autoRender = try c.decodeIfPresent(Bool.self, forKey: .autoRender) ?? false
         schema = Self.schemaVersion
         if let render = try c.decodeIfPresent(RenderOptions.self, forKey: .render) {
             self.render = render
@@ -55,5 +59,6 @@ public struct SessionState: Codable, Sendable {
         try c.encodeIfPresent(source, forKey: .source)
         try c.encode(render, forKey: .render)
         try c.encode(layers, forKey: .layers)
+        try c.encode(autoRender, forKey: .autoRender)
     }
 }

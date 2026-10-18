@@ -6,6 +6,7 @@ struct MainView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var showInspector = true
     @State private var savingChain = false
+    @AppStorage(LogPanel.visibleKey) private var showLog = false
 
     var body: some View {
         @Bindable var model = model
@@ -51,8 +52,10 @@ struct MainView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         @Bindable var model = model
-        ToolbarItemGroup(placement: .navigation) {
-            EnvStatusView()
+        if model.environment == nil {
+            ToolbarItem(placement: .navigation) {
+                EnvStatusView()
+            }
         }
         ToolbarItemGroup(placement: .primaryAction) {
             Button("Render", systemImage: "play.fill") { model.render() }
@@ -74,6 +77,8 @@ struct MainView: View {
                 .help("Play the final output instead of the selected layer")
             Toggle("Auto-render", systemImage: "bolt", isOn: $model.autoRender)
                 .help("Re-render automatically after edits")
+            Toggle("Log", systemImage: "text.alignleft", isOn: $showLog)
+                .help("Show the render log under the player")
             Button("Save Chain", systemImage: "square.and.arrow.down") { savingChain = true }
                 .keyboardShortcut("s")
                 .disabled(model.stack.isEmpty)

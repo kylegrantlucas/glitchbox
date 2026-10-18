@@ -1,16 +1,13 @@
 import SwiftUI
 
+/// Toolbar status shown only when the bundled toolchain can't be loaded.
 struct EnvStatusView: View {
     @Environment(StudioModel.self) private var model
 
     var body: some View {
         switch model.envState {
-        case .ready(let env):
-            Label("Tools ready", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .font(.callout)
-                .labelStyle(.titleAndIcon)
-                .help("Toolchain \(env.digest.prefix(12)) at \(model.toolchainContents.path)")
+        case .ready:
+            EmptyView()
         case .failed(let message):
             HStack(spacing: 6) {
                 Label("Toolchain unavailable", systemImage: "xmark.octagon.fill")

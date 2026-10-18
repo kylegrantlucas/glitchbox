@@ -39,7 +39,7 @@ struct SessionStateTests {
 
     @Test func roundTripsAsSchema2() throws {
         let original = SessionState(source: nil, render: RenderOptions(range: .whole, fps: .fps29_97),
-                                    layers: [LayerSpec(plugin: "x", enabled: true, params: [:])])
+                                    layers: [LayerSpec(plugin: "x", enabled: true, params: [:])], autoRender: true)
         let json = String(decoding: try Workspace.encoder().encode(original), as: UTF8.self)
         #expect(json.contains("\"schema\" : 2"))
         #expect(json.contains("\"30000/1001\""))
@@ -47,6 +47,11 @@ struct SessionStateTests {
         let back = try decode(json)
         #expect(back.render == original.render)
         #expect(back.layers == original.layers)
+        #expect(back.autoRender)
+    }
+
+    @Test func sessionsWithoutAutoRenderReadAsOff() throws {
+        #expect(try !decode(#"{"schema":2,"render":{"range":"whole","inPoint":0,"stillDuration":5},"layers":[]}"#).autoRender)
     }
 
     @Test func stillsIgnoreTheRange() {

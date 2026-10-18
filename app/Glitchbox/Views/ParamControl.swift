@@ -45,29 +45,46 @@ struct ParamControl: View {
         onChange(spec.clamp(isInt ? .int(Int(d.rounded())) : .float(d)))
     }
 
+    /// Ranged numbers: label and value on one line, a full-width slider under them.
+    /// Open-ended numbers: a field (and stepper for ints) beside the label.
     @ViewBuilder private func numericControl(isInt: Bool) -> some View {
-        LabeledContent(spec.label) {
-            HStack {
-                if let lo = spec.min, let hi = spec.max, lo < hi {
-                    slider(lo: lo, hi: hi, isInt: isInt)
+        if let lo = spec.min, let hi = spec.max, lo < hi {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(spec.label)
+                    Spacer()
+                    numberField(isInt: isInt)
                 }
-                if isInt {
-                    TextField(spec.label, value: Binding(get: { Int(number) }, set: { set(Double($0), isInt: true) }),
-                              format: .number.grouping(.never))
-                        .labelsHidden()
-                        .frame(width: 80)
-                    if spec.min == nil || spec.max == nil {
+                slider(lo: lo, hi: hi, isInt: isInt)
+                    .labelsHidden()
+            }
+        } else {
+            LabeledContent(spec.label) {
+                HStack {
+                    numberField(isInt: isInt)
+                    if isInt {
                         Stepper(spec.label, value: Binding(get: { Int(number) }, set: { set(Double($0), isInt: true) }))
                             .labelsHidden()
                     }
-                } else {
-                    TextField(spec.label, value: Binding(get: { number }, set: { set($0, isInt: false) }),
-                              format: .number.precision(.significantDigits(1...6)))
-                        .labelsHidden()
-                        .frame(width: 80)
                 }
             }
         }
+    }
+
+    @ViewBuilder private func numberField(isInt: Bool) -> some View {
+        Group {
+            if isInt {
+                TextField(spec.label, value: Binding(get: { Int(number) }, set: { set(Double($0), isInt: true) }),
+                          format: .number.grouping(.never))
+            } else {
+                TextField(spec.label, value: Binding(get: { number }, set: { set($0, isInt: false) }),
+                          format: .number.precision(.significantDigits(1...6)))
+            }
+        }
+        .labelsHidden()
+        .multilineTextAlignment(.trailing)
+        .monospacedDigit()
+        .frame(width: 80)
     }
 
     @ViewBuilder private func slider(lo: Double, hi: Double, isInt: Bool) -> some View {

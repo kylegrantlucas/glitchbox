@@ -34,6 +34,8 @@ struct PluginPresetMenu: View {
             Divider()
             Button("Reset to Defaults") { model.resetToDefaults(item.id) }
         }
+        .fixedSize()
+        .help("Apply, save, or delete \(plugin.name) presets")
         .sheet(isPresented: $saving) {
             NameSheet(title: "Save \(plugin.name) Preset", actionTitle: "Save",
                       existsMessage: "A preset with this name exists. Replace it?",

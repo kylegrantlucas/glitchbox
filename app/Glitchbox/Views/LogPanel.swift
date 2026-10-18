@@ -2,6 +2,8 @@ import SwiftUI
 
 /// Tail of the current log; polls while a render runs.
 struct LogPanel: View {
+    /// UserDefaults key for whether the panel is shown under the player.
+    static let visibleKey = "showLog"
     @Environment(StudioModel.self) private var model
     @State private var text = ""
 

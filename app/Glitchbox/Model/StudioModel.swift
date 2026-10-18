@@ -25,7 +25,7 @@ final class StudioModel {
     private(set) var stack: [LayerItem] = []
     var selection: LayerItem.ID? { didSet { if selection != oldValue { selectionChanged() } } }
     var viewFinal = true { didSet { if viewFinal != oldValue { updatePlayer() } } }
-    var autoRender = false
+    var autoRender = false { didSet { if autoRender != oldValue { scheduleSave() } } }
     var notices: [String] = []
 
     private(set) var sourceStatus: LayerStatus = .idle
@@ -625,7 +625,7 @@ final class StudioModel {
     }
 
     func saveSession() {
-        let state = SessionState(source: source?.path, render: renderOptions, layers: stack.map(\.spec))
+        let state = SessionState(source: source?.path, render: renderOptions, layers: stack.map(\.spec), autoRender: autoRender)
         do { try Workspace.write(state, to: sessionURL) } catch { notices.append("session: \(error.localizedDescription)") }
     }
 
@@ -637,5 +637,8 @@ final class StudioModel {
         stack = state.layers.map { LayerItem(spec: $0, status: baseStatus($0)) }
         selection = stack.first?.id
         reresolveStack()
+        autoRender = state.autoRender
+        // With auto-render on, reopening shows the last result (a cache hit when it's still cached).
+        if autoRender, canRender, !stack.isEmpty { render() }
     }
 }
