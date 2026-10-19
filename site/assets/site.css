@@ -293,6 +293,7 @@ pre .c { color: var(--ash); }
   font-size: 0.9375rem;
 }
 .footer p:first-child { display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; font-weight: 650; color: var(--bone); font-size: 1.0625rem; }
+.footer .byline { margin: 1.25rem 0 0; color: var(--bone); }
 .footer .fine { margin: 1.25rem 0 0; }
 
 /* Narrower screens */
