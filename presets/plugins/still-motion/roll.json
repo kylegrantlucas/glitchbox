@@ -1,0 +1,30 @@
+{
+  "name" : "Roll",
+  "params" : {
+    "depth_invert" : false,
+    "easing" : "cosine",
+    "end_roll" : 1.5,
+    "end_x" : 0.5,
+    "end_y" : 0.5,
+    "end_zoom" : 1.06,
+    "motion" : "transform",
+    "seed" : 0,
+    "shake" : false,
+    "shake_amount" : 1.0,
+    "shake_profile" : "shake",
+    "shake_speed" : 1.0,
+    "start_roll" : -1.5,
+    "start_x" : 0.5,
+    "start_y" : 0.5,
+    "start_zoom" : 1.06,
+    "warp" : false,
+    "warp_amplitude" : 0.006,
+    "warp_center_x" : 0.5,
+    "warp_center_y" : 0.5,
+    "warp_cycles" : 2,
+    "warp_type" : "ripple",
+    "warp_wavelength" : 0.18
+  },
+  "plugin" : "still-motion",
+  "schema" : 1
+}

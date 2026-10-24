@@ -15,8 +15,10 @@ public struct LayerRunner: Sendable {
 
     /// `params` must already be resolved (see `Workspace.resolveParams`).
     /// `sourceAudio` is the source layer's trimmed audio track, when it has one.
+    /// `still` is set for still-input layers: the clip to render, keyed and passed as `GB_FPS`,
+    /// `GB_DURATION`, `GB_WIDTH`, and `GB_HEIGHT`.
     public func run(manifest: PluginManifest, params: [String: ParamValue], input: URL, parentKey: String,
-                    sourceAudio: URL? = nil,
+                    sourceAudio: URL? = nil, still: StillTarget? = nil,
                     onStep: @Sendable (_ step: Int, _ of: Int, _ name: String, _ log: URL) -> Void) async throws -> LayerOutput {
         let fm = FileManager.default
         let missing = env.missing(manifest.requires)
@@ -54,7 +56,7 @@ public struct LayerRunner: Sendable {
         }
 
         let components = KeyComponents(parent: parentKey, plugin: manifest, params: params,
-                                       files: files, assets: assets, toolchain: env.digest)
+                                       files: files, assets: assets, toolchain: env.digest, still: still)
         let key = Hashing.sha256Hex(CanonicalJSON.data(components))
         let dirName = "\(manifest.id)-\(key.prefix(12))"
         let finalDir = cacheDir.appending(path: dirName, directoryHint: .isDirectory)
@@ -86,6 +88,12 @@ public struct LayerRunner: Sendable {
         stepEnv["GB_PARAMS"] = paramsFile.path
         stepEnv["GB_SOURCE_AUDIO"] = audioPath
         stepEnv["GB_OUT_DIR"] = work.appending(path: "gb").path
+        if let still {
+            stepEnv["GB_FPS"] = still.fps
+            stepEnv["GB_DURATION"] = String(still.duration)
+            stepEnv["GB_WIDTH"] = String(still.width)
+            stepEnv["GB_HEIGHT"] = String(still.height)
+        }
         for (k, v) in rendered {
             values["p.\(k)"] = v
             stepEnv["GB_P_\(k.uppercased())"] = v

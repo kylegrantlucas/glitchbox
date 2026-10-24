@@ -100,6 +100,19 @@ final class StudioModel {
         environment.map { $0.missing(m.requires) }
     }
 
+    /// A still-input plugin (Still Motion) to offer for a still source that has none in its
+    /// stack, unless the offer was dismissed for this source or the plugin's tools are missing.
+    var suggestedStillPlugin: PluginManifest? {
+        guard sourceIsStill, let source, stillSuggestionDismissed != source,
+              !stack.contains(where: { plugin($0.spec.plugin)?.input == .still }) else { return nil }
+        return plugins.first { $0.input == .still && (missingTools($0) ?? []).isEmpty }
+    }
+
+    /// The source whose still-input offer was dismissed; choosing another source offers it again.
+    private var stillSuggestionDismissed: URL?
+
+    func dismissStillSuggestion() { stillSuggestionDismissed = source }
+
     /// Unknown entries count as built-in, so delete stays disabled.
     func origin(of chain: ChainPreset) -> LibraryOrigin { chainOrigins[chain.name] ?? .builtin }
 
@@ -172,6 +185,7 @@ final class StudioModel {
     private func baseStatus(_ spec: LayerSpec) -> LayerStatus {
         guard let m = plugin(spec.plugin) else { return .unavailable("missing plugin \(spec.plugin)") }
         if let missing = missingTools(m), !missing.isEmpty { return .unavailable("missing: \(missing.joined(separator: ", "))") }
+        if m.input == .still, !sourceIsStill { return .unavailable("needs a still image source") }
         return spec.enabled ? .idle : .disabled
     }
 
@@ -185,11 +199,27 @@ final class StudioModel {
         }
     }
 
+    /// Still-input layers read the source image, so the first one is kept at the top. True if it moved.
+    private func pinStillInput() -> Bool {
+        guard let j = stack.firstIndex(where: { plugin($0.spec.plugin)?.input == .still }), j != 0 else { return false }
+        stack.move(fromOffsets: [j], toOffset: 0)
+        return true
+    }
+
     // MARK: Stack edits
 
     func addLayer(plugin id: String) {
         guard let m = plugin(id) else { return }
         let item = LayerItem(spec: LayerSpec(plugin: id, enabled: true, params: m.defaults()))
+        if m.input == .still {
+            // One still-input layer, always first: it replaces any other.
+            stack.removeAll { plugin($0.spec.plugin)?.input == .still }
+            stack.insert(item, at: 0)
+            selection = item.id
+            invalidate(from: 0)
+            didEdit()
+            return
+        }
         stack.append(item)
         stack[stack.count - 1].status = baseStatus(item.spec)
         selection = item.id
@@ -210,7 +240,8 @@ final class StudioModel {
     func moveLayers(_ offsets: IndexSet, to destination: Int) {
         guard let first = offsets.min() else { return }
         stack.move(fromOffsets: offsets, toOffset: destination)
-        invalidate(from: min(first, destination))
+        let pinned = pinStillInput()
+        invalidate(from: pinned ? 0 : min(first, destination))
         didEdit()
     }
 
@@ -277,6 +308,7 @@ final class StudioModel {
             }
             return LayerItem(spec: spec, status: baseStatus(spec))
         }
+        _ = pinStillInput()
         selection = stack.first?.id
         invalidate(from: 0)
         didEdit()

@@ -35,12 +35,21 @@ public enum SourcePrep {
         return (roundEven(Double(w) * Double(short) / Double(h)), short)
     }
 
-    /// Generated per settings and probe; never written to `plugins/`.
+    /// The clip a still-input layer renders for a still `video`: the rate and size source prep
+    /// would use for it, and the still's length.
+    public static func stillTarget(settings: RenderSettings, video: MediaProbe.Video) -> StillTarget {
+        let (w, h) = outputSize(settings: settings, video: video)
+        return StillTarget(fps: frameRate(settings: settings, video: video, still: true).ffmpeg,
+                           duration: settings.duration ?? settings.stillDuration, width: w, height: h)
+    }
+
+    /// Generated per settings and probe; never written to `plugins/`. `tags` overrides the
+    /// probed tags (a still-input layer's clip keeps the original still's).
     public static func manifest(settings: RenderSettings, video: MediaProbe.Video, audio: MediaProbe.Audio?,
-                                still: Bool) -> PluginManifest {
+                                still: Bool, tags: ColorTags? = nil) -> PluginManifest {
         let duration = settings.duration ?? (still ? settings.stillDuration : -1)
         let fps = frameRate(settings: settings, video: video, still: still)
-        let tags = ColorTags.resolve(video)
+        let tags = tags ?? ColorTags.resolve(video)
         let params = [
             ParamSpec(key: "start", label: "Start", type: .float, default: .float(settings.start)),
             ParamSpec(key: "duration", label: "Duration", type: .float, default: .float(duration)),

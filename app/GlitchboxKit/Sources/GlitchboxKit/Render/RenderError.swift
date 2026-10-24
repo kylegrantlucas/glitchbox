@@ -9,6 +9,8 @@ public enum RenderError: Error, LocalizedError {
     case commandNotFound(plugin: String, command: String)
     case stepFailed(plugin: String, step: String, code: Int32, log: URL, tail: [String])
     case noOutput(plugin: String, log: URL)
+    case needsStillSource(plugin: String)
+    case stillInputNotFirst(plugin: String)
 
     public var errorDescription: String? {
         switch self {
@@ -20,6 +22,8 @@ public enum RenderError: Error, LocalizedError {
         case .commandNotFound(_, let cmd): "command '\(cmd)' not found on the toolchain PATH"
         case .stepFailed(_, let step, let code, let log, _): "step '\(step)' exited \(code) — see \(log.path)"
         case .noOutput(_, let log): "produced no output — see \(log.path)"
+        case .needsStillSource: "needs a still image source (PNG, JPEG, WebP, BMP, or TIFF)"
+        case .stillInputNotFirst: "must be the first enabled layer"
         }
     }
 

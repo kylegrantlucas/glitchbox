@@ -1,0 +1,28 @@
+{
+  "name" : "Dolly",
+  "params" : {
+    "depth_amount" : 1.0,
+    "depth_cycles" : 1,
+    "depth_focus" : 0.35,
+    "depth_height" : 0.3,
+    "depth_invert" : false,
+    "depth_motion" : "dolly",
+    "depth_steady" : 0.35,
+    "depth_zoom" : 0.95,
+    "motion" : "depth",
+    "seed" : 0,
+    "shake" : false,
+    "shake_amount" : 1.0,
+    "shake_profile" : "shake",
+    "shake_speed" : 1.0,
+    "warp" : false,
+    "warp_amplitude" : 0.006,
+    "warp_center_x" : 0.5,
+    "warp_center_y" : 0.5,
+    "warp_cycles" : 2,
+    "warp_type" : "ripple",
+    "warp_wavelength" : 0.18
+  },
+  "plugin" : "still-motion",
+  "schema" : 1
+}

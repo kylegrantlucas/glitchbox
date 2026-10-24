@@ -7,11 +7,12 @@ struct ParamGroup: Identifiable {
 
     var id: String { name }
 
-    /// Groups in order of first appearance; ungrouped params form "Parameters".
-    static func groups(of plugin: PluginManifest) -> [ParamGroup] {
+    /// Groups in order of first appearance; ungrouped params form "Parameters". Params hidden
+    /// by `visibleWhen` for `values` are left out, and so are groups with nothing left.
+    static func groups(of plugin: PluginManifest, values: [String: ParamValue]) -> [ParamGroup] {
         var order: [String] = []
         var members: [String: [ParamSpec]] = [:]
-        for spec in plugin.params {
+        for spec in plugin.params where plugin.isVisible(spec, values: values) {
             let name = spec.group?.isEmpty == false ? spec.group! : "Parameters"
             if members[name] == nil { order.append(name) }
             members[name, default: []].append(spec)

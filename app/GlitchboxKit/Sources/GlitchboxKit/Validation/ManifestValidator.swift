@@ -51,6 +51,27 @@ public enum ManifestValidator {
             }
             if p.optional == true && p.type != .file { issues.append("\(tag): optional is only for file params") }
         }
+        for p in m.params {
+            for (key, allowed) in (p.visibleWhen ?? [:]).sorted(by: { $0.key < $1.key }) {
+                let tag = "param '\(p.key)': visibleWhen '\(key)'"
+                guard key != p.key, let control = m.spec(key) else {
+                    issues.append("\(tag) must name another param"); continue
+                }
+                if allowed.isEmpty { issues.append("\(tag) needs at least one value") }
+                for v in allowed where control.coerce(v) == nil {
+                    issues.append("\(tag): \(v.rendered) is not a valid \(control.type.rawValue) value")
+                }
+            }
+        }
+        for p in m.params where p.visibleWhen != nil {
+            // Follow the visibleWhen chain; reaching `p` again is a cycle (self-reference is reported above).
+            var frontier = (p.visibleWhen ?? [:]).keys.filter { $0 != p.key }, seen = Set<String>()
+            while let key = frontier.popLast() {
+                if key == p.key { issues.append("param '\(p.key)': visibleWhen forms a cycle"); break }
+                guard seen.insert(key).inserted else { continue }
+                frontier += (m.spec(key)?.visibleWhen ?? [:]).keys
+            }
+        }
 
         if m.steps.isEmpty { issues.append("at least one step is required") }
         let declared = Set(m.params.map(\.key))

@@ -9,7 +9,7 @@ struct LayerInspector: View {
     var body: some View {
         if let item = model.selectedItem {
             if let plugin = model.plugin(item.spec.plugin) {
-                let groups = ParamGroup.groups(of: plugin)
+                let groups = ParamGroup.groups(of: plugin, values: item.spec.params)
                 Form {
                     // The header is a section header, so it sits on the Form's own background
                     // and scrolls with the params. (The Form must stay the inspector's root:
