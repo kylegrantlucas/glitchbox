@@ -10,4 +10,6 @@ struct KeyComponents: Codable, Sendable {
     var assets: [String: String]
     /// toolchain.json `digest`.
     var toolchain: String
+    /// The still-input layer's target clip; nil (omitted) for every other layer.
+    var still: StillTarget? = nil
 }

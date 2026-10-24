@@ -189,7 +189,7 @@
 
 <section id="plugins" class="section" aria-labelledby="plugins-h">
   <h2 id="plugins-h">Plugins</h2>
-  <p class="section-intro">The built-in library has 19 plugins. A plugin is a JSON file that declares typed parameters and the commands to run, and the plugin editor in the app writes the same format.</p>
+  <p class="section-intro">The built-in library has 20 plugins. A plugin is a JSON file that declares typed parameters and the commands to run, and the plugin editor in the app writes the same format.</p>
 
   <div class="plugin-groups">
     <div class="plugin-group">
@@ -221,6 +221,14 @@
       <dl>
         <dt>Circuit Bend <code>bender</code></dt>
         <dd>Circuit-bent video hardware through bender-rs. Each stage of the video path, from camera sensor and tape to frame store, colour encoder, monitor, and feedback loop, can be broken the way a stray wire would break it. Every bender setting and stage order is exposed, and bender’s bundled presets come with it.</dd>
+      </dl>
+    </div>
+
+    <div class="plugin-group">
+      <h3>Stills in motion</h3>
+      <dl>
+        <dt>Still Motion <code>still-motion</code></dt>
+        <dd>Animates a photo with a burns camera move before the rest of the chain runs. Presets cover every burns move (Ken Burns, pan, roll, breathing, figure eight, shake, ripple, heat shimmer, and depth moves like orbit and dolly), and every burns setting is exposed: framing, zoom swing, parallax height and focus, shake, and warp. The app suggests it when the source is an image, and keeps it at the top of the stack. Depth moves take a depth map, or estimate one on device with a model downloaded on first use.</dd>
       </dl>
     </div>
 
@@ -288,7 +296,7 @@ just verify-repro input.mkv 42</code></pre>
 <section id="install" class="section" aria-labelledby="install-h">
   <h2 id="install-h">Install</h2>
   <div class="install">
-    <p>You need an Apple silicon Mac with macOS 26 or later. Intel Macs and Linux aren’t built. Open <code>Glitchbox-&lt;version&gt;.dmg</code> and drag Glitchbox to Applications. The app takes about 190 MB on disk.</p>
+    <p>You need an Apple silicon Mac with macOS 26 or later. Intel Macs and Linux aren’t built. Open <code>Glitchbox-&lt;version&gt;.dmg</code> and drag Glitchbox to Applications. The app takes about 250 MB on disk.</p>
     <p>Builds are ad-hoc signed and not notarized, so Gatekeeper blocks the first launch of a downloaded copy. Allow it in System Settings → Privacy &amp; Security → Open Anyway, or clear the quarantine flag:</p>
 <pre><code>xattr -dr com.apple.quarantine \
   /Applications/Glitchbox.app</code></pre>
@@ -304,6 +312,8 @@ just verify-repro input.mkv 42</code></pre>
     <li><a href="https://github.com/ramiropolla/ffglitch-scripts">ffglitch-scripts</a><span class="role">the DD-GlitchAssist scripts behind MV Script</span></li>
     <li><a href="https://github.com/valadaptive/ntsc-rs">ntsc-rs</a> <span class="ver">0.9.4</span><span class="role">NTSC and VHS emulation</span></li>
     <li><a href="https://github.com/kylegrantlucas/bender-rs">bender-rs</a> <span class="ver">0.2.1</span><span class="role">circuit-bent video hardware</span></li>
+    <li><a href="https://github.com/kylegrantlucas/burns-rs">burns</a> <span class="ver">0.1.0</span><span class="role">still-image camera motion</span></li>
+    <li><a href="https://github.com/microsoft/onnxruntime">ONNX Runtime</a> <span class="ver">1.27.1</span><span class="role">on-device depth estimation for burns</span></li>
     <li><a href="https://github.com/kylegrantlucas/reactive-vcr">reactive-vcr</a> <span class="ver">0.4.1</span><span class="role">audio-reactive VCR artifacts</span></li>
     <li><a href="https://ffmpeg.org/">FFmpeg</a> <span class="ver">8.1.2</span><span class="role">decoding, encoding, and the ffmpeg filters</span></li>
     <li><a href="https://www.videolan.org/developers/x264.html">x264</a><span class="role">H.264 encoding, linked into ffmpeg</span></li>

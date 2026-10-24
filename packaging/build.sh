@@ -12,7 +12,7 @@
 #   all     tools, app, dmg.
 #   verify  re-run verification on build/Glitchbox.app (or the staging).
 #
-# Build machine: Xcode 27, cargo/rustc >= 1.96 (bender-rs needs 1.96), cmake,
+# Build machine: Xcode 27, cargo/rustc >= 1.97 (burns-rs needs 1.97), cmake,
 # curl, jq. Nothing else: pkg-config is GStreamer devel's own, XcodeGen is
 # pinned in sources.json. Compilers run under `env -i` with PATH=/usr/bin first
 # and a private bin dir holding only cargo, rustc, cmake, and pkg-config, so
@@ -162,7 +162,7 @@ stage_deps() {
     gst_runtime) echo gst ;;
     x264 | frei0r | sox | bash) echo gst ;; # gst provides pkg-config
     ffmpeg) echo "gst x264 frei0r" ;;
-    ntsc_rs | bender) echo gst ;;
+    ntsc_rs | bender | burns) echo gst ;;
     licenses) echo gst ;; # GStreamer's share/licenses
   esac
 }
@@ -172,8 +172,9 @@ stage_srcs() {
     gst_runtime) ;;
     ntsc_rs) echo ntsc-rs ;;
     bender) echo bender-rs ;;
+    burns) echo burns-rs ;;
     bash) echo "bash bash-patch" ;;
-    licenses) echo "ffmpeg x264 frei0r sox bash ntsc-rs bender-rs ffglitch ffglitch-scripts reactive-vcr" ;;
+    licenses) echo "ffmpeg x264 frei0r sox bash ntsc-rs bender-rs burns-rs onnxruntime ffglitch ffglitch-scripts reactive-vcr" ;;
     *) echo "$1" ;;
   esac
 }
@@ -181,7 +182,7 @@ stage_recipe() { # what else, besides build_<stage>, a stage's output depends on
   case $1 in
     gst) declare -f merge_pkg thin_arm64 ;;
     gst_runtime) declare -f gst_closure gst_copy_deps; echo "plugins: $GST_PLUGINS" ;;
-    ntsc_rs | bender) declare -f cargo_build ;;
+    ntsc_rs | bender | burns) declare -f cargo_build ;;
     licenses)
       declare -f lic_copy crate_licenses
       cat "$PKG/about.toml" "$PKG/about.hbs" "$PKG/licenses/jq/COPYING"
@@ -458,7 +459,8 @@ build_bash() {
 # The framework's libraries are @rpath/lib*.dylib with @loader_path/../lib
 # rpaths, so the executables need …/GStreamer.framework/Versions/1.0/lib on
 # their rpath; @executable_path/../Frameworks is added for framework-style
-# references. The registry cache lives in build/downloads (cached download).
+# references. burns links no GStreamer; it shares the recipe. The registry
+# cache lives in build/downloads (cached download).
 # Release strip is off: cargo's default strip=debuginfo runs Xcode 27's
 # `strip -S`, which on chained-fixup images (deployment targets 14.0, 15.0,
 # 26.0 tried; 11.0 has no chained fixups and is fine) writes a LINKEDIT that
@@ -506,12 +508,21 @@ build_bender() {
   rm -rf "$WORK/bender-target"
 }
 
+# burns-rs needs Rust >= 1.97; burns-cli only (no GUI).
+build_burns() {
+  local s=$WORK/burns-rs
+  unpack burns-rs "$s"
+  cargo_build "$s" "$WORK/burns-target" -p burns-cli
+  install -m 755 "$WORK/burns-target/release/burns" "$PREFIX/bin/"
+  rm -rf "$WORK/burns-target"
+}
+
 # --- Licences ----------------------------------------------------------------
 # Every bundled component's licence texts, the way ntsc-rs ships its own: the
 # upstream files from each pinned input, GStreamer's share/licenses, and
-# cargo-about credits for the Rust crates compiled into ntsc-rs-cli and bender
-# (ntsc-rs-cli is a bin of the GPL-3.0 ntsc-rs-gui crate; its core is MIT/ISC/
-# Apache). assemble_stage copies the tree to Contents/Resources/licenses and
+# cargo-about credits for the Rust crates compiled into ntsc-rs-cli, bender,
+# and burns (ntsc-rs-cli is a bin of the GPL-3.0 ntsc-rs-gui crate; its core
+# is MIT/ISC/Apache). assemble_stage copies the tree to Contents/Resources/licenses and
 # writes Credits.html, which the standard About panel shows.
 CARGO_ABOUT=${CARGO_ABOUT:-$(command -v cargo-about || true)}
 LIC=$PREFIX/share/glitchbox-licenses
@@ -549,6 +560,8 @@ build_licenses() {
   lic_copy bash bash COPYING
   lic_copy ntsc-rs ntsc-rs LICENSE-MIT LICENSE-APACHE-2.0 LICENSE-ISC
   lic_copy bender-rs bender-rs LICENSE-MIT LICENSE-APACHE
+  lic_copy burns-rs burns-rs LICENSE-MIT LICENSE-APACHE
+  lic_copy onnxruntime onnxruntime LICENSE ThirdPartyNotices.txt
   lic_copy ffglitch-scripts ffglitch-scripts LICENSE
   lic_copy reactive-vcr reactive-vcr LICENSE THIRD_PARTY_LICENSES.html GSTREAMER-NOTICE.txt
   mkdir -p "$LIC/ffglitch" "$LIC/jq"
@@ -557,6 +570,7 @@ build_licenses() {
   cp -R "$GST_SDK/$GST_V/share/licenses" "$LIC/gstreamer"
   crate_licenses ntsc-rs crates/gui/Cargo.toml "$LIC/ntsc-rs/crates.html"
   crate_licenses bender-rs crates/bender-cli/Cargo.toml "$LIC/bender-rs/crates.html"
+  crate_licenses burns-rs crates/burns-cli/Cargo.toml "$LIC/burns-rs/crates.html"
 }
 
 # Credits.html rows: sources.json name|shown name|licence|role|source (empty:
@@ -567,6 +581,8 @@ frei0r|frei0r|GPL-2.0-or-later|the frei0r effect plugins||frei0r
 gstreamer-runtime|GStreamer|LGPL-2.1-or-later; plugins under their own licences (x264enc is GPL)|media framework for ntsc-rs, bender, and reactive-vcr|https://gstreamer.freedesktop.org/src/|gstreamer
 ntsc-rs|ntsc-rs|GPL-3.0 (ntsc-rs-cli); core MIT, ISC, or Apache-2.0|NTSC and VHS emulation||ntsc-rs
 bender-rs|bender-rs|MIT or Apache-2.0|circuit-bent video hardware||bender-rs
+burns-rs|burns|MIT or Apache-2.0|still-image camera motion (Still Motion)||burns-rs
+onnxruntime|ONNX Runtime|MIT|on-device depth estimation for burns|https://github.com/microsoft/onnxruntime|onnxruntime
 reactive-vcr|reactive-vcr|MIT|audio-reactive VCR artifacts|https://github.com/kylegrantlucas/reactive-vcr|reactive-vcr
 ffglitch|FFglitch|GPL-2.0-or-later; includes QuickJS (MIT)|bitstream editing: ffgac, ffedit, fflive, qjs|https://ffglitch.org/pub/src/ffglitch-{v}.tar.xz|ffglitch
 ffglitch-scripts|ffglitch-scripts|Unlicense|the DD-GlitchAssist scripts behind MV Script||ffglitch-scripts
@@ -589,7 +605,7 @@ write_credits() { # OUT
   } > "$1"
 }
 
-TOOL_STAGES="gst gst_runtime x264 frei0r ffmpeg sox bash ntsc_rs bender licenses"
+TOOL_STAGES="gst gst_runtime x264 frei0r ffmpeg sox bash ntsc_rs bender burns licenses"
 
 # --- Staging -------------------------------------------------------------------
 digest() { cat "$LOCK" "$PKG/build.sh" | shasum -a 256 | cut -d' ' -f1; }
@@ -605,6 +621,8 @@ digest() { cat "$LOCK" "$PKG/build.sh" | shasum -a 256 | cut -d' ' -f1; }
 #   GST_REGISTRY      isolation: the default ~/.cache/gstreamer-1.0/
 #                     registry.aarch64.bin is shared with every other
 #                     GStreamer; keyed by digest so each build rescans once.
+#   ORT_DYLIB_PATH    required for burns --auto-depth: burns otherwise looks
+#                     only in Helpers/runtime/lib and Contents/lib.
 # GST_PLUGIN_SCANNER is not set: the relocated scanner is found without it.
 write_toolchain_json() { # OUT
   local d bashv
@@ -619,6 +637,7 @@ write_toolchain_json() { # OUT
       tools: {
         ffmpeg: v("ffmpeg"), ffglitch: v("ffglitch"), "ntsc-rs-cli": v("ntsc-rs"),
         bender: v("bender-rs"), "reactive-vcr": v("reactive-vcr"),
+        burns: v("burns-rs"), onnxruntime: v("onnxruntime"),
         gstreamer: v("gstreamer-runtime"), frei0r: v("frei0r"), x264: v("x264"),
         jq: v("jq"), sox: v("sox"), bash: $bash
       },
@@ -628,7 +647,8 @@ write_toolchain_json() { # OUT
         FFGLITCH_SCRIPTS: "@contents/Resources/ffglitch-scripts",
         BENDER_PRESETS: "@contents/Resources/bender-presets",
         GST_PLUGIN_SYSTEM_PATH: "@contents/Frameworks/GStreamer.framework/Versions/1.0/lib/gstreamer-1.0",
-        GST_REGISTRY: $reg
+        GST_REGISTRY: $reg,
+        ORT_DYLIB_PATH: "@contents/Frameworks/libonnxruntime.dylib"
       }
     }' > "$1"
 }
@@ -639,7 +659,7 @@ assemble_stage() {
   rm -rf "$BUILD/stage" "$x"
   mkdir -p "$c/Helpers" "$c/Frameworks" "$c/PlugIns/frei0r-1" "$c/Resources" "$x"
 
-  for n in ffmpeg ffprobe ntsc-rs-cli bender sox bash; do
+  for n in ffmpeg ffprobe ntsc-rs-cli bender burns sox bash; do
     install -m 755 "$PREFIX/bin/$n" "$c/Helpers/$n"
   done
   # Upstream prebuilts, byte-for-byte: their ad-hoc linker signatures seal the
@@ -659,9 +679,13 @@ assemble_stage() {
   for f in "$PREFIX/lib/frei0r-1/"*.so; do
     install -m 755 "$f" "$c/PlugIns/frei0r-1/$(basename "$f" .so).dylib"
   done
+  # ONNX Runtime for burns --auto-depth; dlopen'd via ORT_DYLIB_PATH, never linked.
+  mkdir -p "$x/ort"
+  tar -xf "$(src onnxruntime)" -C "$x/ort" --strip-components 1
+  install -m 755 "$x/ort/lib/libonnxruntime.dylib" "$c/Frameworks/libonnxruntime.dylib"
 
   cp -cRP "$GST_RUNTIME" "$c/Frameworks/GStreamer.framework"
-  # The libraries ntsc-rs-cli, bender, and reactive-vcr link directly.
+  # The libraries ntsc-rs-cli, bender, and reactive-vcr link directly (burns links none).
   gst_copy_deps "$c/Frameworks/GStreamer.framework/$GST_V" "$c/Helpers/"*
 
   mkdir -p "$c/Resources/library"
@@ -846,6 +870,30 @@ smoke_gst() { # CONTENTS CACHE DIR: ntsc-rs-cli, bender, reactive-vcr renders th
   log "verify: ntsc-png render from $c: $fr frames"
 }
 
+smoke_burns() { # CONTENTS CACHE DIR: burns 2D render, and a depth render through the shipped ONNX Runtime
+  local c=$1 k=$2 d=$3 o fr model h=$3/burns-home
+  model=$(src depth-anything-v2-small)
+  [ -f "$model" ] || die "verify: $model missing (run packaging/build.sh tools to fetch it)"
+  [ -f "$d/in.png" ] || tenv "$c" "$k" ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i testsrc2=size=320x240 -frames:v 1 "$d/in.png"
+  # A pre-seeded model cache: burns verifies it by hash and never touches the network.
+  mkdir -p "$h/Library/Caches/burns/models"
+  cp -c "$model" "$h/Library/Caches/burns/models/$(lock_field depth-anything-v2-small sha256).onnx"
+  tenv "$c" "$k" env HOME="$h" burns render -i "$d/in.png" -o "$d/burns.mp4" --preset kenburns \
+    --width 320 --height 240 --fps 30 --duration 1 --crf 0 --overwrite \
+    > "$d/burns.log" 2>&1 || { tail -20 "$d/burns.log"; die "verify: burns render failed"; }
+  tenv "$c" "$k" env HOME="$h" burns render -i "$d/in.png" -o "$d/burns-depth.mp4" --preset dolly-out \
+    --auto-depth --width 320 --height 240 --fps 30 --duration 1 --crf 0 --overwrite \
+    > "$d/burns-depth.log" 2>&1 || { tail -20 "$d/burns-depth.log"; die "verify: burns --auto-depth render failed"; }
+  ! grep -q 'downloading model' "$d/burns-depth.log" || die "verify: burns downloaded the depth model"
+  for o in burns burns-depth; do
+    fr=$(tenv "$c" "$k" ffprobe -v error -count_frames -select_streams v:0 \
+      -show_entries stream=codec_name,nb_read_frames -of csv=p=0 "$d/$o.mp4")
+    case $fr in h264,30) ;; *) die "verify: $o output is '$fr', want h264,30 frames" ;; esac
+    log "verify: $o render from $c: $fr frames"
+  done
+}
+
 first_line() { # CMD...: run CMD, print its first output line (no SIGPIPE)
   local o
   o=$("$@")
@@ -875,6 +923,7 @@ smoke_all() { # CONTENTS
   echo "$out"
   case $out in *"version 5."*) ;; *) die "verify: bash is not 5.x" ;; esac
   smoke_gst "$c" "$k" "$d"
+  smoke_burns "$c" "$k" "$d"
   rm -rf "$d"
 }
 
@@ -888,6 +937,7 @@ smoke_relocated() { # BUNDLE-DIR (the .app, or build/stage)
   d=$t/run
   mkdir -p "$d/cache"
   smoke_gst "$c" "$d/cache" "$d"
+  smoke_burns "$c" "$d/cache" "$d"
   # A render with a fresh registry, so the plugin scanner runs too.
   mkdir -p "$d/cache2"
   tenv "$c" "$d/cache2" env DYLD_PRINT_LIBRARIES=1 ntsc-rs-cli -i "$d/in.mkv" -o "$d/dyld.mkv" \
@@ -908,7 +958,7 @@ check_licenses() { # CONTENTS: every credited component ships its licence texts
   while IFS='|' read -r name shown lic role url dir; do
     [ -n "$(ls -A "$c/Resources/licenses/$dir" 2>/dev/null)" ] || die "verify: no licence texts for $shown"
   done <<< "$CREDITS"
-  for dir in ntsc-rs bender-rs; do
+  for dir in ntsc-rs bender-rs burns-rs; do
     grep -q '<pre>' "$c/Resources/licenses/$dir/crates.html" || die "verify: empty crate licences for $dir"
   done
   log "verify: licence texts for $(printf '%s\n' "$CREDITS" | wc -l | tr -d ' ') components plus Rust crates"
@@ -946,6 +996,7 @@ sign_app() {
     sign "$f"
   done
   sign "$c/PlugIns/frei0r-1/"*.dylib
+  sign "$c/Frameworks/libonnxruntime.dylib"
   while IFS= read -r -d '' f; do
     is_macho "$f" && machos+=("$f")
   done < <(find "$c/Frameworks/GStreamer.framework/$GST_V" -type f -print0)

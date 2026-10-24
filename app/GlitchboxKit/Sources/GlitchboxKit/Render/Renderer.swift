@@ -43,21 +43,64 @@ public struct Renderer: Sendable {
         guard FileManager.default.fileExists(atPath: source.path) else {
             throw RenderFailure(index: -1, plugin: "source", underlying: RenderError.missingSource(source))
         }
-        emit(.layerStarted(index: -1, plugin: "source"))
         let still = SourcePrep.isStill(source)
-        let sourceManifest: PluginManifest
+        for (pos, (i, m, _)) in resolved.enumerated() where m.input == .still {
+            guard pos == 0 else {
+                throw RenderFailure(index: i, plugin: m.id, underlying: RenderError.stillInputNotFirst(plugin: m.id))
+            }
+            guard still else {
+                throw RenderFailure(index: i, plugin: m.id, underlying: RenderError.needsStillSource(plugin: m.id))
+            }
+        }
+        let sourceKey: String
+        let probe: MediaProbe
+        let video: MediaProbe.Video
         do {
-            let probe = try await MediaProbe.probe(source, env: env)
-            guard let video = probe.video else { throw ExportError.noVideo(source) }
-            sourceManifest = SourcePrep.manifest(settings: settings, video: video, audio: probe.audio, still: still)
+            sourceKey = "file:" + (try Hashing.sha256Hex(fileAt: source))
+            probe = try await MediaProbe.probe(source, env: env)
+            guard let v = probe.video else { throw ExportError.noVideo(source) }
+            video = v
         } catch {
             throw Self.attribute(error, index: -1, plugin: "source")
         }
+
+        // A still-input first layer turns the still into a clip, which source prep then
+        // normalizes like a video at the still's rate and size (so it passes through unscaled),
+        // keeping the still's colour tags: export and frame export tag from the source probe.
+        var prepInput = source
+        var prepKey = sourceKey
+        let sourceManifest: PluginManifest
+        let motion = resolved.first.flatMap { $0.1.input == .still ? $0 : nil }
+        if let (i, m, params) = motion {
+            emit(.layerStarted(index: i, plugin: m.id))
+            let out: LayerOutput
+            let clip: MediaProbe.Video
+            do {
+                out = try await runner.run(manifest: m, params: params, input: source, parentKey: sourceKey,
+                                           still: SourcePrep.stillTarget(settings: settings, video: video),
+                                           onStep: { emit(.step(index: i, step: $0, of: $1, name: $2, log: $3)) })
+                guard let v = try await MediaProbe.probe(out.output, env: env).video else {
+                    throw ExportError.noVideo(out.output)
+                }
+                clip = v
+            } catch {
+                throw Self.attribute(error, index: i, plugin: m.id)
+            }
+            emit(.layerFinished(index: i, out))
+            prepInput = out.output
+            prepKey = out.key
+            let prep = RenderSettings(fps: SourcePrep.frameRate(settings: settings, video: video, still: true))
+            sourceManifest = SourcePrep.manifest(settings: prep, video: clip, audio: nil, still: false,
+                                                 tags: ColorTags.resolve(video))
+        } else {
+            sourceManifest = SourcePrep.manifest(settings: settings, video: video, audio: probe.audio, still: still)
+        }
+
+        emit(.layerStarted(index: -1, plugin: "source"))
         var current: LayerOutput
         do {
             current = try await runner.run(
-                manifest: sourceManifest, params: sourceManifest.defaults(), input: source,
-                parentKey: "file:" + Hashing.sha256Hex(fileAt: source),
+                manifest: sourceManifest, params: sourceManifest.defaults(), input: prepInput, parentKey: prepKey,
                 onStep: { emit(.step(index: -1, step: $0, of: $1, name: $2, log: $3)) })
         } catch {
             throw Self.attribute(error, index: -1, plugin: "source")
@@ -66,7 +109,7 @@ public struct Renderer: Sendable {
         let audio = current.dir.appending(path: SourcePrep.audioFileName)
         let sourceAudio = FileManager.default.fileExists(atPath: audio.path) ? audio : nil
 
-        for (i, m, params) in resolved {
+        for (i, m, params) in resolved.dropFirst(motion == nil ? 0 : 1) {
             emit(.layerStarted(index: i, plugin: m.id))
             do {
                 current = try await runner.run(manifest: m, params: params, input: current.output, parentKey: current.key,

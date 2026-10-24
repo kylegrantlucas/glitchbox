@@ -55,6 +55,28 @@
       "check": "tofu; rev is the v0.2.1 tag commit (threaded FFV1 encode)"
     },
     {
+      "name": "burns-rs", "version": "0.1.0",
+      "rev": "ed7c92efc9fd1ead902c0ff0e6912d5639c960db",
+      "url": "https://github.com/kylegrantlucas/burns-rs/archive/ed7c92efc9fd1ead902c0ff0e6912d5639c960db.tar.gz",
+      "file": "burns-rs-ed7c92efc9fd1ead902c0ff0e6912d5639c960db.tar.gz",
+      "sha256": "3840bfcc2b0e823384dcd3e5f70ac2494d848cf9dfa6c04835ea04075699325c",
+      "check": "tofu; rev is the v0.1.0 tag commit"
+    },
+    {
+      "name": "onnxruntime", "version": "1.27.1",
+      "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.27.1/onnxruntime-osx-arm64-1.27.1.tgz",
+      "file": "onnxruntime-osx-arm64-1.27.1.tgz",
+      "sha256": "e42b77a7281cc6e55141bf44fcfbac2c782b823a491bbb6ac33c781dd991f8a6",
+      "check": "burns-rs release.yml ort_sha256 (official Microsoft release)"
+    },
+    {
+      "name": "depth-anything-v2-small", "version": "4472b736",
+      "url": "https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/4472b7362082ad9968fee890ca0f1e5aca36b93d/onnx/model.onnx",
+      "file": "depth-anything-v2-small-4472b736.onnx",
+      "sha256": "afb6a5c28f3b6bf1618c6e43f02073ef9dfdc70e937502d51603e57b0a1df10c",
+      "check": "burns-depth MODEL_SHA256; verify-only, never shipped"
+    },
+    {
       "name": "ffglitch", "version": "0.10.2",
       "url": "https://ffglitch.org/pub/bin/macos-aarch64/ffglitch-0.10.2-macos-aarch64.zip",
       "file": "ffglitch-0.10.2-macos-aarch64.zip",

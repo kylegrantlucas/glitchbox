@@ -65,4 +65,35 @@ struct ManifestValidatorTests {
         #expect(found.contains { $0.contains("optional is only for file params") })
         #expect(found.count == 3)
     }
+
+    func gated() -> PluginManifest {
+        var m = base()
+        m.params = [
+            ParamSpec(key: "mode", label: "Mode", type: .enumeration, default: .string("a"), options: ["a", "b"]),
+            ParamSpec(key: "on", label: "On", type: .bool, default: .bool(false), visibleWhen: ["mode": [.string("b")]]),
+            ParamSpec(key: "level", label: "Level", type: .int, default: .int(1), visibleWhen: ["on": [.bool(true)]]),
+        ]
+        m.steps[0].argv = ["ffmpeg"]
+        return m
+    }
+
+    @Test func visibilityFollowsControllingParamsTransitively() {
+        let m = gated()
+        let level = m.spec("level")!
+        #expect(messages(m).isEmpty)
+        #expect(!m.isVisible(level, values: [:]))
+        #expect(m.isVisible(level, values: ["mode": .string("b"), "on": .bool(true)]))
+        // `on` is set, but hidden because mode is "a", so `level` stays hidden too.
+        #expect(!m.isVisible(level, values: ["mode": .string("a"), "on": .bool(true)]))
+    }
+
+    @Test func rejectsBadVisibleWhen() {
+        var m = gated()
+        m.params[1].visibleWhen = ["mode": [.string("c")], "nope": [.int(1)]]
+        m.params[0].visibleWhen = ["level": [.int(1)]]
+        let found = messages(m)
+        #expect(found.contains { $0.contains("visibleWhen 'mode': c is not a valid enum value") })
+        #expect(found.contains { $0.contains("visibleWhen 'nope' must name another param") })
+        #expect(found.contains { $0.contains("param 'mode': visibleWhen forms a cycle") })
+    }
 }

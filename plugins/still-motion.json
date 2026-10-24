@@ -1,0 +1,732 @@
+{
+  "assets" : [],
+  "id" : "still-motion",
+  "input" : "still",
+  "name" : "Still Motion",
+  "params" : [
+    {
+      "default" : "transform",
+      "group" : "Camera",
+      "help" : "Camera motion family. The presets set one up; depth parallax needs a depth map or estimates one.",
+      "key" : "motion",
+      "label" : "Motion",
+      "labels" : [
+        "Still frame",
+        "Pan and zoom",
+        "Tilt",
+        "Breathing",
+        "Figure eight",
+        "Depth parallax"
+      ],
+      "options" : [
+        "still",
+        "transform",
+        "tilt",
+        "breathing",
+        "figure-eight",
+        "depth"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Camera",
+      "help" : "Magnification of the cover-cropped frame; 1 shows the whole crop.",
+      "key" : "view_zoom",
+      "label" : "Zoom",
+      "max" : 10.0,
+      "min" : 1.0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "still"
+        ]
+      }
+    },
+    {
+      "default" : 0.5,
+      "group" : "Camera",
+      "help" : "Fraction of available horizontal crop travel: 0 left, 1 right.",
+      "key" : "view_x",
+      "label" : "X",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.001,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "still"
+        ]
+      }
+    },
+    {
+      "default" : 0.5,
+      "group" : "Camera",
+      "help" : "Fraction of available vertical crop travel: 0 top, 1 bottom.",
+      "key" : "view_y",
+      "label" : "Y",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.001,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "still"
+        ]
+      }
+    },
+    {
+      "default" : 0.0,
+      "group" : "Camera",
+      "help" : "Rotation of the view.",
+      "key" : "view_roll",
+      "label" : "Roll",
+      "max" : 45.0,
+      "min" : -45.0,
+      "step" : 0.1,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "still"
+        ]
+      }
+    },
+    {
+      "default" : 1.04,
+      "group" : "Camera",
+      "help" : "Magnification of the cover-cropped frame; 1 shows the whole crop.",
+      "key" : "start_zoom",
+      "label" : "Start zoom",
+      "max" : 10.0,
+      "min" : 1.0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "transform"
+        ]
+      }
+    },
+    {
+      "default" : 0.35,
+      "group" : "Camera",
+      "help" : "Fraction of available horizontal crop travel: 0 left, 1 right.",
+      "key" : "start_x",
+      "label" : "Start X",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.001,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "transform"
+        ]
+      }
+    },
+    {
+      "default" : 0.5,
+      "group" : "Camera",
+      "help" : "Fraction of available vertical crop travel: 0 top, 1 bottom.",
+      "key" : "start_y",
+      "label" : "Start Y",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.001,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "transform"
+        ]
+      }
+    },
+    {
+      "default" : 0.0,
+      "group" : "Camera",
+      "help" : "Rotation of the view.",
+      "key" : "start_roll",
+      "label" : "Start roll",
+      "max" : 45.0,
+      "min" : -45.0,
+      "step" : 0.1,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "transform"
+        ]
+      }
+    },
+    {
+      "default" : 1.22,
+      "group" : "Camera",
+      "help" : "Magnification of the cover-cropped frame; 1 shows the whole crop.",
+      "key" : "end_zoom",
+      "label" : "End zoom",
+      "max" : 10.0,
+      "min" : 1.0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "transform"
+        ]
+      }
+    },
+    {
+      "default" : 0.65,
+      "group" : "Camera",
+      "help" : "Fraction of available horizontal crop travel: 0 left, 1 right.",
+      "key" : "end_x",
+      "label" : "End X",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.001,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "transform"
+        ]
+      }
+    },
+    {
+      "default" : 0.5,
+      "group" : "Camera",
+      "help" : "Fraction of available vertical crop travel: 0 top, 1 bottom.",
+      "key" : "end_y",
+      "label" : "End Y",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.001,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "transform"
+        ]
+      }
+    },
+    {
+      "default" : 0.0,
+      "group" : "Camera",
+      "help" : "Rotation of the view.",
+      "key" : "end_roll",
+      "label" : "End roll",
+      "max" : 45.0,
+      "min" : -45.0,
+      "step" : 0.1,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "transform"
+        ]
+      }
+    },
+    {
+      "default" : "cosine",
+      "group" : "Camera",
+      "help" : "Interpolation curve across the timeline.",
+      "key" : "easing",
+      "label" : "Easing",
+      "labels" : [
+        "Cosine (ease in and out)",
+        "Linear"
+      ],
+      "options" : [
+        "cosine",
+        "linear"
+      ],
+      "type" : "enum",
+      "visibleWhen" : {
+        "motion" : [
+          "transform",
+          "tilt"
+        ]
+      }
+    },
+    {
+      "default" : 1.0,
+      "group" : "Camera",
+      "help" : "Strength of the tilt sweep; 0 holds the frame still.",
+      "key" : "tilt_amount",
+      "label" : "Amount",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "tilt"
+        ]
+      }
+    },
+    {
+      "default" : 1.06,
+      "group" : "Camera",
+      "help" : "Minimum zoom; breathing adds up to the zoom swing.",
+      "key" : "breath_zoom",
+      "label" : "Base zoom",
+      "max" : 10.0,
+      "min" : 1.0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "breathing"
+        ]
+      }
+    },
+    {
+      "default" : 0.04,
+      "group" : "Camera",
+      "help" : "Peak zoom deviation from the base zoom.",
+      "key" : "breath_swing",
+      "label" : "Zoom swing",
+      "max" : 0.2,
+      "min" : 0.0,
+      "step" : 0.001,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "breathing"
+        ]
+      }
+    },
+    {
+      "default" : 1,
+      "group" : "Camera",
+      "help" : "Full breaths over the timeline.",
+      "key" : "breath_cycles",
+      "label" : "Cycles",
+      "max" : 32,
+      "min" : 1,
+      "type" : "int",
+      "visibleWhen" : {
+        "motion" : [
+          "breathing"
+        ]
+      }
+    },
+    {
+      "default" : 1.1,
+      "group" : "Camera",
+      "help" : "Magnification while tracing the figure eight.",
+      "key" : "eight_zoom",
+      "label" : "Zoom",
+      "max" : 10.0,
+      "min" : 1.0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "figure-eight"
+        ]
+      }
+    },
+    {
+      "default" : 0.3,
+      "group" : "Camera",
+      "help" : "Horizontal extent of the figure eight.",
+      "key" : "eight_x",
+      "label" : "Horizontal swing",
+      "max" : 0.5,
+      "min" : 0.0,
+      "step" : 0.005,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "figure-eight"
+        ]
+      }
+    },
+    {
+      "default" : 0.2,
+      "group" : "Camera",
+      "help" : "Vertical extent of the figure eight.",
+      "key" : "eight_y",
+      "label" : "Vertical swing",
+      "max" : 0.5,
+      "min" : 0.0,
+      "step" : 0.005,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "figure-eight"
+        ]
+      }
+    },
+    {
+      "default" : 1,
+      "group" : "Camera",
+      "help" : "Complete figure-eight loops over the timeline.",
+      "key" : "eight_cycles",
+      "label" : "Cycles",
+      "max" : 32,
+      "min" : 1,
+      "type" : "int",
+      "visibleWhen" : {
+        "motion" : [
+          "figure-eight"
+        ]
+      }
+    },
+    {
+      "default" : "orbital",
+      "group" : "Camera",
+      "help" : "Parallax camera path. Changing it keeps the parameters below.",
+      "key" : "depth_motion",
+      "label" : "Depth motion",
+      "labels" : [
+        "Orbital",
+        "Circle",
+        "Dolly",
+        "Dolly out"
+      ],
+      "options" : [
+        "orbital",
+        "circle",
+        "dolly",
+        "dolly-out"
+      ],
+      "type" : "enum",
+      "visibleWhen" : {
+        "motion" : [
+          "depth"
+        ]
+      }
+    },
+    {
+      "default" : 0.2,
+      "group" : "Camera",
+      "help" : "Parallax displacement of the nearest depth.",
+      "key" : "depth_height",
+      "label" : "Height",
+      "max" : 0.8,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "depth"
+        ]
+      }
+    },
+    {
+      "default" : 0.3,
+      "group" : "Camera",
+      "help" : "Depth plane that stays fixed while the camera moves.",
+      "key" : "depth_steady",
+      "label" : "Steady depth",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "depth"
+        ]
+      }
+    },
+    {
+      "default" : 0.3,
+      "group" : "Camera",
+      "help" : "Depth plane the camera aims at.",
+      "key" : "depth_focus",
+      "label" : "Focus depth",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "depth"
+        ]
+      }
+    },
+    {
+      "default" : 0.98,
+      "group" : "Camera",
+      "help" : "Depth projection scale; values below 1 magnify the covered image.",
+      "key" : "depth_zoom",
+      "label" : "Zoom",
+      "max" : 2.0,
+      "min" : 0.5,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "depth"
+        ]
+      }
+    },
+    {
+      "default" : 1.0,
+      "group" : "Camera",
+      "help" : "Overall motion strength; 0 freezes the camera.",
+      "key" : "depth_amount",
+      "label" : "Amount",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "motion" : [
+          "depth"
+        ]
+      }
+    },
+    {
+      "default" : 1,
+      "group" : "Camera",
+      "help" : "Motion repetitions over the timeline; dolly out ignores it.",
+      "key" : "depth_cycles",
+      "label" : "Cycles",
+      "max" : 32,
+      "min" : 1,
+      "type" : "int",
+      "visibleWhen" : {
+        "motion" : [
+          "depth"
+        ]
+      }
+    },
+    {
+      "default" : "",
+      "extensions" : [
+        "png"
+      ],
+      "group" : "Camera",
+      "help" : "Grayscale depth (white = near); empty = estimated on device (first use downloads a 99 MB model)",
+      "key" : "depth",
+      "label" : "Depth map",
+      "optional" : true,
+      "type" : "file",
+      "visibleWhen" : {
+        "motion" : [
+          "depth"
+        ]
+      }
+    },
+    {
+      "default" : false,
+      "group" : "Camera",
+      "help" : "Treat dark depth values as near instead of white.",
+      "key" : "depth_invert",
+      "label" : "Invert depth",
+      "type" : "bool",
+      "visibleWhen" : {
+        "motion" : [
+          "depth"
+        ]
+      }
+    },
+    {
+      "default" : false,
+      "group" : "Shake",
+      "help" : "Layer procedural shake over the camera path.",
+      "key" : "shake",
+      "label" : "Shake",
+      "type" : "bool"
+    },
+    {
+      "default" : "shake",
+      "group" : "Shake",
+      "help" : "Shake character; vibrate profiles use higher frequencies.",
+      "key" : "shake_profile",
+      "label" : "Profile",
+      "labels" : [
+        "Handheld shake",
+        "Vibrate",
+        "Vibrate (tight)"
+      ],
+      "options" : [
+        "shake",
+        "vibrate",
+        "vibrate-tight"
+      ],
+      "type" : "enum",
+      "visibleWhen" : {
+        "shake" : [
+          true
+        ]
+      }
+    },
+    {
+      "default" : 1.0,
+      "group" : "Shake",
+      "help" : "Shake strength multiplier.",
+      "key" : "shake_amount",
+      "label" : "Amount",
+      "max" : 2.0,
+      "min" : 0.0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "shake" : [
+          true
+        ]
+      }
+    },
+    {
+      "default" : 1.0,
+      "group" : "Shake",
+      "help" : "Frequency multiplier; the fastest component must stay below half the frame rate.",
+      "key" : "shake_speed",
+      "label" : "Speed",
+      "max" : 4.0,
+      "min" : 0.1,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "shake" : [
+          true
+        ]
+      }
+    },
+    {
+      "default" : false,
+      "group" : "Warp",
+      "help" : "Layer an image-space warp over the camera path.",
+      "key" : "warp",
+      "label" : "Warp",
+      "type" : "bool"
+    },
+    {
+      "default" : "ripple",
+      "group" : "Warp",
+      "help" : "Warp family. Changing it installs that family's defaults and keeps it enabled or disabled.",
+      "key" : "warp_type",
+      "label" : "Type",
+      "labels" : [
+        "Ripple",
+        "Heat shimmer"
+      ],
+      "options" : [
+        "ripple",
+        "heat-shimmer"
+      ],
+      "type" : "enum",
+      "visibleWhen" : {
+        "warp" : [
+          true
+        ]
+      }
+    },
+    {
+      "default" : 0.006,
+      "group" : "Warp",
+      "help" : "Peak warp displacement.",
+      "key" : "warp_amplitude",
+      "label" : "Amplitude",
+      "max" : 0.02,
+      "min" : 0.0,
+      "step" : 0.0005,
+      "type" : "float",
+      "visibleWhen" : {
+        "warp" : [
+          true
+        ]
+      }
+    },
+    {
+      "default" : 0.18,
+      "group" : "Warp",
+      "help" : "Distance between ripple crests.",
+      "key" : "warp_wavelength",
+      "label" : "Wavelength",
+      "max" : 1.0,
+      "min" : 0.02,
+      "step" : 0.005,
+      "type" : "float",
+      "visibleWhen" : {
+        "warp_type" : [
+          "ripple"
+        ]
+      }
+    },
+    {
+      "default" : 0.5,
+      "group" : "Warp",
+      "help" : "Horizontal ripple origin: 0 is the left edge, 1 the right edge.",
+      "key" : "warp_center_x",
+      "label" : "Center X",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.001,
+      "type" : "float",
+      "visibleWhen" : {
+        "warp_type" : [
+          "ripple"
+        ]
+      }
+    },
+    {
+      "default" : 0.5,
+      "group" : "Warp",
+      "help" : "Vertical ripple origin: 0 is the top edge, 1 the bottom edge.",
+      "key" : "warp_center_y",
+      "label" : "Center Y",
+      "max" : 1.0,
+      "min" : 0.0,
+      "step" : 0.001,
+      "type" : "float",
+      "visibleWhen" : {
+        "warp_type" : [
+          "ripple"
+        ]
+      }
+    },
+    {
+      "default" : 1.0,
+      "group" : "Warp",
+      "help" : "Spatial frequency of shimmer features; larger values give finer waves.",
+      "key" : "warp_scale",
+      "label" : "Spatial scale",
+      "max" : 4.0,
+      "min" : 0.25,
+      "step" : 0.05,
+      "type" : "float",
+      "visibleWhen" : {
+        "warp_type" : [
+          "heat-shimmer"
+        ]
+      }
+    },
+    {
+      "default" : 2,
+      "group" : "Warp",
+      "help" : "Warp loops over the clip.",
+      "key" : "warp_cycles",
+      "label" : "Cycles",
+      "max" : 32,
+      "min" : 1,
+      "type" : "int",
+      "visibleWhen" : {
+        "warp" : [
+          true
+        ]
+      }
+    },
+    {
+      "default" : 0,
+      "group" : "Noise",
+      "help" : "Phase of the shake and warp noise",
+      "key" : "seed",
+      "label" : "Seed",
+      "max" : 2147483647,
+      "min" : 0,
+      "type" : "int"
+    }
+  ],
+  "requires" : [
+    "burns",
+    "ffmpeg",
+    "jq"
+  ],
+  "schema" : 1,
+  "steps" : [
+    {
+      "name" : "motion",
+      "script" : "# burns reads PNG, JPEG, and WebP; other stills go through a PNG.\ncase \"$GB_IN\" in\n  *.[pP][nN][gG] | *.[jJ][pP][gG] | *.[jJ][pP][eE][gG] | *.[wW][eE][bB][pP]) img=$GB_IN ;;\n  *) img=$GB_WORK/still.png\n     ffmpeg -hide_banner -nostdin -loglevel error -i \"$GB_IN\" -frames:v 1 -y \"$img\" ;;\nesac\n# The whole burns project, from the params (burns rejects missing or unknown fields);\n# the render flags below replace its size, rate, and length.\njq '{\n  version: 1,\n  output: {width: 1920, height: 1080},\n  timeline: {fps: {num: 30, den: 1}, frames: 30},\n  seed: .seed,\n  camera: (\n    if .motion == \"still\" then\n      {type: \"still\", view: {zoom: .view_zoom, x: .view_x, y: .view_y, roll_degrees: .view_roll}}\n    elif .motion == \"transform\" then\n      {type: \"transform\",\n       start: {zoom: .start_zoom, x: .start_x, y: .start_y, roll_degrees: .start_roll},\n       end: {zoom: .end_zoom, x: .end_x, y: .end_y, roll_degrees: .end_roll},\n       easing: .easing}\n    elif .motion == \"tilt\" then {type: \"tilt\", amount: .tilt_amount, easing: .easing}\n    elif .motion == \"breathing\" then\n      {type: \"breathing\", base_zoom: .breath_zoom, amplitude: .breath_swing, cycles: .breath_cycles}\n    elif .motion == \"figure-eight\" then\n      {type: \"figure-eight\", zoom: .eight_zoom, amplitude: [.eight_x, .eight_y], cycles: .eight_cycles}\n    else\n      {type: \"depth\", motion: .depth_motion, height: .depth_height, steady: .depth_steady,\n       focus: .depth_focus, zoom: .depth_zoom, amount: .depth_amount, cycles: .depth_cycles}\n    end),\n  depth: {invert: .depth_invert},\n  shake: {enabled: .shake, profile: .shake_profile, amount: .shake_amount, speed: .shake_speed},\n  warp: (\n    if .warp_type == \"ripple\" then\n      {type: \"ripple\", enabled: .warp, amplitude: .warp_amplitude, wavelength: .warp_wavelength,\n       center: [.warp_center_x, .warp_center_y], cycles: .warp_cycles}\n    else\n      {type: \"heat-shimmer\", enabled: .warp, amplitude: .warp_amplitude, spatial_scale: .warp_scale,\n       cycles: .warp_cycles}\n    end)\n}' \"$GB_PARAMS\" > \"$GB_WORK/project.json\"\ndepth=()\nif [ \"$GB_P_MOTION\" = depth ]; then\n  depth=(--auto-depth)\n  [ -z \"$GB_P_DEPTH\" ] || depth=(--depth \"$GB_P_DEPTH\")\nfi\nburns render -i \"$img\" -o \"$GB_WORK/motion.mp4\" --config \"$GB_WORK/project.json\" \\\n  --fps \"$GB_FPS\" --duration \"$GB_DURATION\" --width \"$GB_WIDTH\" --height \"$GB_HEIGHT\" --crf 0 \"${depth[@]}\"\n# Layers are MKV; lossless H.264 is remuxed, not re-encoded.\nffmpeg -hide_banner -nostdin -loglevel error -i \"$GB_WORK/motion.mp4\" -map 0:v:0 -c copy \\\n  -fflags +bitexact -map_metadata -1 -map_chapters -1 -y \"$GB_OUT\"\n"
+    }
+  ],
+  "summary" : "Animates a still image with a burns camera move: start from a preset, or set the motion, shake, and warp yourself. Put it first; the chain glitches the moving clip. Uses the render settings' duration, rate, and size."
+}

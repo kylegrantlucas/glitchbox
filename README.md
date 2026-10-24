@@ -47,10 +47,10 @@ playhead can be saved as a PNG.
 ### Presets for chains and for single effects
 
 Save a whole stack as a chain preset, or save one layer's settings as a preset
-for that effect. Two effects come with presets: the MPEG-2 mosh has long smear,
-pan drift, and sink and rise, and the circuit-bend effect brings every preset
-that ships with bender. If you edit a built-in preset, your copy replaces it
-until you revert it.
+for that effect. Three effects come with presets: the MPEG-2 mosh has long smear,
+pan drift, and sink and rise, the circuit-bend effect brings every preset that
+ships with bender, and Still Motion has every camera move that ships with burns.
+If you edit a built-in preset, your copy replaces it until you revert it.
 
 ### Your own effects
 
@@ -78,7 +78,7 @@ generators.
 | <img src="site/assets/demos/vhs-bars.jpg" width="240" alt="SMPTE bars after analog-pass"><br>VHS dub (analog pass) | <img src="site/assets/demos/mosh-bands.jpg" width="240" alt="Gradient bands after MPEG-2 mosh"><br>Long smear (MPEG-2 mosh) | <img src="site/assets/demos/mv-zoom.jpg" width="240" alt="Mandelbrot zoom after an MV script"><br>Zoom in, zoom out (MV script) |
 | <img src="site/assets/demos/bend-life.jpg" width="240" alt="Game of Life after circuit bend"><br>Rolling tear (circuit bend) | <img src="site/assets/demos/smear-testcard.jpg" width="240" alt="Test card after pixel smear and RGB split"><br>Smeared test card (pixel smear, RGB split) | <img src="site/assets/demos/reactive-pulse.jpg" width="240" alt="Pulsing disc after Reactive VCR"><br>Kick drum on the tracking (Reactive VCR) |
 
-Nineteen effects come built in.
+Twenty effects come built in.
 
 ### Datamosh
 
@@ -111,12 +111,24 @@ RGB Split, Pixel Smear (pixel-sort-style streaks), Pixelate, Bitcrush, Trails,
 Frame Blend, and Datascope come from ffmpeg. Block Glitch, Row Shift, Plasma
 Distort, Kaleidoscope, and Vertigo come from frei0r.
 
+### Stills in motion
+
+Still Motion turns a photo into a moving clip before any glitch touches it, with
+a camera move from [burns](https://github.com/kylegrantlucas/burns-rs). Start from
+one of its presets (Ken Burns, pan, roll, breathing, figure eight, handheld shake,
+ripple, heat shimmer, or depth moves like orbit and dolly), or set the motion
+yourself: start and end framing, zoom swing, parallax height and focus, plus
+shake and warp layered on top. Glitchbox suggests it when you open an image. It
+always sits at the top of the stack, and the rest of the chain glitches the moving
+clip. The depth moves use a depth map you supply, or estimate one on your Mac with
+a model that downloads on first use.
+
 ## Install
 
 Download `Glitchbox-<version>.dmg` from
 [Releases](https://github.com/kylegrantlucas/glitchbox/releases/latest), open it,
 and drag Glitchbox to Applications. It needs a Mac with Apple silicon and macOS
-26 or later, and takes about 195 MB on disk.
+26 or later, and takes about 250 MB on disk.
 
 Glitchbox isn't notarized yet, so macOS blocks the first launch. Open System
 Settings → Privacy & Security and click Open Anyway, or clear the quarantine flag
@@ -133,6 +145,8 @@ Glitchbox runs these projects, all of which ship inside the app:
 [ffglitch-scripts](https://github.com/ramiropolla/ffglitch-scripts),
 [ntsc-rs](https://github.com/valadaptive/ntsc-rs),
 [bender-rs](https://github.com/kylegrantlucas/bender-rs),
+[burns](https://github.com/kylegrantlucas/burns-rs) with
+[ONNX Runtime](https://onnxruntime.ai),
 [reactive-vcr](https://github.com/kylegrantlucas/reactive-vcr),
 [FFmpeg](https://ffmpeg.org),
 [x264](https://www.videolan.org/developers/x264.html),

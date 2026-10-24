@@ -97,6 +97,19 @@ final class LayerRunnerTests {
         #expect(json?["audio"] as? String == audio.path)
     }
 
+    @Test func stillTargetReachesScriptsAndKeysTheCache() async throws {
+        let m = plugin("motion", script: "printf '%s %s %s %s' \"$GB_FPS\" \"$GB_DURATION\" \"$GB_WIDTH\" \"$GB_HEIGHT\" > \"$GB_OUT\"")
+        let a = try await runner.run(manifest: m, params: [:], input: input, parentKey: "p",
+                                     still: StillTarget(fps: "30000/1001", duration: 2, width: 640, height: 480),
+                                     onStep: { _, _, _, _ in })
+        #expect(try String(contentsOf: a.output, encoding: .utf8) == "30000/1001 2.0 640 480")
+        let b = try await runner.run(manifest: m, params: [:], input: input, parentKey: "p",
+                                     still: StillTarget(fps: "30000/1001", duration: 3, width: 640, height: 480),
+                                     onStep: { _, _, _, _ in })
+        #expect(!b.cached)
+        #expect(a.key != b.key)
+    }
+
     @Test func requiredEmptyFileParamFailsBeforeSpawning() async throws {
         let m = PluginManifest(id: "req", name: "req",
                                params: [ParamSpec(key: "track", label: "Track", type: .file, default: .string(""))],

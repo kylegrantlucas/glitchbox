@@ -8,6 +8,7 @@ struct StackView: View {
         VStack(spacing: 0) {
             SourceSection()
             Divider()
+            StillSuggestionView()
             List(selection: $model.selection) {
                 ForEach(model.stack) { item in
                     LayerRow(item: item)
