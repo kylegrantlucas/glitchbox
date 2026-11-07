@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "GlitchboxKit",
-    platforms: [.macOS(.v26)],
+    platforms: [.macOS(.v26), .iOS(.v26)],
     products: [
         .library(name: "GlitchboxKit", targets: ["GlitchboxKit"]),
         .executable(name: "glitchbox", targets: ["glitchbox"]),

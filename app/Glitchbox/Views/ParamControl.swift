@@ -126,7 +126,10 @@ struct ParamControl: View {
             }
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: contentTypes) { result in
-            if case .success(let url) = result { onChange(.string(model.workspace.storedFileValue(url))) }
+            guard case .success(let url) = result else { return }
+            do { onChange(.string(model.workspace.storedFileValue(try ImportedFile.adopt(url, into: model.workspace)))) } catch {
+                model.notices.append("import: \(error.localizedDescription)")
+            }
         }
     }
 

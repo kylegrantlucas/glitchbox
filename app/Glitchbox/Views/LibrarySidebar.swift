@@ -3,7 +3,7 @@ import GlitchboxKit
 
 struct LibrarySidebar: View {
     @Environment(StudioModel.self) private var model
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.studioSheetRequest) private var request
     @State private var pendingChain: ChainPreset?
     @State private var deletingChain: ChainPreset?
 
@@ -39,7 +39,7 @@ struct LibrarySidebar: View {
                             .foregroundStyle(.orange)
                             .help(model.pluginIssues[file, default: []].map(\.message).joined(separator: "\n"))
                             .contextMenu {
-                                Button("Edit") { openWindow(id: "plugin-editor", value: String(file.dropLast(".json".count))) }
+                                Button("Edit") { request { model.editPlugin(String(file.dropLast(".json".count))) } }
                             }
                     }
                 }
@@ -48,7 +48,7 @@ struct LibrarySidebar: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 Divider()
-                Button("New Plugin…", systemImage: "plus") { model.showNewPlugin = true }
+                Button("New Plugin…", systemImage: "plus") { request { model.showNewPlugin = true } }
                     .buttonStyle(.borderless)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)

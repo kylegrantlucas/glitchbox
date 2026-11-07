@@ -21,6 +21,11 @@ default:
 app *ARGS:
     "{{root}}/packaging/build.sh" {{ARGS}}
 
+# Build the signed iPhone/iPad app (build/ios/Glitchbox.app); DEVICE (a UDID from `xcrun devicectl list devices`) is registered and gets it installed.
+ios DEVICE="":
+    GLITCHBOX_DEVICE="{{DEVICE}}" "{{root}}/packaging/build.sh" ios-app
+    @[ -z "{{DEVICE}}" ] || GLITCHBOX_DEVICE="{{DEVICE}}" "{{root}}/packaging/build.sh" ios-install
+
 # Open a shell inside the toolchain environment. The toolchain's PATH comes
 # first; your own PATH follows it so git, just, and editors keep working.
 shell: _toolchain

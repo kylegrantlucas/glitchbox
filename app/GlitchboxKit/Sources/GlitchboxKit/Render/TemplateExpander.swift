@@ -6,8 +6,9 @@ public struct TemplateExpander {
     private enum Piece { case literal(String), placeholder(String) }
 
     /// `params` is the resolved-params JSON file; `source_audio` the source's
-    /// trimmed audio track ("" when the source has none).
-    public static let builtinNames: Set<String> = ["in", "out", "work", "root", "params", "source_audio"]
+    /// trimmed audio track ("" when the source has none); `layer` the directory that becomes the
+    /// layer's cache entry (`out.mkv`'s directory; files written there are kept with the layer).
+    public static let builtinNames: Set<String> = ["in", "out", "work", "root", "params", "source_audio", "layer"]
 
     public static func isValidName(_ name: String) -> Bool {
         if builtinNames.contains(name) { return true }

@@ -1,3 +1,4 @@
+#if os(macOS)
 import Darwin
 import Foundation
 
@@ -65,3 +66,4 @@ public enum Spawner {
         return pid
     }
 }
+#endif

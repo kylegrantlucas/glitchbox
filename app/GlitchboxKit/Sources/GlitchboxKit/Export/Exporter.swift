@@ -60,7 +60,7 @@ public struct Exporter: Sendable {
         let fm = FileManager.default
         let probe = try await MediaProbe.probe(input, env: env)
         guard let video = probe.video else { throw ExportError.noVideo(input) }
-        guard let ffmpeg = env.which("ffmpeg") else { throw RenderError.commandNotFound(plugin: "export", command: "ffmpeg") }
+        guard env.runner.has("ffmpeg") else { throw RenderError.commandNotFound(plugin: "export", command: "ffmpeg") }
 
         let job = exportsDir.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try fm.createDirectory(at: job, withIntermediateDirectories: true)
@@ -83,7 +83,7 @@ public struct Exporter: Sendable {
                                         audio: audio, settings: settings, output: partial, progress: progressFile)
         LayerRunner.append(log, "ffmpeg \(args.map(LayerRunner.shellQuote).joined(separator: " "))\n")
         do {
-            let code = try await runPolling(ffmpeg, args, cwd: job, log: log, progressFile: progressFile,
+            let code = try await runPolling(args, cwd: job, log: log, progressFile: progressFile,
                                             duration: probe.duration, progress: progress)
             guard code == 0, fm.fileExists(atPath: partial.path) else {
                 throw ExportError.encodeFailed(code: code, log: log, tail: LayerRunner.tail(log, lines: 20))
@@ -107,7 +107,7 @@ public struct Exporter: Sendable {
     public func exportFrame(of output: URL, at time: Double, sourceTags: ColorTags, to destination: URL) async throws {
         let fm = FileManager.default
         guard let video = try await MediaProbe.probe(output, env: env).video else { throw ExportError.noVideo(output) }
-        guard let ffmpeg = env.which("ffmpeg") else { throw RenderError.commandNotFound(plugin: "export", command: "ffmpeg") }
+        guard env.runner.has("ffmpeg") else { throw RenderError.commandNotFound(plugin: "export", command: "ffmpeg") }
         let job = exportsDir.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try fm.createDirectory(at: job, withIntermediateDirectories: true)
         let log = job.appending(path: "log.txt")
@@ -116,7 +116,8 @@ public struct Exporter: Sendable {
             .appending(path: ".\(stem).partial-\(String(format: "%08x", UInt32.random(in: .min ... .max))).png")
         let args = ExportPlan.frameArguments(input: output, video: video, sourceTags: sourceTags, time: time, output: partial)
         do {
-            let code = try await Spawner.run(executable: ffmpeg, arguments: args, environment: env.variables, cwd: job, log: log)
+            let code = try await env.runner.run(ToolInvocation(command: "ffmpeg", arguments: args,
+                                                               environment: env.variables, cwd: job, log: log))
             guard code == 0, fm.fileExists(atPath: partial.path) else {
                 throw ExportError.encodeFailed(code: code, log: log, tail: LayerRunner.tail(log, lines: 20))
             }
@@ -130,11 +131,12 @@ public struct Exporter: Sendable {
     }
 
     /// Runs ffmpeg while reading its `-progress` file every 250 ms.
-    private func runPolling(_ ffmpeg: URL, _ args: [String], cwd: URL, log: URL, progressFile: URL,
+    private func runPolling(_ args: [String], cwd: URL, log: URL, progressFile: URL,
                             duration: Double?, progress: @escaping @Sendable (Double?) -> Void) async throws -> Int32 {
         try await withThrowingTaskGroup(of: Int32?.self) { group in
             group.addTask {
-                try await Spawner.run(executable: ffmpeg, arguments: args, environment: env.variables, cwd: cwd, log: log)
+                try await env.runner.run(ToolInvocation(command: "ffmpeg", arguments: args,
+                                                        environment: env.variables, cwd: cwd, log: log))
             }
             group.addTask {
                 var last: Double?? = .none

@@ -1,20 +1,28 @@
 name: Glitchbox
 options:
   bundleIdPrefix: com.kylegrantlucas
-  deploymentTarget: { macOS: "26.0" }
+  deploymentTarget: { macOS: "26.0", iOS: "26.0" }
   # Icon Composer documents are directories; Xcode must see them as one file for actool.
   fileTypes:
     icon: { file: true, buildPhase: resources }
 packages:
   GlitchboxKit: { path: GlitchboxKit }
+# The iOS app target (and its in-process toolchain package, whose binary xcframeworks only
+# `packaging/build.sh ios-tools` builds) lives in ios.yml: GLITCHBOX_IOS=YES xcodegen generate.
+include:
+  - path: ios.yml
+    enable: ${GLITCHBOX_IOS}
 targets:
   Glitchbox:
     type: application
     platform: macOS
-    sources: [Glitchbox]
+    # Shared SwiftUI in Glitchbox/, AppKit-only files in Glitchbox/macOS/.
+    sources:
+      - path: Glitchbox
+        excludes: ["iOS/**"]
     dependencies: [{ package: GlitchboxKit, product: GlitchboxKit }]
     info:
-      path: Glitchbox/Info.plist
+      path: Glitchbox/macOS/Info.plist
       properties:
         CFBundleDisplayName: Glitchbox
         # Debug only: the repo checkout, whose library and build/Glitchbox.app toolchain the app uses.

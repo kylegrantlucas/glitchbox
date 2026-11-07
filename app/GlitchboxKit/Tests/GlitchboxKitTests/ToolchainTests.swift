@@ -48,6 +48,33 @@ final class ToolchainTests {
         #expect(toolchain.tools == ["ffmpeg": "8.1.2"])
     }
 
+    @Test func explicitManifestExpandsContentsToTheGivenDirectory() throws {
+        let bundle = dir.appending(path: "Glitchbox.app", directoryHint: .isDirectory)
+        let manifest = dir.appending(path: "elsewhere/toolchain.json")
+        try FileManager.default.createDirectory(at: manifest.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(#"{"schema": 1, "digest": "ios", "path": ["@contents/Helpers"], "environment": {"X": "@contents/x:@cache/y"}}"#.utf8)
+            .write(to: manifest)
+        let toolchain = try Toolchain.load(manifest: manifest, contents: bundle, cacheDir: cache)
+        #expect(toolchain.contents == bundle.standardizedFileURL)
+        #expect(toolchain.path == ["\(bundle.standardizedFileURL.path)/Helpers"])
+        #expect(toolchain.environment == ["X": "\(bundle.standardizedFileURL.path)/x:\(cache.standardizedFileURL.path)/y"])
+
+        struct NoTools: ToolRunner {
+            func has(_ command: String) -> Bool { false }
+            func run(_ invocation: ToolInvocation) async throws -> Int32 { 127 }
+            func native(_ id: String) -> (any NativeStep)? { nil }
+        }
+        let env = toolchain.toolEnvironment(base: dir, parent: ["HOME": "/h", "SECRET": "s"], runner: NoTools())
+        #expect(env.variables["GLITCHBOX_TOOLCHAIN"] == bundle.standardizedFileURL.path)
+        #expect(env.variables["HOME"] == "/h" && env.variables["SECRET"] == nil)
+        #expect(env.missing(["ffmpeg"]) == ["ffmpeg"])
+
+        let missing = #expect(throws: ToolchainError.self) {
+            try Toolchain.load(manifest: self.dir.appending(path: "none.json"), contents: bundle, cacheDir: self.cache)
+        }
+        #expect(missing == .missing(dir.appending(path: "none.json")))
+    }
+
     @Test func missingOrInvalidManifestNamesItsPath() throws {
         let path = Toolchain.manifestURL(contents: contents).path
         let missing = #expect(throws: ToolchainError.self) { try Toolchain.load(contents: contents, cacheDir: self.cache) }

@@ -1,13 +1,15 @@
-import AppKit
 import Foundation
 import Observation
 import GlitchboxKit
+#if os(macOS)
+import AppKit
+#endif
 
 @Observable @MainActor
 final class StudioModel {
     let workspace: Workspace
-    /// `Glitchbox.app/Contents` the tool environment is built from.
-    let toolchainContents: URL
+    /// Where the base library and toolchain live.
+    let paths: AppPaths
     private(set) var envState: EnvState
     var plugins: [PluginManifest] = []
     var pluginIssues: [String: [ValidationIssue]] = [:]
@@ -39,7 +41,10 @@ final class StudioModel {
     var showNewPlugin = false
     var showSaveChain = false
     var confirmClearCache = false
-    var showExport = false
+    var showExport = false { didSet { if showExport != oldValue { pruneImports() } } }
+    /// Opens the plugin editor (a window on macOS, a sheet on iOS).
+    var editingPlugin: PluginEditorRequest?
+    var showLicenses = false
 
     // MARK: Export state
 
@@ -54,29 +59,38 @@ final class StudioModel {
     var exportOutcome: ExportOutcome?
 
     private var renderGeneration = 0
+    /// True while the running render was started by the user rather than by auto-render.
+    private(set) var renderIsUserInitiated = false
+    /// Whether the last render ran to the end without failing or being cancelled.
+    private(set) var lastRenderSucceeded = false
     private var autoRenderTask: Task<Void, Never>?
     private var saveTask: Task<Void, Never>?
     private var proxyTask: Task<Void, Never>?
     private var probeTask: Task<Void, Never>?
-    private var activeObserver: (any NSObjectProtocol)?
 
     init(paths: AppPaths) {
         let workspace = Workspace.standard(base: paths.base, environment: ProcessInfo.processInfo.environment)
         self.workspace = workspace
-        toolchainContents = paths.toolchain
-        envState = Self.loadToolchain(workspace: workspace, contents: paths.toolchain)
+        self.paths = paths
+        envState = ToolchainLoader.load(workspace: workspace, paths: paths)
         let prefs = ExportPreferences.load(from: workspace.user.appending(path: "export.json"))
-        exportSettings = prefs.settings
-        exportDirectory = prefs.directory.map { URL(filePath: $0, directoryHint: .isDirectory) }
+        var settings = prefs.settings
+        settings.audio = StoredPath.resolveAudio(settings.audio, in: workspace)
+        exportSettings = settings
+        exportDirectory = prefs.directory.map { StoredPath.resolve($0, in: workspace) }
         reloadLibrary()
         loadSession()
         probeSource()
-        activeObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
-        ) { [weak self] _ in
+        pruneImports()
+        #if os(macOS)
+        // App-lifetime, so it fires while the main window is closed too.
+        NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.reloadLibrary() }
         }
+        #endif
     }
+
+    func editPlugin(_ id: String) { editingPlugin = PluginEditorRequest(id: id) }
 
     // MARK: Derived
 
@@ -97,7 +111,7 @@ final class StudioModel {
 
     /// Missing tools for a plugin, or nil while the toolchain is unavailable.
     func missingTools(_ m: PluginManifest) -> [String]? {
-        environment.map { $0.missing(m.requires) }
+        environment.map { $0.missing(for: m) }
     }
 
     /// A still-input plugin (Still Motion) to offer for a still source that has none in its
@@ -122,21 +136,9 @@ final class StudioModel {
 
     /// Re-reads toolchain.json.
     func reloadToolchain() {
-        envState = Self.loadToolchain(workspace: workspace, contents: toolchainContents)
+        envState = ToolchainLoader.load(workspace: workspace, paths: paths)
         refreshBaseStatuses()
         if sourceProbe == nil { probeSource() }
-    }
-
-    private static func loadToolchain(workspace: Workspace, contents: URL) -> EnvState {
-        guard RootLocator.isRoot(workspace.base) else {
-            return .failed("no Glitchbox library at \(workspace.base.path) (needs plugins/ and pipelines/_lib.sh)")
-        }
-        do {
-            let toolchain = try Toolchain.load(contents: contents, cacheDir: workspace.cache)
-            return .ready(toolchain.toolEnvironment(base: workspace.base, parent: ProcessInfo.processInfo.environment))
-        } catch {
-            return .failed(error.localizedDescription)
-        }
     }
 
     // MARK: Library
@@ -290,7 +292,7 @@ final class StudioModel {
         autoRenderTask = Task {
             try? await Task.sleep(for: .milliseconds(800))
             guard !Task.isCancelled else { return }
-            render()
+            render(userInitiated: false)
         }
     }
 
@@ -396,7 +398,7 @@ final class StudioModel {
         let layers: [LayerSpec]
     }
 
-    func render() {
+    func render(userInitiated: Bool = true) {
         guard let env = environment, let source else { return }
         autoRenderTask?.cancel()
         let previous = renderTask
@@ -405,6 +407,8 @@ final class StudioModel {
         renderGeneration += 1
         let generation = renderGeneration
         isRendering = true
+        renderIsUserInitiated = userInitiated
+        lastRenderSucceeded = false
         renderTask = Task {
             await previous?.value
             guard !Task.isCancelled else {
@@ -470,7 +474,12 @@ final class StudioModel {
                 }
             }
             // A cancelled consumer ends the stream without throwing.
-            if Task.isCancelled { resetRunning() } else { updatePlayer() }
+            if Task.isCancelled {
+                resetRunning()
+            } else {
+                updatePlayer()
+                if generation == renderGeneration { lastRenderSucceeded = true }
+            }
         } catch is CancellationError {
             resetRunning()
         } catch let failure as RenderFailure {
@@ -516,11 +525,6 @@ final class StudioModel {
                 notices.append("proxy: \(error.localizedDescription)")
             }
         }
-    }
-
-    func revealInFinder() {
-        guard let dir = viewedOutput?.dir ?? selectedItem?.output?.dir else { return }
-        NSWorkspace.shared.activateFileViewerSelecting([dir])
     }
 
     // MARK: Source probe
@@ -585,8 +589,20 @@ final class StudioModel {
             } catch {
                 exportOutcome = .failed(message: error.localizedDescription, tail: [])
             }
+            if case .finished = exportOutcome {} else { removeEmptiedExport(destination, settings: settings) }
             exportFinished()
         }
+    }
+
+    /// iOS creates a fresh folder for each image-sequence export; a failed or cancelled one
+    /// shouldn't leave it behind.
+    private func removeEmptiedExport(_ destination: URL, settings: ExportSettings) {
+        #if os(iOS)
+        guard settings.format.isSequence,
+              destination.deletingLastPathComponent().standardizedFileURL == PlatformActions.exportsDirectory.standardizedFileURL
+        else { return }
+        try? FileManager.default.removeItem(at: destination)
+        #endif
     }
 
     func cancelExport() {
@@ -601,7 +617,7 @@ final class StudioModel {
         exportFraction = nil
         // `render()` cancels and awaits any in-flight preview render, which may be rendering a
         // snapshot that edits made during the export have already invalidated.
-        if autoRender, canRender, finalOutput == nil { render() }
+        if autoRender, canRender, finalOutput == nil { render(userInitiated: false) }
     }
 
     /// Saves the frame under the playhead of the viewed layer as a PNG.
@@ -623,16 +639,29 @@ final class StudioModel {
         }
     }
 
-    func revealExport() {
-        guard case .finished(let url) = exportOutcome else { return }
-        NSWorkspace.shared.activateFileViewerSelecting([url])
-    }
-
     private func saveExportPreferences() {
-        let prefs = ExportPreferences(settings: exportSettings, directory: exportDirectory?.path)
+        var settings = exportSettings
+        settings.audio = StoredPath.storeAudio(settings.audio, in: workspace)
+        let prefs = ExportPreferences(settings: settings, directory: exportDirectory.map { StoredPath.store($0, in: workspace) })
         do { try Workspace.write(prefs, to: workspace.user.appending(path: "export.json")) } catch {
             notices.append("export settings: \(error.localizedDescription)")
         }
+        pruneImports()
+    }
+
+    /// Deletes imported media nothing refers to any more (iOS copies picks into the user
+    /// library). Waits while the export sheet is open, since it holds a picked audio file
+    /// it hasn't committed yet.
+    func pruneImports() {
+        #if os(iOS)
+        guard !showExport else { return }
+        var references = [source?.path ?? ""]
+        if case .file(let path) = exportSettings.audio { references.append(path) }
+        if let layers = try? JSONEncoder().encode(stack.map(\.spec)) {
+            references.append(String(decoding: layers, as: UTF8.self))
+        }
+        ImportedFile.prune(in: workspace, references: references)
+        #endif
     }
 
     func clearCache() {
@@ -658,20 +687,25 @@ final class StudioModel {
     }
 
     func saveSession() {
-        let state = SessionState(source: source?.path, render: renderOptions, layers: stack.map(\.spec), autoRender: autoRender)
+        let state = SessionState(source: source.map { StoredPath.store($0, in: workspace) }, render: renderOptions,
+                                 layers: stack.map(\.spec), autoRender: autoRender)
         do { try Workspace.write(state, to: sessionURL) } catch { notices.append("session: \(error.localizedDescription)") }
+        pruneImports()
     }
 
     private func loadSession() {
         guard let data = try? Data(contentsOf: sessionURL),
               let state = try? JSONDecoder().decode(SessionState.self, from: data) else { return }
-        if let path = state.source, FileManager.default.fileExists(atPath: path) { source = URL(filePath: path) }
+        if let stored = state.source {
+            let url = StoredPath.resolve(stored, in: workspace)
+            if FileManager.default.fileExists(atPath: url.path) { source = url }
+        }
         renderOptions = state.render
         stack = state.layers.map { LayerItem(spec: $0, status: baseStatus($0)) }
         selection = stack.first?.id
         reresolveStack()
         autoRender = state.autoRender
         // With auto-render on, reopening shows the last result (a cache hit when it's still cached).
-        if autoRender, canRender, !stack.isEmpty { render() }
+        if autoRender, canRender, !stack.isEmpty { render(userInitiated: false) }
     }
 }

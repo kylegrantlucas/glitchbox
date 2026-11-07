@@ -1,0 +1,29 @@
+[package]
+name = "glitchbox-fx"
+description = "C ABI over the media-free cores of ntsc-rs, bender-rs, and reactive-vcr for Glitchbox iOS"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+publish = false
+
+[lib]
+name = "glitchbox_fx"
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+# ntsc-rs core crate only (crates/ntscrs, package `ntsc-rs`; never the GPL gui crate),
+# at the revision the macOS ntsc-rs-cli is built from (packaging/sources.json).
+ntsc-rs = { git = "https://github.com/valadaptive/ntsc-rs", rev = "add90f5bf1bf7e3c573e4e945a16f44a82941b51" }
+# bender-rs core at the revision of the macOS bender CLI.
+bender = { git = "https://github.com/kylegrantlucas/bender-rs", rev = "1ddcf66e08e34e01fb8113b4a872762d0132cbb1" }
+# reactive-vcr core at tag v0.4.1; it keeps its own pinned ntsc-rs and bender revisions.
+reactive-vcr = { git = "https://github.com/kylegrantlucas/reactive-vcr", rev = "6e28ae047419380383b6980f0b8357f601231563" }
+rayon = "1.12"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "unwind"
+
+[workspace]

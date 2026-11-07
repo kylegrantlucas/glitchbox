@@ -81,6 +81,9 @@ public enum ManifestValidator {
             let hasArgv = !(s.argv ?? []).isEmpty
             let hasScript = !(s.script ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             if hasArgv == hasScript { issues.append("\(tag): needs exactly one of argv or script") }
+            if let native = s.native, native.trimmingCharacters(in: .whitespaces).isEmpty {
+                issues.append("\(tag): native must not be empty")
+            }
             for arg in s.argv ?? [] {
                 do {
                     for name in try TemplateExpander.placeholders(in: arg)

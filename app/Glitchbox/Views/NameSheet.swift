@@ -32,7 +32,11 @@ struct NameSheet: View {
             }
         }
         .padding(20)
+        #if os(macOS)
         .frame(width: 360)
+        #else
+        .presentationDetents([.height(220)])
+        #endif
         .confirmationDialog(existsMessage, isPresented: $confirmReplace) {
             Button("Replace", role: .destructive, action: save)
         }

@@ -37,6 +37,7 @@
   "steps" : [
     {
       "name" : "render",
+      "native" : "reactive-vcr",
       "script" : "audio=${GB_P_AUDIO:-$GB_SOURCE_AUDIO}\nif [ -z \"$audio\" ]; then\n  echo \"reactive-vcr: the source has no audio track; choose an Audio file\" >&2\n  exit 1\nfi\n# The pipeline, not the same-named binary that precedes it on PATH.\n\"$GB_ROOT/pipelines/reactive-vcr\" --audio \"$audio\" --map \"$GB_P_MAP\" --audio-mode none -o \"$GB_OUT\" \"$GB_IN\"\n"
     }
   ],

@@ -81,7 +81,7 @@ public enum SourcePrep {
                  "-c:v", "ffvhuff", "-y", "{out}"]
         var steps = [PluginStep(name: "prepare", argv: argv)]
         if let audio, !still {
-            steps.append(PluginStep(name: "audio", script: audioScript(settings: settings, duration: duration, audio: audio)))
+            steps.append(PluginStep(name: "audio", argv: audioArgv(settings: settings, duration: duration, audio: audio)))
         }
         return PluginManifest(id: "source", name: "Source", summary: "Trim, scale, and normalize the source",
                               requires: ["ffmpeg"], params: params, steps: steps)
@@ -89,16 +89,15 @@ public enum SourcePrep {
 
     /// Extracts the first audio track, trimmed exactly like the video, next to `out.mkv`.
     /// Sources stored deeper than 16 bits keep 24.
-    private static func audioScript(settings: RenderSettings, duration: Double, audio: MediaProbe.Audio) -> String {
-        var trim: [String] = []
-        if settings.start > 0 { trim += ["-ss", String(settings.start)] }
-        if duration >= 0 { trim += ["-t", String(duration)] }
-        let codec = audio.isDeeperThan16Bit ? "pcm_s24le" : "pcm_s16le"
-        return """
-        ffmpeg -hide_banner -nostdin -loglevel error \(trim.joined(separator: " ")) -i "$GB_IN" -map 0:a:0 -vn \\
-          -c:a \(codec) -fflags +bitexact -flags:a +bitexact -map_metadata -1 \\
-          -y "$(dirname "$GB_OUT")/\(audioFileName)"
-        """
+    private static func audioArgv(settings: RenderSettings, duration: Double, audio: MediaProbe.Audio) -> [String] {
+        var argv = ["ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error"]
+        if settings.start > 0 { argv += ["-ss", "{p.start}"] }
+        if duration >= 0 { argv += ["-t", "{p.duration}"] }
+        argv += ["-i", "{in}", "-map", "0:a:0", "-vn",
+                 "-c:a", audio.isDeeperThan16Bit ? "pcm_s24le" : "pcm_s16le",
+                 "-fflags", "+bitexact", "-flags:a", "+bitexact", "-map_metadata", "-1",
+                 "-y", "{layer}/\(audioFileName)"]
+        return argv
     }
 
     private static func evenFloor(_ n: Int) -> Int { max(2, n - n % 2) }

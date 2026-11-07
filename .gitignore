@@ -20,3 +20,7 @@ app/Glitchbox.xcodeproj/
 app/.build/
 app/GlitchboxKit/.build/
 .swiftpm/
+app/GlitchboxInProcess/.build/
+# xcframeworks copied in by `packaging/build.sh ios-tools`
+app/GlitchboxInProcess/Artifacts/
+app/rust/*/target/

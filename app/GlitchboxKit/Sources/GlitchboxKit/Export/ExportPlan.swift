@@ -31,12 +31,42 @@ public enum ExportPlan {
     public static let sequenceFramePattern = "frame_%06d.png"
     public static let sequenceAudioName = "audio.wav"
 
+    /// What ffmpeg's VideoToolbox encoders support on this platform. ffmpeg allows
+    /// VideoToolbox's constant-quality mode (`-q:v`) only on Apple silicon Macs
+    /// (`vtenc_qscale_enabled`), and `prores_videotoolbox` with its software fallback
+    /// (`-allow_sw`) only on macOS. Elsewhere (iOS and its simulator) H.264/HEVC take a
+    /// bitrate derived from the same quality scale, and ProRes uses ffmpeg's `prores_ks`.
+    public struct EncoderSupport: Equatable, Sendable {
+        public var videoToolboxQuality: Bool
+        public var videoToolboxProRes: Bool
+
+        public static let macOS = EncoderSupport(videoToolboxQuality: true, videoToolboxProRes: true)
+        public static let iOS = EncoderSupport(videoToolboxQuality: false, videoToolboxProRes: false)
+        #if os(macOS)
+        public static let current = macOS
+        #else
+        public static let current = iOS
+        #endif
+    }
+
+    /// VideoToolbox bitrate (bit/s) standing in for `-q:v quality` where constant quality is
+    /// unavailable: 0.2 bits per pixel per frame for H.264 at 75 (High), doubling every +10;
+    /// HEVC needs 0.6× for the same look. At 1080p30 that is about 6, 12, and 25 Mbit/s for
+    /// Good, High, and Max.
+    public static func videoToolboxBitrate(quality: Int, width: Int, height: Int, fps: Double, hevc: Bool) -> Int {
+        let bitsPerPixel = 0.2 * pow(2, Double(quality - 75) / 10) * (hevc ? 0.6 : 1)
+        return max(500_000, Int((Double(width * height) * fps * bitsPerPixel).rounded()))
+    }
+
     // MARK: Geometry
 
-    public static func pixelFormat(_ settings: ExportSettings, video: MediaProbe.Video) -> String? {
+    public static func pixelFormat(_ settings: ExportSettings, video: MediaProbe.Video,
+                                   support: EncoderSupport = .current) -> String? {
         switch settings.format {
         case .h264, .hevc: return "yuv420p"
-        case .prores: return settings.proresProfile.pixelFormat
+        case .prores:
+            if support.videoToolboxProRes { return settings.proresProfile.pixelFormat }
+            return settings.proresProfile == .p4444 ? "yuv444p10le" : "yuv422p10le"
         case .ffv1:
             if video.isRGB { return "gbrp" }
             if video.pixelFormat.contains("444") { return "yuv444p" }
@@ -148,7 +178,8 @@ public enum ExportPlan {
     /// `duration` is the input video's length; MPEG-2 mosh can change frame counts, so audio is
     /// fitted to it rather than to the requested range.
     public static func arguments(input: URL, video: MediaProbe.Video, duration: Double?, sourceTags: ColorTags,
-                                 audio: AudioInput?, settings: ExportSettings, output: URL, progress: URL) -> [String] {
+                                 audio: AudioInput?, settings: ExportSettings, output: URL, progress: URL,
+                                 support: EncoderSupport = .current) -> [String] {
         let geometry = geometry(video: video, settings: settings)
         let pre = inputFilters(video, sourceTags: sourceTags)
         var args = common(progress: progress) + ["-i", input.path]
@@ -179,7 +210,7 @@ public enum ExportPlan {
 
         case .h264, .hevc, .prores, .ffv1:
             let container = settings.container
-            let pixelFormat = pixelFormat(settings, video: video)!
+            let pixelFormat = pixelFormat(settings, video: video, support: support)!
             let rgb = pixelFormat == "gbrp"
             let vf = (pre + geometry.filters + ["setsar=1", "setparams=color_primaries=bt709:color_trc=bt709"])
                 .joined(separator: ",")
@@ -190,7 +221,9 @@ public enum ExportPlan {
             } else {
                 args += ["-an"]
             }
-            args += ["-vf", vf] + videoCodec(settings) + ["-pix_fmt", pixelFormat]
+            let fps = video.frameRate ?? 30
+            args += ["-vf", vf] + videoCodec(settings, geometry: geometry, fps: fps, support: support)
+                + ["-pix_fmt", pixelFormat]
             args += ["-color_primaries", "bt709", "-color_trc", "bt709"]
             args += rgb ? [] : ["-colorspace", "bt709", "-color_range", "tv"]
             if container.supportsFaststart { args += ["-movflags", "+faststart"] }
@@ -207,21 +240,30 @@ public enum ExportPlan {
         return ["-af", "apad", "-t", seconds(duration)]
     }
 
-    static func videoCodec(_ settings: ExportSettings) -> [String] {
+    static func videoCodec(_ settings: ExportSettings, geometry: Geometry, fps: Double,
+                           support: EncoderSupport) -> [String] {
+        func videoToolboxRate(hevc: Bool) -> [String] {
+            let quality = settings.effectiveVideoToolboxQuality
+            guard !support.videoToolboxQuality else { return ["-q:v", String(quality)] }
+            return ["-b:v", String(videoToolboxBitrate(quality: quality, width: geometry.width, height: geometry.height,
+                                                       fps: fps, hevc: hevc))]
+        }
         switch settings.format {
         case .h264:
             switch settings.h264Encoder {
             case .videoToolbox:
-                return ["-c:v", "h264_videotoolbox", "-q:v", String(settings.effectiveVideoToolboxQuality), "-profile:v", "high"]
+                return ["-c:v", "h264_videotoolbox"] + videoToolboxRate(hevc: false) + ["-profile:v", "high"]
             case .x264:
                 return ["-c:v", "libx264", "-preset", settings.x264Preset, "-crf", String(settings.effectiveX264CRF),
                         "-profile:v", "high"]
             }
         case .hevc:
-            return ["-c:v", "hevc_videotoolbox", "-q:v", String(settings.effectiveVideoToolboxQuality),
-                    "-profile:v", "main", "-tag:v", "hvc1"]
+            return ["-c:v", "hevc_videotoolbox"] + videoToolboxRate(hevc: true) + ["-profile:v", "main", "-tag:v", "hvc1"]
         case .prores:
-            return ["-c:v", "prores_videotoolbox", "-allow_sw", "1", "-profile:v", settings.proresProfile.ffmpegProfile]
+            if support.videoToolboxProRes {
+                return ["-c:v", "prores_videotoolbox", "-allow_sw", "1", "-profile:v", settings.proresProfile.ffmpegProfile]
+            }
+            return ["-c:v", "prores_ks", "-profile:v", settings.proresProfile.proresKSProfile, "-vendor", "apl0"]
         case .ffv1:
             return ["-c:v", "ffv1", "-level", "3", "-g", "1", "-slices", "16", "-slicecrc", "1"]
         case .gif, .pngSequence:

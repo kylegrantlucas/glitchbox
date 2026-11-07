@@ -95,7 +95,7 @@ enum CLI {
         let (plugins, issues) = ws.loadPlugins()
         let width = plugins.map(\.id.count).max() ?? 0
         for p in plugins {
-            let missing = env.missing(p.requires)
+            let missing = env.missing(for: p)
             let status = missing.isEmpty ? "ok" : "missing: " + missing.joined(separator: ",")
             print("\(p.id.padding(toLength: width, withPad: " ", startingAt: 0))  \(p.name)  \(status)")
         }

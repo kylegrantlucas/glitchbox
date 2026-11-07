@@ -14,7 +14,9 @@ struct PluginEditorWindow: View {
         case .failure(let error):
             ContentUnavailableView("Cannot Open Plugin", systemImage: "exclamationmark.triangle",
                                    description: Text(error.localizedDescription))
+                #if os(macOS)
                 .frame(minWidth: 500, minHeight: 300)
+                #endif
         }
     }
 

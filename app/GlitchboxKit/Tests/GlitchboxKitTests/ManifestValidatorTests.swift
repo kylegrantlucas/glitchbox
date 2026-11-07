@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import GlitchboxKit
 
@@ -45,6 +46,25 @@ struct ManifestValidatorTests {
         var m = base()
         m.steps[0].script = "echo hi"
         #expect(messages(m).contains { $0.contains("exactly one of argv or script") })
+    }
+
+    @Test func nativeNeedsANonEmptyIdAndStillAnArgvOrScript() {
+        var m = base()
+        m.steps[0].native = "demo"
+        #expect(messages(m).isEmpty)
+        m.steps[0].native = " "
+        #expect(messages(m).contains { $0.contains("native must not be empty") })
+        m.steps[0] = PluginStep(name: "run", native: "demo")
+        #expect(messages(m).contains { $0.contains("exactly one of argv or script") })
+    }
+
+    @Test func nativeRoundTripsAndIsOmittedWhenUnset() throws {
+        let step = PluginStep(name: "mosh", script: "true", native: "mpeg2-mosh")
+        let data = try JSONEncoder().encode(step)
+        #expect(try JSONDecoder().decode(PluginStep.self, from: data) == step)
+        #expect(String(decoding: data, as: UTF8.self).contains(#""native":"mpeg2-mosh""#))
+        let plain = try JSONEncoder().encode(PluginStep(name: "x", argv: ["ffmpeg"]))
+        #expect(!String(decoding: plain, as: UTF8.self).contains("native"))
     }
 
     @Test func rejectsFileNameMismatch() {

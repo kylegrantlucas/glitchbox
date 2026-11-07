@@ -1,0 +1,303 @@
+--- orig/fftools/ffmpeg.c
++++ src/fftools/ffmpeg.c
+@@ -24,6 +24,10 @@
+  */
+ 
+ #include "config.h"
++/* ffglitch-ios: in-process, so never touch the terminal (no raw mode, no
++   keyboard interaction, no tcsetattr). */
++#undef HAVE_TERMIOS_H
++#define HAVE_TERMIOS_H 0
+ 
+ #include <errno.h>
+ #include <limits.h>
+@@ -176,6 +180,14 @@
+     }
+ }
+ 
++/* ffglitch-ios: the library's cancel request, delivered like SIGTERM (no
++   signal handlers are installed in-process). */
++void ffgac_tool_cancel(void)
++{
++    received_sigterm = SIGTERM;
++    received_nb_signals++;
++}
++
+ #if HAVE_SETCONSOLECTRLHANDLER
+ static BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
+ {
+@@ -861,6 +873,9 @@
+         if (stdin_interaction)
+             if (check_keyboard_interaction(cur_time) < 0)
+                 break;
++        /* ffglitch-ios: cancelled */
++        if (received_nb_signals)
++            break;
+ 
+         /* dump report by using the output first video and audio streams */
+         print_report(0, timer_start, cur_time, transcode_ts);
+--- orig/fftools/ffmpeg_opt.c
++++ src/fftools/ffmpeg_opt.c
+@@ -622,21 +622,9 @@
+ 
+     if (!file_overwrite) {
+         if (proto_name && !strcmp(proto_name, "file") && avio_check(filename, 0) == 0) {
+-            if (stdin_interaction && !no_file_overwrite) {
+-                fprintf(stderr,"File '%s' already exists. Overwrite? [y/N] ", filename);
+-                fflush(stderr);
+-                term_exit();
+-                signal(SIGINT, SIG_DFL);
+-                if (!read_yesno()) {
+-                    av_log(NULL, AV_LOG_FATAL, "Not overwriting - exiting\n");
+-                    return AVERROR_EXIT;
+-                }
+-                term_init();
+-            }
+-            else {
+-                av_log(NULL, AV_LOG_FATAL, "File '%s' already exists. Exiting.\n", filename);
+-                return AVERROR_EXIT;
+-            }
++            /* ffglitch-ios: never prompts (stdin_interaction is always 0) */
++            av_log(NULL, AV_LOG_FATAL, "File '%s' already exists. Exiting.\n", filename);
++            return AVERROR_EXIT;
+         }
+     }
+ 
+@@ -1245,8 +1233,9 @@
+         goto fail;
+     }
+ 
+-    /* configure terminal and setup signal handlers */
+-    term_init();
++    /* ffglitch-ios: in-process, so no terminal and no signal handlers: behave
++       like -nostdin and leave term_init() alone. */
++    stdin_interaction = 0;
+ 
+     /* open input files */
+     ret = open_files(&octx.groups[GROUP_INFILE], "input", sch, ifile_open);
+--- orig/libavformat/file.c
++++ src/libavformat/file.c
+@@ -40,7 +40,35 @@
+ #include <stdlib.h>
+ #include "os_support.h"
+ #include "url.h"
++#include <poll.h>
++
++/* ffglitch-ios: tools run inside the app. A blocking read()/write() on a pipe
++   would hang a cancelled or failed run forever, so wait in poll() slices and
++   give up when the run is interrupted. Every fd a run opens is registered
++   with the run, which closes the ones still open if it is abandoned; writes
++   to a closed pipe return EPIPE instead of raising SIGPIPE. */
++static int ffg_wait_fd(URLContext *h, int fd, short events)
++{
++    struct pollfd p = { .fd = fd, .events = events };
++    for (;;) {
++        int n;
++        if (ffg_io_interrupted() || ff_check_interrupt(&h->interrupt_callback))
++            return AVERROR_EXIT;
++        n = poll(&p, 1, 100);
++        if (n > 0 || (n < 0 && errno != EINTR && errno != EAGAIN))
++            return 0; /* ready, hung up, or an error read()/write() reports */
++    }
++}
+ 
++static void ffg_fd_opened(int fd)
++{
++    ffg_fd_track(fd);
++#ifdef F_SETNOSIGPIPE
++    fcntl(fd, F_SETNOSIGPIPE, 1);
++#endif
++}
++
++
+ /* Some systems may not have S_ISFIFO */
+ #ifndef S_ISFIFO
+ #  ifdef S_IFIFO
+@@ -141,6 +169,9 @@
+     FileContext *c = h->priv_data;
+     int ret;
+     size = FFMIN(size, c->blocksize);
++    ret = ffg_wait_fd(h, c->fd, POLLIN);
++    if (ret < 0)
++        return ret;
+     ret = read(c->fd, buf, size);
+     if (ret == 0 && c->follow)
+         return AVERROR(EAGAIN);
+@@ -154,6 +185,9 @@
+     FileContext *c = h->priv_data;
+     int ret;
+     size = FFMIN(size, c->blocksize);
++    ret = ffg_wait_fd(h, c->fd, POLLOUT);
++    if (ret < 0)
++        return ret;
+     ret = write(c->fd, buf, size);
+     return (ret == -1) ? AVERROR(errno) : ret;
+ }
+@@ -224,6 +258,7 @@
+     if (c->initial_pos >= 0 && !h->is_streamed)
+         lseek(c->fd, c->initial_pos, SEEK_SET);
+ 
++    ffg_fd_untrack(c->fd);
+     ret = close(c->fd);
+     return (ret == -1) ? AVERROR(errno) : 0;
+ }
+@@ -311,6 +346,7 @@
+     if (fd == -1)
+         return AVERROR(errno);
+     c->fd = fd;
++    ffg_fd_opened(fd);
+ 
+     h->is_streamed = !fstat(fd, &st) && S_ISFIFO(st.st_mode);
+ 
+@@ -455,6 +491,7 @@
+     c->fd = fd_dup(h, c->fd);
+     if (c->fd == -1)
+         return AVERROR(errno);
++    ffg_fd_opened(c->fd);
+     h->is_streamed = 1;
+     return 0;
+ }
+@@ -500,6 +537,7 @@
+     c->fd = fd_dup(h, c->fd);
+     if (c->fd == -1)
+         return AVERROR(errno);
++    ffg_fd_opened(c->fd);
+ 
+     if (h->is_streamed)
+         c->initial_pos = -1;
+--- orig/libavutil/log.c
++++ src/libavutil/log.c
+@@ -53,7 +53,10 @@
+ #define BACKTRACE_LOGLEVEL AV_LOG_ERROR
+ #endif
+ 
+-static int av_log_level = AV_LOG_INFO;
++/* ffglitch-ios: the level and the sink belong to the current tool run (see
++   ffglitch_runtime.c), so concurrent ffgac and ffedit runs log independently. */
++#define av_log_level (*ffg_log_level_ptr())
++void ffg_log_callback(void *avcl, int level, const char *fmt, va_list vl);
+ static int flags;
+ 
+ #define NB_LEVELS 8
+@@ -409,7 +412,7 @@
+ }
+ 
+ static void (*av_log_callback)(void*, int, const char*, va_list) =
+-    av_log_default_callback;
++    ffg_log_callback;
+ 
+ void av_log(void* avcl, int level, const char *fmt, ...)
+ {
+@@ -461,7 +464,9 @@
+ 
+ void av_log_set_callback(void (*callback)(void*, int, const char*, va_list))
+ {
+-    av_log_callback = callback;
++    /* ffglitch-ios: the callback is process-wide but runs are concurrent, so
++       it stays ffg_log_callback (which writes to the run's log). */
++    (void) callback;
+ }
+ 
+ static void missing_feature_sample(int sample, void *avc, const char *msg,
+--- orig/libavutil/quickjs/quickjs-libc.c
++++ src/libavutil/quickjs/quickjs-libc.c
+@@ -71,6 +71,13 @@
+ #include "list.h"
+ #include "quickjs-libc.h"
+ 
++/* ffglitch-ios: the library runs inside an app that may not spawn processes,
++   install signal handlers, or touch the terminal; these APIs throw instead. */
++static JSValue js_ffg_unsupported(JSContext *ctx, const char *what)
++{
++    return JS_ThrowTypeError(ctx, "%s is not supported in this build", what);
++}
++
+ /* TODO:
+    - add socket calls
+ */
+@@ -911,6 +918,7 @@
+ static JSValue js_std_popen(JSContext *ctx, JSValueConst this_val,
+                             int argc, JSValueConst *argv)
+ {
++    return js_ffg_unsupported(ctx, "std.popen");
+     const char *filename, *mode = NULL;
+     FILE *f;
+     int err;
+@@ -1321,6 +1329,7 @@
+ static JSValue js_std_urlGet(JSContext *ctx, JSValueConst this_val,
+                              int argc, JSValueConst *argv)
+ {
++    return js_ffg_unsupported(ctx, "std.urlGet");
+     const char *url;
+     DynBuf cmd_buf;
+     DynBuf data_buf_s, *data_buf = &data_buf_s;
+@@ -1751,6 +1760,7 @@
+ static JSValue js_os_ttySetRaw(JSContext *ctx, JSValueConst this_val,
+                                int argc, JSValueConst *argv)
+ {
++    return js_ffg_unsupported(ctx, "os.ttySetRaw");
+     struct termios tty;
+     int fd;
+     
+@@ -1926,6 +1936,7 @@
+ static JSValue js_os_signal(JSContext *ctx, JSValueConst this_val,
+                             int argc, JSValueConst *argv)
+ {
++    return js_ffg_unsupported(ctx, "os.signal");
+     JSRuntime *rt = JS_GetRuntime(ctx);
+     JSThreadState *ts = JS_GetRuntimeOpaque(rt);
+     JSOSSignalHandler *sh;
+@@ -2895,6 +2906,7 @@
+ static JSValue js_os_exec(JSContext *ctx, JSValueConst this_val,
+                           int argc, JSValueConst *argv)
+ {
++    return js_ffg_unsupported(ctx, "os.exec");
+     JSValueConst options, args = argv[0];
+     JSValue val, ret_val;
+     const char **exec_argv, *file = NULL, *str, *cwd = NULL;
+--- orig/libavutil/script_python.c
++++ src/libavutil/script_python.c
+@@ -55,6 +55,8 @@
+ 
+ static void *dlopen_python(void)
+ {
++    /* ffglitch-ios: never dlopen() libpython inside the app */
++    return NULL;
+     void *libpython_so = NULL;
+     char *path = getenv("FFGLITCH_LIBPYTHON_PATH");
+     if ( path != NULL )
+@@ -660,8 +662,7 @@
+     py_ctx->libpython_so = dlopen_python();
+     if ( py_ctx->libpython_so == NULL )
+     {
+-        av_log(py_ctx, AV_LOG_FATAL, "Could not find libpython in the usual places.\n");
+-        av_log(py_ctx, AV_LOG_FATAL, "Try specifying the path to libpython using the FFGLITCH_LIBPYTHON_PATH environment variable.\n");
++        av_log(py_ctx, AV_LOG_FATAL, "Python scripts are not supported in this build; use a JavaScript (.js) script.\n");
+         goto end;
+     }
+ 
+--- orig/libavutil/script_quickjs.c
++++ src/libavutil/script_quickjs.c
+@@ -357,6 +357,14 @@
+     return 0;
+ }
+ 
++/* ffglitch-ios: stop a running script when its run is cancelled or failed */
++static int ffg_js_interrupt(JSRuntime *rt, void *opaque)
++{
++    (void) rt;
++    (void) opaque;
++    return ffg_should_abandon();
++}
++
+ /*********************************************************************/
+ FFQuickJSContext *ff_quickjs_init(const char *script_fname, int flags)
+ {
+@@ -377,6 +385,7 @@
+     /* TODO check for errors */
+     qjs_rt = JS_NewRuntime();
+     js_ctx->rt = qjs_rt;
++    JS_SetInterruptHandler(qjs_rt, ffg_js_interrupt, NULL);
+     js_std_init_handlers(qjs_rt);
+     qjs_ctx = JS_NewContext(qjs_rt);
+     js_ctx->ctx = qjs_ctx;

@@ -1,4 +1,3 @@
-import AppKit
 import GlitchboxKit
 import SwiftUI
 import UniformTypeIdentifiers
@@ -50,20 +49,56 @@ struct ExportSheet: View {
     }
 
     var body: some View {
+        withChangeHandlers(layout)
+    }
+
+    @ViewBuilder private var layout: some View {
+        #if os(macOS)
         VStack(spacing: 0) {
-            Form {
-                formatSection
-                sizeSection
-                rangeSection
-                if settings.format.hasAudio { audioSection }
-                advancedSection
-            }
-            .formStyle(.grouped)
+            form
             Divider()
             footer
                 .padding(16)
         }
         .frame(width: 520, height: 640)
+        #else
+        NavigationStack {
+            form
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    summaryView
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(.bar)
+                }
+                .navigationTitle("Export")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel", role: .cancel) { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Export", role: .confirm) { chooseDestination() }
+                            .disabled(!canExport)
+                    }
+                }
+        }
+        #endif
+    }
+
+    private var form: some View {
+        Form {
+            formatSection
+            sizeSection
+            rangeSection
+            if settings.format.hasAudio { audioSection }
+            advancedSection
+        }
+        .formStyle(.grouped)
+    }
+
+    /// The sheet's change handlers, applied to whichever platform layout wraps the form.
+    private func withChangeHandlers(_ content: some View) -> some View {
+        content
         .onChange(of: settings.format) { normalizeAudioCodec() }
         .onChange(of: settings.preferredContainer) { normalizeAudioCodec() }
         .onChange(of: settings.quality) {
@@ -79,7 +114,10 @@ struct ExportSheet: View {
         .onAppear { normalizeAudioCodec() }
         .fileImporter(isPresented: $choosingAudio, allowedContentTypes: [.audio, .movie]) { result in
             if case .success(let url) = result {
-                audioFile = url
+                do { audioFile = try ImportedFile.adopt(url, into: model.workspace) } catch {
+                    model.notices.append("import: \(error.localizedDescription)")
+                    if audioFile == nil { audioChoice = .none }
+                }
             } else if audioFile == nil {
                 audioChoice = .none
             }
@@ -167,7 +205,7 @@ struct ExportSheet: View {
     private var rangeSection: some View {
         Section("Range") {
             if model.sourceIsStill {
-                TextField("Duration (s)", value: $render.stillDuration, format: .number)
+                secondsField("Duration (s)", TextField("Duration (s)", value: $render.stillDuration, format: .number))
             } else {
                 Picker("Range", selection: $render.range) {
                     Text("Whole clip").tag(RenderOptions.Range.whole)
@@ -175,13 +213,26 @@ struct ExportSheet: View {
                 }
                 .pickerStyle(.segmented)
                 if render.range == .inOut {
-                    TextField("In (s)", value: $render.inPoint, format: .number)
-                    TextField("Out (s)", value: $render.outPoint, format: .number, prompt: Text("End"))
+                    secondsField("In (s)", TextField("In (s)", value: $render.inPoint, format: .number))
+                    secondsField("Out (s)", TextField("Out (s)", value: $render.outPoint, format: .number, prompt: Text("End")))
                 }
             }
             ResolutionPicker(title: "Render at", selection: $render.height)
             LabeledContent("Frame rate", value: frameRateLabel)
         }
+    }
+
+    /// macOS forms show a text field's title as its label; iOS forms need an explicit one.
+    @ViewBuilder private func secondsField(_ title: String, _ field: some View) -> some View {
+        #if os(iOS)
+        LabeledContent(title) {
+            field
+                .multilineTextAlignment(.trailing)
+                .keyboardType(.decimalPad)
+        }
+        #else
+        field
+        #endif
     }
 
     private var audioSection: some View {
@@ -264,17 +315,21 @@ struct ExportSheet: View {
         }
     }
 
+    private var summaryView: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(summary)
+                .monospacedDigit()
+            if let warning = gifWarning {
+                Label(warning, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                    .font(.callout)
+            }
+        }
+    }
+
     private var footer: some View {
         HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(summary)
-                    .monospacedDigit()
-                if let warning = gifWarning {
-                    Label(warning, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                        .font(.callout)
-                }
-            }
+            summaryView
             Spacer()
             Button("Cancel", role: .cancel) { dismiss() }
                 .keyboardShortcut(.cancelAction)
@@ -388,26 +443,7 @@ struct ExportSheet: View {
 
     private func chooseDestination() {
         let final = finalSettings
-        let url: URL
-        if final.format.isSequence {
-            let panel = NSOpenPanel()
-            panel.canChooseDirectories = true
-            panel.canChooseFiles = false
-            panel.canCreateDirectories = true
-            panel.prompt = "Export"
-            panel.message = "Choose a folder for the PNG frames. Frames from an earlier export there are replaced."
-            panel.directoryURL = model.exportDirectory
-            guard panel.runModal() == .OK, let chosen = panel.url else { return }
-            url = chosen
-        } else {
-            let panel = NSSavePanel()
-            panel.allowedContentTypes = [contentType]
-            panel.canCreateDirectories = true
-            panel.nameFieldStringValue = final.defaultFileName(source: model.source)
-            panel.directoryURL = model.exportDirectory
-            guard panel.runModal() == .OK, let chosen = panel.url else { return }
-            url = chosen
-        }
+        guard let url = PlatformActions.exportDestination(for: final, contentType: contentType, model: model) else { return }
         model.exportSettings = final
         model.startExport(render: renderSettings, to: url)
         dismiss()

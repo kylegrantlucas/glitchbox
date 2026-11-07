@@ -18,6 +18,9 @@ struct SourceSection: View {
                     LayerStatusText(status: model.sourceStatus)
                 }
                 Spacer()
+                #if os(iOS)
+                PhotoSourcePicker()
+                #endif
                 Button("Choose…") { importing = true }
             }
             .help(model.source?.path ?? "Drop a movie or image here")
@@ -25,13 +28,12 @@ struct SourceSection: View {
         }
         .padding(12)
         .background(dropTargeted ? Color.accentColor.opacity(0.15) : Color.clear)
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first else { return false }
-            model.source = url
-            return true
-        } isTargeted: { dropTargeted = $0 }
+        .modifier(SourceDropModifier(isTargeted: $dropTargeted))
         .fileImporter(isPresented: $importing, allowedContentTypes: [.movie, .image]) { result in
-            if case .success(let url) = result { model.source = url }
+            guard case .success(let url) = result else { return }
+            do { model.source = try ImportedFile.adopt(url, into: model.workspace, asSource: true) } catch {
+                model.notices.append("import: \(error.localizedDescription)")
+            }
         }
     }
 }

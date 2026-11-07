@@ -6,9 +6,7 @@ struct LayerRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Toggle("Enabled", isOn: Binding(get: { item.spec.enabled }, set: { model.setEnabled(item.id, $0) }))
-                .labelsHidden()
-                .toggleStyle(.checkbox)
+            LayerEnabledToggle(isOn: Binding(get: { item.spec.enabled }, set: { model.setEnabled(item.id, $0) }))
             VStack(alignment: .leading, spacing: 2) {
                 Text(model.plugin(item.spec.plugin)?.name ?? item.spec.plugin)
                     .foregroundStyle(item.spec.enabled ? .primary : .secondary)

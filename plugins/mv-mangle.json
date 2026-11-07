@@ -64,7 +64,8 @@
         "{out}",
         "{in}"
       ],
-      "name" : "mangle"
+      "name" : "mangle",
+      "native" : "mv-mangle"
     }
   ],
   "summary" : "MPEG-4 motion-vector shuffle via FFglitch (pipelines/mv-mangle)."

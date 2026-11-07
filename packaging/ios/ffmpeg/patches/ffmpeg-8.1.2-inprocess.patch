@@ -1,0 +1,482 @@
+--- a/fftools/ffmpeg.c
++++ b/fftools/ffmpeg.c
+@@ -25,6 +25,10 @@
+ 
+ #include "config.h"
+ 
++/* glitchbox: built in-process (gb_ffmpeg_run): never touch the terminal. */
++#undef HAVE_TERMIOS_H
++#define HAVE_TERMIOS_H 0
++
+ #include <errno.h>
+ #include <limits.h>
+ #include <stdatomic.h>
+@@ -151,12 +155,8 @@
+     received_sigterm = sig;
+     received_nb_signals++;
+     term_exit_sigsafe();
+-    if(received_nb_signals > 3) {
+-        ret = write(2/*STDERR_FILENO*/, "Received > 3 system signals, hard exiting\n",
+-                    strlen("Received > 3 system signals, hard exiting\n"));
+-        if (ret < 0) { /* Do nothing */ };
+-        exit(123);
+-    }
++    /* glitchbox: no hard exit after repeated signals; the host owns the process. */
++    (void)ret;
+ }
+ 
+ #if HAVE_SETCONSOLECTRLHANDLER
+@@ -202,52 +202,10 @@
+     signal(sig, func)
+ #endif
+ 
++/* glitchbox: in-process, so no signal handlers (cancellation arrives through
++ * gb_fftools_cancel_requested(), polled below) and no terminal setup. */
+ void term_init(void)
+ {
+-#if defined __linux__
+-    struct sigaction action = {0};
+-    action.sa_handler = sigterm_handler;
+-
+-    /* block other interrupts while processing this one */
+-    sigfillset(&action.sa_mask);
+-
+-    /* restart interruptible functions (i.e. don't fail with EINTR)  */
+-    action.sa_flags = SA_RESTART;
+-#endif
+-
+-#if HAVE_TERMIOS_H
+-    if (stdin_interaction) {
+-        struct termios tty;
+-        if (tcgetattr (0, &tty) == 0) {
+-            oldtty = tty;
+-            restore_tty = 1;
+-
+-            tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
+-                             |INLCR|IGNCR|ICRNL|IXON);
+-            tty.c_oflag |= OPOST;
+-            tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN);
+-            tty.c_cflag &= ~(CSIZE|PARENB);
+-            tty.c_cflag |= CS8;
+-            tty.c_cc[VMIN] = 1;
+-            tty.c_cc[VTIME] = 0;
+-
+-            tcsetattr (0, TCSANOW, &tty);
+-        }
+-        SIGNAL(SIGQUIT, sigterm_handler); /* Quit (POSIX).  */
+-    }
+-#endif
+-
+-    SIGNAL(SIGINT , sigterm_handler); /* Interrupt (ANSI).    */
+-    SIGNAL(SIGTERM, sigterm_handler); /* Termination (ANSI).  */
+-#ifdef SIGXCPU
+-    SIGNAL(SIGXCPU, sigterm_handler);
+-#endif
+-#ifdef SIGPIPE
+-    signal(SIGPIPE, SIG_IGN); /* Broken pipe (POSIX). */
+-#endif
+-#if HAVE_SETCONSOLECTRLHANDLER
+-    SetConsoleCtrlHandler((PHANDLER_ROUTINE) CtrlHandler, TRUE);
+-#endif
+ }
+ 
+ /* read a key without blocking */
+@@ -304,8 +262,16 @@
+     return -1;
+ }
+ 
++/* glitchbox: a host cancel request acts like one SIGTERM. */
++static void check_cancel(void)
++{
++    if (!received_nb_signals && gb_fftools_cancel_requested())
++        sigterm_handler(SIGTERM);
++}
++
+ static int decode_interrupt_cb(void *ctx)
+ {
++    check_cancel();
+     return received_nb_signals > atomic_load(&transcode_init_done);
+ }
+ 
+@@ -903,9 +869,12 @@
+ 
+     timer_start = av_gettime_relative();
+ 
+-    while (!sch_wait(sch, stats_period, &transcode_ts)) {
++    /* glitchbox: wake at least every 20 ms to poll for cancellation;
++     * print_report() still rate-limits itself to stats_period. */
++    while (!sch_wait(sch, FFMIN(stats_period, 20000), &transcode_ts)) {
+         int64_t cur_time= av_gettime_relative();
+ 
++        check_cancel();
+         if (received_nb_signals)
+             break;
+ 
+@@ -978,7 +947,7 @@
+ #endif
+ }
+ 
+-int main(int argc, char **argv)
++int gb_fftool_ffmpeg_main(int argc, char **argv)
+ {
+     Scheduler *sch = NULL;
+ 
+@@ -986,8 +955,6 @@
+     BenchmarkTimeStamps ti;
+ 
+     init_dynload();
+-
+-    setvbuf(stderr,NULL,_IONBF,0); /* win32 runtime needs this */
+ 
+     av_log_set_flags(AV_LOG_SKIP_REPEATED);
+     parse_loglevel(argc, argv, options);
+--- a/fftools/ffmpeg_opt.c
++++ b/fftools/ffmpeg_opt.c
+@@ -851,7 +851,6 @@
+                 fprintf(stderr,"File '%s' already exists. Overwrite? [y/N] ", filename);
+                 fflush(stderr);
+                 term_exit();
+-                signal(SIGINT, SIG_DFL);
+                 if (!read_yesno()) {
+                     av_log(NULL, AV_LOG_FATAL, "Not overwriting - exiting\n");
+                     return AVERROR_EXIT;
+@@ -1578,7 +1577,7 @@
+ 
+ int opt_timelimit(void *optctx, const char *opt, const char *arg)
+ {
+-#if HAVE_SETRLIMIT
++#if 0 /* glitchbox: RLIMIT_CPU would apply to the whole host process */
+     int ret;
+     double lim;
+     struct rlimit rl;
+--- a/fftools/cmdutils.c
++++ b/fftools/cmdutils.c
+@@ -910,15 +910,11 @@
+     return 0;
+ }
+ 
++/* glitchbox: in-process runs have no stdin of their own; answer as a process
++ * whose stdin is at EOF would. */
+ int read_yesno(void)
+ {
+-    int c = getchar();
+-    int yesno = (av_toupper(c) == 'Y');
+-
+-    while (c != '\n' && c != EOF)
+-        c = getchar();
+-
+-    return yesno;
++    return 0;
+ }
+ 
+ FILE *get_preset_file(char *filename, size_t filename_size,
+--- a/fftools/ffprobe.c
++++ b/fftools/ffprobe.c
+@@ -1637,7 +1637,7 @@
+         ret = AVERROR(ENOMEM);
+         goto end;
+     }
+-    while (!av_read_frame(fmt_ctx, pkt)) {
++    while (!gb_fftools_cancel_requested() && !av_read_frame(fmt_ctx, pkt)) {
+         if (fmt_ctx->nb_streams > nb_streams) {
+             REALLOCZ_ARRAY_STREAM(nb_streams_frames,  nb_streams, fmt_ctx->nb_streams);
+             REALLOCZ_ARRAY_STREAM(nb_streams_packets, nb_streams, fmt_ctx->nb_streams);
+@@ -2422,6 +2422,11 @@
+     return codec;
+ }
+ 
++static int gb_ffprobe_interrupt_cb(void *opaque)
++{
++    return gb_fftools_cancel_requested();
++}
++
+ static int open_input_file(InputFile *ifile, const char *filename,
+                            const char *print_filename)
+ {
+@@ -2433,10 +2438,14 @@
+     fmt_ctx = avformat_alloc_context();
+     if (!fmt_ctx)
+         return AVERROR(ENOMEM);
++    /* glitchbox: host cancellation interrupts blocking I/O */
++    fmt_ctx->interrupt_callback.callback = gb_ffprobe_interrupt_cb;
+ 
+     err = set_decoders(fmt_ctx);
+-    if (err < 0)
++    if (err < 0) {
++        avformat_free_context(fmt_ctx);
+         return err;
++    }
+     if (!av_dict_get(format_opts, "scan_all_pmts", NULL, AV_DICT_MATCH_CASE)) {
+         av_dict_set(&format_opts, "scan_all_pmts", "1", AV_DICT_DONT_OVERWRITE);
+         scan_all_pmts_set = 1;
+@@ -2480,7 +2489,7 @@
+ 
+     ifile->streams = av_calloc(fmt_ctx->nb_streams, sizeof(*ifile->streams));
+     if (!ifile->streams)
+-        exit(1);
++        return AVERROR(ENOMEM); /* glitchbox: was exit(1) */
+     ifile->nb_streams = fmt_ctx->nb_streams;
+ 
+     /* bind a decoder to each input stream */
+@@ -2500,16 +2509,22 @@
+ 
+             err = filter_codec_opts(codec_opts, stream->codecpar->codec_id,
+                                     fmt_ctx, stream, codec, &opts, NULL);
++            /* glitchbox: these were exit(1); return the error instead, and
++             * probe_file() closes the input as on every other failure. */
+             if (err < 0)
+-                exit(1);
++                return err;
+ 
+             ist->dec_ctx = avcodec_alloc_context3(codec);
+-            if (!ist->dec_ctx)
+-                exit(1);
++            if (!ist->dec_ctx) {
++                av_dict_free(&opts);
++                return AVERROR(ENOMEM);
++            }
+ 
+             err = avcodec_parameters_to_context(ist->dec_ctx, stream->codecpar);
+-            if (err < 0)
+-                exit(1);
++            if (err < 0) {
++                av_dict_free(&opts);
++                return err;
++            }
+ 
+             if (do_show_log) {
+                 // For logging it is needed to disable at least frame threads as otherwise
+@@ -2525,7 +2540,8 @@
+             if (avcodec_open2(ist->dec_ctx, codec, &opts) < 0) {
+                 av_log(NULL, AV_LOG_WARNING, "Could not open codec for input stream %d\n",
+                        stream->index);
+-                exit(1);
++                av_dict_free(&opts);
++                return AVERROR(EINVAL); /* glitchbox: was exit(1) */
+             }
+ 
+             if ((t = av_dict_iterate(opts, NULL))) {
+@@ -3230,7 +3246,7 @@
+             do_show_##varname = 1;                                      \
+     } while (0)
+ 
+-int main(int argc, char **argv)
++int gb_fftool_ffprobe_main(int argc, char **argv)
+ {
+     const AVTextFormatter *f;
+     AVTextFormatContext *tctx;
+@@ -3241,8 +3257,6 @@
+     AVTextFormatDataDump data_dump_format_id = AV_TEXTFORMAT_DATADUMP_XXD;
+ 
+     init_dynload();
+-
+-    setvbuf(stderr, NULL, _IONBF, 0); /* win32 runtime needs this */
+ 
+     av_log_set_flags(AV_LOG_SKIP_REPEATED);
+ 
+--- a/libavfilter/vf_frei0r.c
++++ b/libavfilter/vf_frei0r.c
+@@ -27,11 +27,9 @@
+ #include <string.h>
+ #include <stdlib.h>
+ #include "config.h"
+-#include "compat/w32dlfcn.h"
+ #include "libavutil/avstring.h"
+ #include "libavutil/common.h"
+ #include "libavutil/eval.h"
+-#include "libavutil/getenv_utf8.h"
+ #include "libavutil/imgutils.h"
+ #include "libavutil/internal.h"
+ #include "libavutil/mathematics.h"
+@@ -54,10 +52,26 @@
+ typedef void (*f0r_set_param_value_f)(f0r_instance_t instance, f0r_param_t param, int param_index);
+ typedef void (*f0r_get_param_value_f)(f0r_instance_t instance, f0r_param_t param, int param_index);
+ 
++/* glitchbox: the plugins are linked in statically (no dlopen, no FREI0R_PATH);
++ * gb_frei0r_find() looks one up by the name a frei0r module file would have. */
++typedef struct GBFrei0rPlugin {
++    const char *name;
++    f0r_init_f            init;
++    f0r_deinit_f          deinit;
++    f0r_get_plugin_info_f get_plugin_info;
++    f0r_get_param_info_f  get_param_info;
++    f0r_construct_f       construct;
++    f0r_destruct_f        destruct;
++    f0r_set_param_value_f set_param_value;
++    f0r_get_param_value_f get_param_value;
++    f0r_update_f          update;
++} GBFrei0rPlugin;
++
++const GBFrei0rPlugin *gb_frei0r_find(const char *name);
++
+ typedef struct Frei0rContext {
+     const AVClass *class;
+     f0r_update_f update;
+-    void *dl_handle;            /* dynamic library handle   */
+     f0r_instance_t instance;
+     f0r_plugin_info_t plugin_info;
+ 
+@@ -78,15 +92,6 @@
+     uint64_t pts;
+ } Frei0rContext;
+ 
+-static void *load_sym(AVFilterContext *ctx, const char *sym_name)
+-{
+-    Frei0rContext *s = ctx->priv;
+-    void *sym = dlsym(s->dl_handle, sym_name);
+-    if (!sym)
+-        av_log(ctx, AV_LOG_ERROR, "Could not find symbol '%s' in loaded module.\n", sym_name);
+-    return sym;
+-}
+-
+ static int set_param(AVFilterContext *ctx, f0r_param_info_t info, int index, char *param)
+ {
+     Frei0rContext *s = ctx->priv;
+@@ -171,17 +176,6 @@
+     return 0;
+ }
+ 
+-static int load_path(AVFilterContext *ctx, void **handle_ptr, const char *prefix, const char *name)
+-{
+-    char *path = av_asprintf("%s%s%s", prefix, name, SLIBSUF);
+-    if (!path)
+-        return AVERROR(ENOMEM);
+-    av_log(ctx, AV_LOG_DEBUG, "Looking for frei0r effect in '%s'.\n", path);
+-    *handle_ptr = dlopen(path, RTLD_NOW|RTLD_LOCAL);
+-    av_free(path);
+-    return 0;
+-}
+-
+ static av_cold int frei0r_init(AVFilterContext *ctx,
+                                const char *dl_name, int type)
+ {
+@@ -189,84 +183,28 @@
+     f0r_init_f            f0r_init;
+     f0r_get_plugin_info_f f0r_get_plugin_info;
+     f0r_plugin_info_t *pi;
+-    char *path;
+-    int ret = 0;
+-    int i;
+-    static const char* const frei0r_pathlist[] = {
+-        "/usr/local/lib/frei0r-1/",
+-        "/usr/lib/frei0r-1/",
+-        "/usr/local/lib64/frei0r-1/",
+-        "/usr/lib64/frei0r-1/"
+-    };
++    const GBFrei0rPlugin *plugin;
+ 
+     if (!dl_name) {
+         av_log(ctx, AV_LOG_ERROR, "No filter name provided.\n");
+         return AVERROR(EINVAL);
+     }
+ 
+-    /* see: http://frei0r.dyne.org/codedoc/html/group__pluglocations.html */
+-    if (path = getenv_dup("FREI0R_PATH")) {
+-#ifdef _WIN32
+-        const char *separator = ";";
+-#else
+-        const char *separator = ":";
+-#endif
+-        char *p, *ptr = NULL;
+-        for (p = path; p = av_strtok(p, separator, &ptr); p = NULL) {
+-            /* add additional trailing slash in case it is missing */
+-            char *p1 = av_asprintf("%s/", p);
+-            if (!p1) {
+-                ret = AVERROR(ENOMEM);
+-                goto check_path_end;
+-            }
+-            ret = load_path(ctx, &s->dl_handle, p1, dl_name);
+-            av_free(p1);
+-            if (ret < 0)
+-                goto check_path_end;
+-            if (s->dl_handle)
+-                break;
+-        }
+-
+-    check_path_end:
+-        av_free(path);
+-        if (ret < 0)
+-            return ret;
+-    }
+-    if (!s->dl_handle && (path = getenv_utf8("HOME"))) {
+-        char *prefix = av_asprintf("%s/.frei0r-1/lib/", path);
+-        if (!prefix) {
+-            ret = AVERROR(ENOMEM);
+-            goto home_path_end;
+-        }
+-        ret = load_path(ctx, &s->dl_handle, prefix, dl_name);
+-        av_free(prefix);
+-
+-    home_path_end:
+-        freeenv_utf8(path);
+-        if (ret < 0)
+-            return ret;
+-    }
+-    for (i = 0; !s->dl_handle && i < FF_ARRAY_ELEMS(frei0r_pathlist); i++) {
+-        ret = load_path(ctx, &s->dl_handle, frei0r_pathlist[i], dl_name);
+-        if (ret < 0)
+-            return ret;
+-    }
+-    if (!s->dl_handle) {
++    plugin = gb_frei0r_find(dl_name);
++    if (!plugin) {
+         av_log(ctx, AV_LOG_ERROR, "Could not find module '%s'.\n", dl_name);
+         return AVERROR(EINVAL);
+     }
++    f0r_init             = plugin->init;
++    f0r_get_plugin_info  = plugin->get_plugin_info;
++    s->get_param_info    = plugin->get_param_info;
++    s->get_param_value   = plugin->get_param_value;
++    s->set_param_value   = plugin->set_param_value;
++    s->update            = plugin->update;
++    s->construct         = plugin->construct;
++    s->destruct          = plugin->destruct;
++    s->deinit            = plugin->deinit;
+ 
+-    if (!(f0r_init                = load_sym(ctx, "f0r_init"           )) ||
+-        !(f0r_get_plugin_info     = load_sym(ctx, "f0r_get_plugin_info")) ||
+-        !(s->get_param_info  = load_sym(ctx, "f0r_get_param_info" )) ||
+-        !(s->get_param_value = load_sym(ctx, "f0r_get_param_value")) ||
+-        !(s->set_param_value = load_sym(ctx, "f0r_set_param_value")) ||
+-        !(s->update          = load_sym(ctx, "f0r_update"         )) ||
+-        !(s->construct       = load_sym(ctx, "f0r_construct"      )) ||
+-        !(s->destruct        = load_sym(ctx, "f0r_destruct"       )) ||
+-        !(s->deinit          = load_sym(ctx, "f0r_deinit"         )))
+-        return AVERROR(EINVAL);
+-
+     if (f0r_init() < 0) {
+         av_log(ctx, AV_LOG_ERROR, "Could not init the frei0r module.\n");
+         return AVERROR(EINVAL);
+@@ -311,8 +249,6 @@
+         s->destruct(s->instance);
+     if (s->deinit)
+         s->deinit();
+-    if (s->dl_handle)
+-        dlclose(s->dl_handle);
+ }
+ 
+ static int config_input_props(AVFilterLink *inlink)
+--- a/libavformat/file.c
++++ b/libavformat/file.c
+@@ -216,6 +216,10 @@
+ #if HAVE_SETMODE
+     setmode(newfd, O_BINARY);
+ #endif
++#ifdef F_SETNOSIGPIPE
++    /* glitchbox: in-process ffmpeg must get EPIPE, not kill the host with SIGPIPE */
++    fcntl(newfd, F_SETNOSIGPIPE, 1);
++#endif
+     return newfd;
+ }
+ #endif
+@@ -309,6 +313,10 @@
+     if (fd == -1)
+         return AVERROR(errno);
+     c->fd = fd;
++#ifdef F_SETNOSIGPIPE
++    /* glitchbox: in-process ffmpeg must get EPIPE, not kill the host with SIGPIPE */
++    fcntl(fd, F_SETNOSIGPIPE, 1);
++#endif
+ 
+     h->is_streamed = !fstat(fd, &st) && S_ISFIFO(st.st_mode);
+ 

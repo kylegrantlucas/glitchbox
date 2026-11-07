@@ -10,11 +10,11 @@
   <img src="site/assets/demos/stack.jpg" width="720" alt="A gradient after four Glitchbox layers: row shift, MPEG-2 mosh, analog pass, and VHS filter">
 </p>
 
-Glitchbox is a Mac app for wrecking video in ways that look intentional. Stack
-datamosh, VHS tape damage, circuit-bent video hardware, and pixel-level effects
-into a chain, turn the knobs on each layer, and watch the result in the built-in
-player. Every tool it runs ships inside the app, so there's no Homebrew setup and
-no FFmpeg fork to compile.
+Glitchbox is a Mac app, with an iPhone and iPad version, for wrecking video in
+ways that look intentional. Stack datamosh, VHS tape damage, circuit-bent video
+hardware, and pixel-level effects into a chain, turn the knobs on each layer, and
+watch the result in the built-in player. Every tool it runs ships inside the app,
+so there's no Homebrew setup and no FFmpeg fork to compile.
 
 **[Download Glitchbox for macOS](https://github.com/kylegrantlucas/glitchbox/releases/latest)** · Apple silicon, macOS 26 or later
 
@@ -136,6 +136,19 @@ in Terminal:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Glitchbox.app
+```
+
+### iPhone and iPad
+
+The same app runs on iPhone and iPad (iOS and iPadOS 26 or later) with every
+effect, rendering on the device. Bring footage in from Photos or Files, and send
+exports to Photos, Files, or the share sheet. It isn't on the App Store, because
+several of the tools it links are GPL, so you build and install it yourself from
+a clone of this repository, with Xcode 27 signed into an Apple developer account
+and the device connected:
+
+```sh
+just ios <device-udid>   # packaging/build.sh ios-app, then ios-install
 ```
 
 ## Built on

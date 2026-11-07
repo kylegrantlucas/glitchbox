@@ -1,6 +1,6 @@
-import AppKit
 import SwiftUI
 
+/// The Mac menu bar, and the iPadOS menu bar on iPad.
 struct StudioCommands: Commands {
     let model: StudioModel
     @AppStorage(LogPanel.visibleKey) private var showLog = false
@@ -15,11 +15,13 @@ struct StudioCommands: Commands {
             Button("Export…") { model.showExport = true }
                 .keyboardShortcut("e")
                 .disabled(!model.canRender || model.isExporting)
-            Button("Export Current Frame…") { exportCurrentFrame() }
+            Button("Export Current Frame…") { PlatformActions.exportCurrentFrame(model) }
                 .disabled(model.viewedOutput == nil)
-            Button("Reveal Output in Finder") { model.revealInFinder() }
+            #if os(macOS)
+            Button("Reveal Output in Finder") { PlatformActions.revealInFinder(model) }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(model.viewedOutput == nil && model.selectedItem?.output == nil)
+            #endif
         }
         CommandMenu("Render") {
             Button("Render") { model.render() }
@@ -39,22 +41,8 @@ struct StudioCommands: Commands {
                 .disabled(model.isExporting)
         }
         CommandGroup(replacing: .help) {
-            Button("Third-Party Licenses") { NSWorkspace.shared.open(Self.licenses) }
-                .disabled(!FileManager.default.fileExists(atPath: Self.licenses.path))
+            Button("Third-Party Licenses") { PlatformActions.showLicenses(model) }
+                .disabled(!PlatformActions.licensesAvailable)
         }
-    }
-
-    /// Licence texts of every bundled tool, staged by packaging/build.sh (absent from Debug builds).
-    private static let licenses = Bundle.main.bundleURL.appending(path: "Contents/Resources/licenses", directoryHint: .isDirectory)
-
-    private func exportCurrentFrame() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.png]
-        panel.canCreateDirectories = true
-        let stem = model.source?.deletingPathExtension().lastPathComponent ?? "frame"
-        panel.nameFieldStringValue = "\(stem)-glitchbox.png"
-        panel.directoryURL = model.exportDirectory
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        model.exportCurrentFrame(to: url)
     }
 }

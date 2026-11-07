@@ -1,0 +1,78 @@
+# iPhone/iPad app target, included by project.yml when GLITCHBOX_IOS=YES (packaging/build.sh
+# ios stages). Kept out of the macOS-only project because the in-process toolchain package it
+# links needs the binary xcframeworks that `build.sh ios-tools` builds.
+packages:
+  GlitchboxInProcess: { path: GlitchboxInProcess }
+targets:
+  Glitchbox iOS:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    # Shared SwiftUI in Glitchbox/, UIKit/Photos-only files in Glitchbox/iOS/.
+    sources:
+      - path: Glitchbox
+        excludes: ["macOS/**"]
+      # Built by packaging/build.sh: toolchain.json, library/, ffglitch-scripts/,
+      # bender-presets/, licenses/, Credits.html. Lands at Glitchbox.app/Toolchain/.
+      - path: ../build/ios/Toolchain
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - { package: GlitchboxKit, product: GlitchboxKit }
+      - { package: GlitchboxInProcess, product: GlitchboxInProcess }
+    info:
+      path: Glitchbox/iOS/Info.plist
+      properties:
+        CFBundleDisplayName: Glitchbox
+        # packaging/build.sh ios-app passes MARKETING_VERSION=$(cat packaging/VERSION).
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        # Exports land in Documents/Exports, browsable in the Files app.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        NSPhotoLibraryAddUsageDescription: Glitchbox saves exported movies and frames to your photo library when you ask it to.
+        # Long user-started renders and exports continue in the background (BGContinuedProcessingTask).
+        BGTaskSchedulerPermittedIdentifiers: [com.kylegrantlucas.glitchbox.work.*]
+        # MKV export and import need a declared type (UTType.matroska is `importedAs:`).
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: org.matroska.mkv
+            UTTypeDescription: Matroska video
+            UTTypeConformsTo: [public.movie]
+            UTTypeTagSpecification:
+              public.filename-extension: [mkv]
+              public.mime-type: [video/x-matroska]
+    # Renders hold several full-resolution frames per layer in memory (16-bit for
+    # analog-pass); these lift the default per-app memory limit where the device allows.
+    entitlements:
+      path: Glitchbox/iOS/Glitchbox.entitlements
+      properties:
+        com.apple.developer.kernel.increased-memory-limit: true
+        com.apple.developer.kernel.extended-virtual-addressing: true
+    settings:
+      base:
+        PRODUCT_NAME: Glitchbox
+        PRODUCT_BUNDLE_IDENTIFIER: com.kylegrantlucas.glitchbox
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: "6.0"
+        DEVELOPMENT_TEAM: VR2B587B7P
+        CODE_SIGN_STYLE: Automatic
+        ALWAYS_SEARCH_USER_PATHS: NO
+        MARKETING_VERSION: "0.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        # The in-process toolchain's simulator slices are arm64 only (Apple silicon hosts).
+        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+schemes:
+  Glitchbox iOS:
+    build:
+      targets:
+        Glitchbox iOS: all
+    run:
+      config: Debug
+    archive:
+      config: Release
