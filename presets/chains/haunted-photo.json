@@ -1,0 +1,50 @@
+{
+  "category" : "Stills",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "depth_invert" : false,
+        "motion" : "still",
+        "seed" : 0,
+        "shake" : false,
+        "shake_amount" : 1.0,
+        "shake_profile" : "shake",
+        "shake_speed" : 1.0,
+        "view_roll" : 0.0,
+        "view_x" : 0.5,
+        "view_y" : 0.5,
+        "view_zoom" : 1.04,
+        "warp" : true,
+        "warp_amplitude" : 0.003,
+        "warp_cycles" : 2,
+        "warp_scale" : 1.0,
+        "warp_type" : "heat-shimmer"
+      },
+      "plugin" : "still-motion"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "delay" : 3,
+        "mode" : "lighten",
+        "opacity" : 0.5
+      },
+      "plugin" : "echo"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "highlight_b" : 250,
+        "highlight_g" : 240,
+        "highlight_r" : 220,
+        "shadow_b" : 90,
+        "shadow_g" : 40,
+        "shadow_r" : 8
+      },
+      "plugin" : "duotone"
+    }
+  ],
+  "name" : "Haunted Photo",
+  "schema" : 1
+}

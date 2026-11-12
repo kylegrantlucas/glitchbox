@@ -1,0 +1,8 @@
+{
+  "name" : "Two-tone",
+  "params" : {
+    "bits" : 1
+  },
+  "plugin" : "bitcrush",
+  "schema" : 1
+}

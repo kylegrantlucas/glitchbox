@@ -1,0 +1,8 @@
+{
+  "name" : "Swirl",
+  "params" : {
+    "script" : "dd_circular.js"
+  },
+  "plugin" : "mv-script",
+  "schema" : 1
+}

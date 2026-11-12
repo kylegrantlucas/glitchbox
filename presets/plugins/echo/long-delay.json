@@ -1,0 +1,10 @@
+{
+  "name" : "Long delay",
+  "params" : {
+    "delay" : 30,
+    "mode" : "average",
+    "opacity" : 0.5
+  },
+  "plugin" : "echo",
+  "schema" : 1
+}

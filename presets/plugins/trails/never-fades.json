@@ -1,0 +1,8 @@
+{
+  "name" : "Never fades",
+  "params" : {
+    "decay" : 1.0
+  },
+  "plugin" : "trails",
+  "schema" : 1
+}

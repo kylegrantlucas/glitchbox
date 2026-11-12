@@ -1,0 +1,11 @@
+{
+  "name" : "Decimal mono",
+  "params" : {
+    "axis" : true,
+    "format" : "dec",
+    "mode" : "mono",
+    "opacity" : 1.0
+  },
+  "plugin" : "datascope",
+  "schema" : 1
+}

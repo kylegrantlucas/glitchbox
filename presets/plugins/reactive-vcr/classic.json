@@ -1,0 +1,6 @@
+{
+  "name" : "Classic",
+  "params" : {},
+  "plugin" : "reactive-vcr",
+  "schema" : 1
+}

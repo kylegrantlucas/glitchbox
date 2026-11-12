@@ -1,0 +1,6 @@
+{
+  "name" : "Thermal camera",
+  "params" : {},
+  "plugin" : "false-colour",
+  "schema" : 1
+}

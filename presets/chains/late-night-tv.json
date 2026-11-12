@@ -1,0 +1,31 @@
+{
+  "category" : "Tape",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "composite_noise_intensity" : 0.005,
+        "head_switching" : false,
+        "snow_intensity" : 0.0,
+        "tracking_noise" : false,
+        "vhs_settings" : false
+      },
+      "plugin" : "analog-pass"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "chroma" : 10,
+        "contrast" : 1.3,
+        "gamma" : 0.9,
+        "noise" : 30,
+        "saturation" : 0.9,
+        "shift" : 5,
+        "vignette" : 1.0
+      },
+      "plugin" : "vhs-filter"
+    }
+  ],
+  "name" : "Late-Night TV",
+  "schema" : 1
+}

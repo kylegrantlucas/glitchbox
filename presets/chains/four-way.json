@@ -1,0 +1,14 @@
+{
+  "category" : "Trippy",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "vertical" : true
+      },
+      "plugin" : "mirror"
+    }
+  ],
+  "name" : "Four-Way",
+  "schema" : 1
+}

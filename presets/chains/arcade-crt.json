@@ -1,0 +1,12 @@
+{
+  "category" : "Tape",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "crt"
+    }
+  ],
+  "name" : "Arcade CRT",
+  "schema" : 1
+}

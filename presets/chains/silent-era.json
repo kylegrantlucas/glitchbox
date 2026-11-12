@@ -1,0 +1,20 @@
+{
+  "category" : "Film",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "fade" : 0.12,
+        "flicker" : 0.25,
+        "grain" : 35,
+        "saturation" : 0.0,
+        "temperature" : 6500,
+        "vignette" : 0.9,
+        "weave" : 0.7
+      },
+      "plugin" : "old-film"
+    }
+  ],
+  "name" : "Silent Era",
+  "schema" : 1
+}

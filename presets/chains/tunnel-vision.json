@@ -1,0 +1,15 @@
+{
+  "category" : "Trippy",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "phase" : 0.0,
+        "zoom" : 0.4
+      },
+      "plugin" : "vertigo"
+    }
+  ],
+  "name" : "Tunnel Vision",
+  "schema" : 1
+}

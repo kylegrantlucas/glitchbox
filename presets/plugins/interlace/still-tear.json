@@ -1,0 +1,9 @@
+{
+  "name" : "Still tear",
+  "params" : {
+    "delay" : false,
+    "tear" : 8
+  },
+  "plugin" : "interlace",
+  "schema" : 1
+}

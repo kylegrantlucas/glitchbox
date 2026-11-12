@@ -1,0 +1,11 @@
+{
+  "name" : "Shadows drip",
+  "params" : {
+    "dark" : true,
+    "length_x" : 0,
+    "length_y" : 120,
+    "threshold" : 90
+  },
+  "plugin" : "pixel-smear",
+  "schema" : 1
+}

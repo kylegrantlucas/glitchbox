@@ -1,0 +1,128 @@
+{
+  "assets" : [],
+  "id" : "duotone",
+  "name" : "Duotone",
+  "params" : [
+    {
+      "default" : 10,
+      "group" : "Shadows",
+      "key" : "shadow_r",
+      "label" : "Red",
+      "max" : 255,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 26,
+      "group" : "Shadows",
+      "key" : "shadow_g",
+      "label" : "Green",
+      "max" : 255,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 112,
+      "group" : "Shadows",
+      "key" : "shadow_b",
+      "label" : "Blue",
+      "max" : 255,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 247,
+      "group" : "Highlights",
+      "key" : "highlight_r",
+      "label" : "Red",
+      "max" : 255,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 243,
+      "group" : "Highlights",
+      "key" : "highlight_g",
+      "label" : "Green",
+      "max" : 255,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 234,
+      "group" : "Highlights",
+      "key" : "highlight_b",
+      "label" : "Blue",
+      "max" : 255,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Mix",
+      "key" : "contrast",
+      "label" : "Contrast",
+      "max" : 2,
+      "min" : 0.5,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 1.0,
+      "group" : "Mix",
+      "key" : "mix",
+      "label" : "Strength",
+      "max" : 1,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "simple" : {
+    "blurb" : "Two inks: one colour for shadows, another for highlights.",
+    "category" : "Colour",
+    "controls" : [
+      {
+        "key" : "mix",
+        "label" : "Strength"
+      },
+      {
+        "key" : "contrast",
+        "label" : "Contrast"
+      }
+    ]
+  },
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "format=gbrp,split[o][d];[d]format=yuv444p,eq=contrast={p.contrast},format=gray,format=rgb24,lutrgb=r='{p.shadow_r}+val*({p.highlight_r}-{p.shadow_r})/255':g='{p.shadow_g}+val*({p.highlight_g}-{p.shadow_g})/255':b='{p.shadow_b}+val*({p.highlight_b}-{p.shadow_b})/255',format=gbrp[t];[t][o]blend=all_mode=normal:all_opacity={p.mix},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffvhuff",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Two-colour print (ffmpeg lutrgb): shadows take one colour, highlights another, and everything between blends the two."
+}

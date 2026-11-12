@@ -1,0 +1,9 @@
+{
+  "name" : "Ghost numbers",
+  "params" : {
+    "mode" : "color",
+    "opacity" : 0.3
+  },
+  "plugin" : "datascope",
+  "schema" : 1
+}

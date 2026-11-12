@@ -1,0 +1,10 @@
+{
+  "name" : "Afterimage",
+  "params" : {
+    "delay" : 3,
+    "mode" : "lighten",
+    "opacity" : 0.5
+  },
+  "plugin" : "echo",
+  "schema" : 1
+}

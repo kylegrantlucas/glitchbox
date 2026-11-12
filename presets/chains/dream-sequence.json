@@ -1,0 +1,23 @@
+{
+  "category" : "Film",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "radius" : 30.0,
+        "strength" : 0.7,
+        "threshold" : 0.2
+      },
+      "plugin" : "glow"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "decay" : 0.8
+      },
+      "plugin" : "trails"
+    }
+  ],
+  "name" : "Dream Sequence",
+  "schema" : 1
+}

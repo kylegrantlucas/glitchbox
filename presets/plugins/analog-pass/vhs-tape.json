@@ -1,0 +1,6 @@
+{
+  "name" : "VHS tape",
+  "params" : {},
+  "plugin" : "analog-pass",
+  "schema" : 1
+}

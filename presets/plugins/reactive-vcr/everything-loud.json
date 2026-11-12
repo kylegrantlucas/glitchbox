@@ -1,0 +1,11 @@
+{
+  "name" : "Everything loud",
+  "params" : {
+    "bass" : 1.0,
+    "highs" : 1.0,
+    "hits" : 1.0,
+    "level" : 1.0
+  },
+  "plugin" : "reactive-vcr",
+  "schema" : 1
+}

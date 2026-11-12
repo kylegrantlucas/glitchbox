@@ -1,0 +1,10 @@
+{
+  "name" : "Fine pitch",
+  "params" : {
+    "curvature" : 0.04,
+    "lines" : 360,
+    "scanlines" : 0.25
+  },
+  "plugin" : "crt",
+  "schema" : 1
+}

@@ -1697,6 +1697,11 @@
     "jq"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Rewired video hardware. Each style breaks a different part.",
+    "category" : "Digital",
+    "controls" : []
+  },
   "steps" : [
     {
       "name" : "bend",

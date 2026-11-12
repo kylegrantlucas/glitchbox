@@ -18,6 +18,16 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Bright things leave glowing trails behind them.",
+    "category" : "Time",
+    "controls" : [
+      {
+        "key" : "decay",
+        "label" : "Trail length"
+      }
+    ]
+  },
   "steps" : [
     {
       "argv" : [

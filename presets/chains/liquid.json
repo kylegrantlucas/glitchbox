@@ -1,0 +1,22 @@
+{
+  "category" : "Trippy",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "amplitude" : 0.3,
+        "frequency" : 0.005
+      },
+      "plugin" : "plasma-distort"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "decay" : 0.8
+      },
+      "plugin" : "trails"
+    }
+  ],
+  "name" : "Liquid",
+  "schema" : 1
+}

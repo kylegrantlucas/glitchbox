@@ -1,0 +1,8 @@
+{
+  "name" : "X-ray",
+  "params" : {
+    "preset" : "blues"
+  },
+  "plugin" : "false-colour",
+  "schema" : 1
+}

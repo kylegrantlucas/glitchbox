@@ -1,0 +1,10 @@
+{
+  "name" : "Newsprint",
+  "params" : {
+    "colors" : 2,
+    "dither" : "floyd_steinberg",
+    "pixel" : 2
+  },
+  "plugin" : "dither",
+  "schema" : 1
+}

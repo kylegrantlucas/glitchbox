@@ -1,0 +1,8 @@
+{
+  "name" : "Spectral",
+  "params" : {
+    "preset" : "spectral"
+  },
+  "plugin" : "false-colour",
+  "schema" : 1
+}

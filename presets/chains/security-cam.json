@@ -1,0 +1,29 @@
+{
+  "category" : "Tape",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "chroma" : 0,
+        "chroma_noise" : 0,
+        "contrast" : 1.25,
+        "noise" : 35,
+        "saturation" : 0.0,
+        "shift" : 0
+      },
+      "plugin" : "vhs-filter"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "curvature" : 0.0,
+        "glow" : 0.2,
+        "lines" : 240,
+        "scanlines" : 0.3
+      },
+      "plugin" : "crt"
+    }
+  ],
+  "name" : "Security Cam",
+  "schema" : 1
+}

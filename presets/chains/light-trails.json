@@ -1,0 +1,14 @@
+{
+  "category" : "Trippy",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "decay" : 0.985
+      },
+      "plugin" : "trails"
+    }
+  ],
+  "name" : "Light Trails",
+  "schema" : 1
+}

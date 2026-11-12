@@ -1,0 +1,8 @@
+{
+  "name" : "Magma",
+  "params" : {
+    "preset" : "magma"
+  },
+  "plugin" : "false-colour",
+  "schema" : 1
+}

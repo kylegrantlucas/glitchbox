@@ -1,0 +1,9 @@
+{
+  "name" : "Tumble",
+  "params" : {
+    "phase" : 0.2,
+    "zoom" : 0.05
+  },
+  "plugin" : "vertigo",
+  "schema" : 1
+}

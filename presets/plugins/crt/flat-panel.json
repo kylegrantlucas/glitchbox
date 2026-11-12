@@ -1,0 +1,11 @@
+{
+  "name" : "Flat panel",
+  "params" : {
+    "curvature" : 0.0,
+    "glow" : 0.2,
+    "lines" : 240,
+    "scanlines" : 0.3
+  },
+  "plugin" : "crt",
+  "schema" : 1
+}

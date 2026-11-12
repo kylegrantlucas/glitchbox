@@ -1,0 +1,27 @@
+{
+  "category" : "Tape",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "tear" : 12
+      },
+      "plugin" : "interlace"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "blur" : 0.3,
+        "chroma" : 2,
+        "chroma_noise" : 2,
+        "noise" : 10,
+        "saturation" : 0.6,
+        "shift" : 3,
+        "vignette" : 0.4
+      },
+      "plugin" : "vhs-filter"
+    }
+  ],
+  "name" : "Torn Fields",
+  "schema" : 1
+}

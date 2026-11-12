@@ -1,0 +1,15 @@
+{
+  "category" : "Colour",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "bh" : 16,
+        "rh" : -16
+      },
+      "plugin" : "rgb-split"
+    }
+  ],
+  "name" : "3D Glasses",
+  "schema" : 1
+}

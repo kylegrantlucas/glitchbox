@@ -1,0 +1,10 @@
+{
+  "name" : "Triple ghost",
+  "params" : {
+    "bh" : 24,
+    "gv" : 10,
+    "rh" : -24
+  },
+  "plugin" : "rgb-split",
+  "schema" : 1
+}

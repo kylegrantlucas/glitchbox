@@ -1,0 +1,9 @@
+{
+  "name" : "Shimmer",
+  "params" : {
+    "amount" : 3,
+    "qscale" : 4
+  },
+  "plugin" : "mv-mangle",
+  "schema" : 1
+}

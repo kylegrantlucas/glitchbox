@@ -1,0 +1,12 @@
+{
+  "category" : "Film",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "old-film"
+    }
+  ],
+  "name" : "Super 8",
+  "schema" : 1
+}

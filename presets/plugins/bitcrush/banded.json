@@ -1,0 +1,8 @@
+{
+  "name" : "Banded",
+  "params" : {
+    "bits" : 3
+  },
+  "plugin" : "bitcrush",
+  "schema" : 1
+}

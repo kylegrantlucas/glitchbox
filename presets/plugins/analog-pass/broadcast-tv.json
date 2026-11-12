@@ -1,0 +1,12 @@
+{
+  "name" : "Broadcast TV",
+  "params" : {
+    "composite_noise_intensity" : 0.005,
+    "head_switching" : false,
+    "snow_intensity" : 0.0,
+    "tracking_noise" : false,
+    "vhs_settings" : false
+  },
+  "plugin" : "analog-pass",
+  "schema" : 1
+}

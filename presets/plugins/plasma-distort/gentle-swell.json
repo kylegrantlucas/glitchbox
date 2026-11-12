@@ -1,0 +1,9 @@
+{
+  "name" : "Gentle swell",
+  "params" : {
+    "amplitude" : 0.3,
+    "frequency" : 0.005
+  },
+  "plugin" : "plasma-distort",
+  "schema" : 1
+}

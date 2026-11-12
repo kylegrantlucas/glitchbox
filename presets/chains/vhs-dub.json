@@ -1,0 +1,12 @@
+{
+  "category" : "Tape",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "analog-pass"
+    }
+  ],
+  "name" : "VHS Dub",
+  "schema" : 1
+}

@@ -1,0 +1,16 @@
+{
+  "category" : "Film",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "fade" : 0.1,
+        "saturation" : 0.15,
+        "temperature" : 3200
+      },
+      "plugin" : "old-film"
+    }
+  ],
+  "name" : "Sepia Print",
+  "schema" : 1
+}

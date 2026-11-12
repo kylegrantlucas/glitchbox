@@ -1,0 +1,8 @@
+{
+  "name" : "Poster",
+  "params" : {
+    "bits" : 2
+  },
+  "plugin" : "bitcrush",
+  "schema" : 1
+}

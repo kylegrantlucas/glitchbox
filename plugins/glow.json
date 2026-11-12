@@ -1,0 +1,86 @@
+{
+  "assets" : [],
+  "id" : "glow",
+  "name" : "Glow",
+  "params" : [
+    {
+      "default" : 0.8,
+      "key" : "strength",
+      "label" : "Strength",
+      "max" : 1,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 16.0,
+      "key" : "radius",
+      "label" : "Size (px)",
+      "max" : 60,
+      "min" : 1,
+      "step" : 0.5,
+      "type" : "float"
+    },
+    {
+      "default" : 0.5,
+      "help" : "Only areas brighter than this glow.",
+      "key" : "threshold",
+      "label" : "Brightness cutoff",
+      "max" : 0.9,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "simple" : {
+    "blurb" : "Bright areas bloom and spill light around them.",
+    "category" : "Film & Light",
+    "controls" : [
+      {
+        "key" : "strength",
+        "label" : "Strength"
+      },
+      {
+        "key" : "radius",
+        "label" : "Size"
+      },
+      {
+        "key" : "threshold",
+        "label" : "Brightness cutoff"
+      }
+    ]
+  },
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "format=gbrp,split[a][b];[b]colorlevels=rimin={p.threshold}:gimin={p.threshold}:bimin={p.threshold},gblur=sigma={p.radius}[g];[a][g]blend=all_mode=screen:all_opacity={p.strength},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffvhuff",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Bloom (ffmpeg colorlevels, gblur, screen blend): the bright parts of the picture are blurred and added back over it."
+}

@@ -1,0 +1,14 @@
+{
+  "name" : "Late-night TV",
+  "params" : {
+    "chroma" : 10,
+    "contrast" : 1.3,
+    "gamma" : 0.9,
+    "noise" : 30,
+    "saturation" : 0.9,
+    "shift" : 5,
+    "vignette" : 1.0
+  },
+  "plugin" : "vhs-filter",
+  "schema" : 1
+}

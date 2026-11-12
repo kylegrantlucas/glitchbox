@@ -695,6 +695,29 @@
     "jq"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Broadcast-era picture: noise, colour bleed, and tracking wobble.",
+    "category" : "Tape & TV",
+    "controls" : [
+      {
+        "key" : "vhs_tape_speed",
+        "label" : "Tape quality"
+      },
+      {
+        "key" : "vhs_edge_wave",
+        "label" : "Edge wobble"
+      },
+      {
+        "key" : "luma_smear",
+        "label" : "Smear"
+      },
+      {
+        "key" : "vhs_chroma_loss",
+        "label" : "Colour dropouts"
+      }
+    ],
+    "name" : "Analog TV"
+  },
   "steps" : [
     {
       "name" : "ntsc",

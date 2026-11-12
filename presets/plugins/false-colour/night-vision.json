@@ -1,0 +1,8 @@
+{
+  "name" : "Night vision",
+  "params" : {
+    "preset" : "green"
+  },
+  "plugin" : "false-colour",
+  "schema" : 1
+}

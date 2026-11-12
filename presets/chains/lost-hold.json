@@ -1,0 +1,20 @@
+{
+  "category" : "Tape",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "bar" : 0.08,
+        "speed" : 0.08
+      },
+      "plugin" : "picture-roll"
+    },
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "analog-pass"
+    }
+  ],
+  "name" : "Lost Hold",
+  "schema" : 1
+}

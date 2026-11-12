@@ -1,0 +1,10 @@
+{
+  "name" : "Sideways slip",
+  "params" : {
+    "bar" : 0.0,
+    "drift" : 0.01,
+    "speed" : 0.0
+  },
+  "plugin" : "picture-roll",
+  "schema" : 1
+}

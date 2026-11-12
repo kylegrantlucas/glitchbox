@@ -1,0 +1,9 @@
+{
+  "name" : "Heat haze",
+  "params" : {
+    "amplitude" : 0.15,
+    "frequency" : 0.05
+  },
+  "plugin" : "plasma-distort",
+  "schema" : 1
+}

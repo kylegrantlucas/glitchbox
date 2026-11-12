@@ -1,0 +1,23 @@
+{
+  "category" : "Digital",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "height" : 4,
+        "width" : 64
+      },
+      "plugin" : "pixelate"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "bh" : 16,
+        "rh" : -16
+      },
+      "plugin" : "rgb-split"
+    }
+  ],
+  "name" : "Wide Bars",
+  "schema" : 1
+}

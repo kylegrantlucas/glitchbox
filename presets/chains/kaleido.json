@@ -1,0 +1,14 @@
+{
+  "category" : "Trippy",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "segmentation" : 0.09375
+      },
+      "plugin" : "kaleidoscope"
+    }
+  ],
+  "name" : "Kaleido",
+  "schema" : 1
+}

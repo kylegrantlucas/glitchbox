@@ -1,0 +1,12 @@
+{
+  "category" : "Digital",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "bender"
+    }
+  ],
+  "name" : "Circuit Meltdown",
+  "schema" : 1
+}

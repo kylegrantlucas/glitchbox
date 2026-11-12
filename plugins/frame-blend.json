@@ -67,6 +67,21 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Mixes each frame with the one before it.",
+    "category" : "Time",
+    "controls" : [
+      {
+        "key" : "mode",
+        "label" : "Blend"
+      },
+      {
+        "key" : "opacity",
+        "label" : "Strength"
+      }
+    ],
+    "name" : "Ghosting"
+  },
   "steps" : [
     {
       "argv" : [

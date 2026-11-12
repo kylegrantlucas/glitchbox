@@ -1,0 +1,13 @@
+{
+  "name" : "Hot pink",
+  "params" : {
+    "highlight_b" : 200,
+    "highlight_g" : 120,
+    "highlight_r" : 255,
+    "shadow_b" : 60,
+    "shadow_g" : 0,
+    "shadow_r" : 40
+  },
+  "plugin" : "duotone",
+  "schema" : 1
+}

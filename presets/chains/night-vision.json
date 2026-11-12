@@ -1,0 +1,23 @@
+{
+  "category" : "Colour",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "preset" : "green"
+      },
+      "plugin" : "false-colour"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "curvature" : 0.04,
+        "lines" : 360,
+        "scanlines" : 0.25
+      },
+      "plugin" : "crt"
+    }
+  ],
+  "name" : "Night Vision",
+  "schema" : 1
+}

@@ -1,0 +1,12 @@
+{
+  "name" : "Old portable",
+  "params" : {
+    "curvature" : 0.15,
+    "glow" : 0.5,
+    "lines" : 90,
+    "scanlines" : 0.7,
+    "vignette" : 1.0
+  },
+  "plugin" : "crt",
+  "schema" : 1
+}

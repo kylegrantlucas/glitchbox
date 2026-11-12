@@ -1,0 +1,9 @@
+{
+  "name" : "Slow spiral",
+  "params" : {
+    "phase" : 0.01,
+    "zoom" : 0.1
+  },
+  "plugin" : "vertigo",
+  "schema" : 1
+}

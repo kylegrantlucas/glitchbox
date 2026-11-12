@@ -1,0 +1,8 @@
+{
+  "name" : "Long exposure",
+  "params" : {
+    "decay" : 0.985
+  },
+  "plugin" : "trails",
+  "schema" : 1
+}

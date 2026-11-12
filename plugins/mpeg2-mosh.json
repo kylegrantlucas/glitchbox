@@ -83,6 +83,29 @@
     "jq"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Motion drags the picture along with it, smearing and blooming.",
+    "category" : "Datamosh",
+    "controls" : [
+      {
+        "key" : "tail",
+        "label" : "Smear length"
+      },
+      {
+        "key" : "h_scale",
+        "label" : "Sideways pull"
+      },
+      {
+        "key" : "v_scale",
+        "label" : "Vertical pull"
+      },
+      {
+        "key" : "qscale",
+        "label" : "Blockiness"
+      }
+    ],
+    "name" : "Datamosh"
+  },
   "steps" : [
     {
       "name" : "mosh",

@@ -40,6 +40,24 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Big square mosaic blocks.",
+    "category" : "Digital",
+    "controls" : [
+      {
+        "key" : "width",
+        "label" : "Block width"
+      },
+      {
+        "key" : "height",
+        "label" : "Block height"
+      },
+      {
+        "key" : "mode",
+        "label" : "Block colour"
+      }
+    ]
+  },
   "steps" : [
     {
       "argv" : [

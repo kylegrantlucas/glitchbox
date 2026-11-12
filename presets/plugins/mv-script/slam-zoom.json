@@ -1,0 +1,8 @@
+{
+  "name" : "Slam zoom",
+  "params" : {
+    "script" : "dd_slamZoom.js"
+  },
+  "plugin" : "mv-script",
+  "schema" : 1
+}

@@ -1,0 +1,9 @@
+{
+  "name" : "Two-tone",
+  "params" : {
+    "colors" : 2,
+    "pixel" : 3
+  },
+  "plugin" : "dither",
+  "schema" : 1
+}

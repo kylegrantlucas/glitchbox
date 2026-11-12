@@ -28,6 +28,20 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Echoes of the last frame spin and zoom into a tunnel.",
+    "category" : "Time",
+    "controls" : [
+      {
+        "key" : "phase",
+        "label" : "Spin speed"
+      },
+      {
+        "key" : "zoom",
+        "label" : "Zoom speed"
+      }
+    ]
+  },
   "steps" : [
     {
       "argv" : [

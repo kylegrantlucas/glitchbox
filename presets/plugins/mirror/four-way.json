@@ -1,0 +1,8 @@
+{
+  "name" : "Four-way",
+  "params" : {
+    "vertical" : true
+  },
+  "plugin" : "mirror",
+  "schema" : 1
+}

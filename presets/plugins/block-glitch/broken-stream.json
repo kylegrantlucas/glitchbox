@@ -1,0 +1,11 @@
+{
+  "name" : "Broken stream",
+  "params" : {
+    "block_height" : 0.5,
+    "color" : 0.4,
+    "frequency" : 0.6,
+    "shift" : 0.7
+  },
+  "plugin" : "block-glitch",
+  "schema" : 1
+}

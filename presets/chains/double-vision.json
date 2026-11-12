@@ -1,0 +1,12 @@
+{
+  "category" : "Trippy",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "echo"
+    }
+  ],
+  "name" : "Double Vision",
+  "schema" : 1
+}

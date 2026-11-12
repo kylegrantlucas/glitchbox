@@ -1,0 +1,28 @@
+{
+  "category" : "Tape",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "blur" : 0.3,
+        "chroma" : 2,
+        "chroma_noise" : 2,
+        "noise" : 10,
+        "saturation" : 0.6,
+        "shift" : 3,
+        "vignette" : 0.4
+      },
+      "plugin" : "vhs-filter"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "bh" : 3,
+        "rh" : -3
+      },
+      "plugin" : "rgb-split"
+    }
+  ],
+  "name" : "Camcorder '92",
+  "schema" : 1
+}

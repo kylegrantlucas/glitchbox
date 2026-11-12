@@ -1,0 +1,22 @@
+{
+  "category" : "Sound",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "reactive-vcr"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "curvature" : 0.0,
+        "glow" : 0.2,
+        "lines" : 240,
+        "scanlines" : 0.3
+      },
+      "plugin" : "crt"
+    }
+  ],
+  "name" : "Music Video",
+  "schema" : 1
+}

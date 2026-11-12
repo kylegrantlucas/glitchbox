@@ -1,0 +1,8 @@
+{
+  "name" : "Subtle",
+  "params" : {
+    "bits" : 5
+  },
+  "plugin" : "bitcrush",
+  "schema" : 1
+}

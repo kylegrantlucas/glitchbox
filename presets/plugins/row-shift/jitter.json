@@ -1,0 +1,10 @@
+{
+  "name" : "Jitter",
+  "params" : {
+    "intensity" : 0.03,
+    "max" : 0.03,
+    "min" : 0.004
+  },
+  "plugin" : "row-shift",
+  "schema" : 1
+}

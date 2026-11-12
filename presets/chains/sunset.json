@@ -1,0 +1,19 @@
+{
+  "category" : "Colour",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "highlight_b" : 90,
+        "highlight_g" : 190,
+        "highlight_r" : 255,
+        "shadow_b" : 90,
+        "shadow_g" : 10,
+        "shadow_r" : 60
+      },
+      "plugin" : "duotone"
+    }
+  ],
+  "name" : "Sunset",
+  "schema" : 1
+}

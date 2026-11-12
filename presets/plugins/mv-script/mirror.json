@@ -1,0 +1,8 @@
+{
+  "name" : "Mirror",
+  "params" : {
+    "script" : "dd_mirrorX.js"
+  },
+  "plugin" : "mv-script",
+  "schema" : 1
+}

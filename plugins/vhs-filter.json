@@ -194,6 +194,29 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Soft, washed-out tape with colour fringes, grain, and dark corners.",
+    "category" : "Tape & TV",
+    "controls" : [
+      {
+        "key" : "noise",
+        "label" : "Grain"
+      },
+      {
+        "key" : "shift",
+        "label" : "Colour fringe"
+      },
+      {
+        "key" : "saturation",
+        "label" : "Colour"
+      },
+      {
+        "key" : "blur",
+        "label" : "Softness"
+      }
+    ],
+    "name" : "VHS Tape"
+  },
   "steps" : [
     {
       "argv" : [

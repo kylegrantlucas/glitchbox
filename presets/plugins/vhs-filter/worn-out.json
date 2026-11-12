@@ -1,0 +1,15 @@
+{
+  "name" : "Worn out",
+  "params" : {
+    "black" : 0.06,
+    "blur" : 1.2,
+    "chroma" : 12,
+    "chroma_noise" : 20,
+    "deband" : 24,
+    "noise" : 55,
+    "saturation" : 0.15,
+    "shift" : 14
+  },
+  "plugin" : "vhs-filter",
+  "schema" : 1
+}

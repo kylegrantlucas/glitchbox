@@ -1,0 +1,9 @@
+{
+  "name" : "Pulsing",
+  "params" : {
+    "amount" : 16,
+    "gop" : 30
+  },
+  "plugin" : "mv-mangle",
+  "schema" : 1
+}

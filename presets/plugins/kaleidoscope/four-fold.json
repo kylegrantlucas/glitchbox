@@ -1,0 +1,8 @@
+{
+  "name" : "Four-fold",
+  "params" : {
+    "segmentation" : 0.03125
+  },
+  "plugin" : "kaleidoscope",
+  "schema" : 1
+}

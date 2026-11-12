@@ -1,0 +1,8 @@
+{
+  "name" : "XOR static",
+  "params" : {
+    "mode" : "xor"
+  },
+  "plugin" : "frame-blend",
+  "schema" : 1
+}

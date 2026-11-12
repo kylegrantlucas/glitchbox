@@ -1,0 +1,14 @@
+{
+  "name" : "Newsreel",
+  "params" : {
+    "fade" : 0.04,
+    "flicker" : 0.15,
+    "grain" : 28,
+    "saturation" : 0.0,
+    "temperature" : 6500,
+    "vignette" : 0.5,
+    "weave" : 0.3
+  },
+  "plugin" : "old-film",
+  "schema" : 1
+}

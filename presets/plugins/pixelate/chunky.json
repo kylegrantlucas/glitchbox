@@ -1,0 +1,9 @@
+{
+  "name" : "Chunky",
+  "params" : {
+    "height" : 32,
+    "width" : 32
+  },
+  "plugin" : "pixelate",
+  "schema" : 1
+}

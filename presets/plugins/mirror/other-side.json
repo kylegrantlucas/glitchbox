@@ -1,0 +1,8 @@
+{
+  "name" : "Other side",
+  "params" : {
+    "side" : "1"
+  },
+  "plugin" : "mirror",
+  "schema" : 1
+}

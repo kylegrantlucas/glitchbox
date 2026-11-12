@@ -1,0 +1,9 @@
+{
+  "name" : "Diagonal",
+  "params" : {
+    "length_x" : 120,
+    "length_y" : 120
+  },
+  "plugin" : "pixel-smear",
+  "schema" : 1
+}

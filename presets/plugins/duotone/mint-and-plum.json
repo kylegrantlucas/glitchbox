@@ -1,0 +1,13 @@
+{
+  "name" : "Mint and plum",
+  "params" : {
+    "highlight_b" : 220,
+    "highlight_g" : 255,
+    "highlight_r" : 180,
+    "shadow_b" : 80,
+    "shadow_g" : 20,
+    "shadow_r" : 70
+  },
+  "plugin" : "duotone",
+  "schema" : 1
+}

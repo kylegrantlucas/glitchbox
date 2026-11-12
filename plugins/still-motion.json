@@ -722,6 +722,25 @@
     "jq"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Turns a photo into a moving shot: pans, zooms, tilts, and shake.",
+    "category" : "Photo",
+    "controls" : [
+      {
+        "key" : "shake",
+        "label" : "Camera shake"
+      },
+      {
+        "key" : "shake_amount",
+        "label" : "Shake amount"
+      },
+      {
+        "key" : "warp",
+        "label" : "Wobble"
+      }
+    ],
+    "name" : "Photo Motion"
+  },
   "steps" : [
     {
       "name" : "motion",
