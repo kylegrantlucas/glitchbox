@@ -25,7 +25,8 @@ struct CompactStudioView: View {
             .navigationTitle("Glitchbox")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    SimpleModeButton()
                     Button("Library", systemImage: "books.vertical") { showLibrary = true }
                 }
                 StudioToolbar()
@@ -38,6 +39,11 @@ struct CompactStudioView: View {
                     StudioMoreMenu()
                 }
             }
+        }
+        .onChange(of: model.layerToInspect, initial: true) {
+            guard model.layerToInspect != nil else { return }
+            showInspector = true
+            model.layerToInspect = nil
         }
         .sheet(isPresented: $showLibrary, onDismiss: raisePending) {
             NavigationStack {
@@ -90,19 +96,35 @@ struct StudioMoreMenu: View {
     var body: some View {
         @Bindable var model = model
         Menu("More", systemImage: "ellipsis.circle") {
+            let simple = model.mode == .simple
             Section {
-                Button("Save Chain…", systemImage: "square.and.arrow.down.on.square") { request { model.showSaveChain = true } }
-                    .disabled(model.stack.isEmpty)
-                Button("New Plugin…", systemImage: "puzzlepiece.extension") { request { model.showNewPlugin = true } }
+                if simple {
+                    Button("Open in Advanced", systemImage: "slider.horizontal.3") { model.openAdvanced() }
+                } else {
+                    Button("Back to Simple", systemImage: "wand.and.stars") { model.mode = .simple }
+                }
+            }
+            Section {
+                Button(simple ? "Save as Look…" : "Save Chain…", systemImage: "square.and.arrow.down.on.square") {
+                    request { model.showSaveChain = true }
+                }
+                .disabled(model.stack.isEmpty)
+                if !simple {
+                    Button("New Plugin…", systemImage: "puzzlepiece.extension") { request { model.showNewPlugin = true } }
+                }
                 Button("Export Current Frame", systemImage: "photo") { PlatformActions.exportCurrentFrame(model) }
                     .disabled(model.viewedOutput == nil)
             }
-            Section {
-                Toggle("Auto-render After Edits", systemImage: "arrow.trianglehead.2.clockwise", isOn: $model.autoRender)
-                Toggle("Show Log", systemImage: "text.alignleft", isOn: $showLog)
+            if !simple {
+                Section {
+                    Toggle("Auto-render After Edits", systemImage: "arrow.trianglehead.2.clockwise", isOn: $model.autoRender)
+                    Toggle("Show Log", systemImage: "text.alignleft", isOn: $showLog)
+                }
             }
             Section {
-                Button("Reload Toolchain", systemImage: "arrow.clockwise") { model.reloadToolchain() }
+                if !simple {
+                    Button("Reload Toolchain", systemImage: "arrow.clockwise") { model.reloadToolchain() }
+                }
                 Button("Clear Render Cache…", systemImage: "trash", role: .destructive) { request { model.confirmClearCache = true } }
                     .disabled(model.isExporting)
                 Button("Third-Party Licenses", systemImage: "doc.text") { request { PlatformActions.showLicenses(model) } }

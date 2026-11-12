@@ -6,6 +6,8 @@ struct EditorDraft: Hashable {
     let id: String
     /// Not editable here; kept so saving a still-input plugin doesn't turn it into a regular layer.
     let input: PluginInput?
+    /// Not editable here; kept so saving a built-in plugin doesn't drop it from Simple mode.
+    let simple: SimpleInfo?
     var name: String
     var summary: String
     var requiresText: String
@@ -16,6 +18,7 @@ struct EditorDraft: Hashable {
     init(_ m: PluginManifest) {
         id = m.id
         input = m.input
+        simple = m.simple
         name = m.name
         summary = m.summary
         requiresText = m.requires.joined(separator: ", ")
@@ -25,12 +28,15 @@ struct EditorDraft: Hashable {
     }
 
     var manifest: PluginManifest {
-        PluginManifest(
+        let specs = params.map(\.normalized)
+        return PluginManifest(
             id: id, name: name, summary: summary,
             requires: EditableParam.list(requiresText),
             assets: assetsText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty },
-            params: params.map(\.normalized),
+            params: specs,
             steps: steps.map(\.step),
-            input: input)
+            input: input,
+            // Pruned so a renamed or retyped param can't leave a control the editor has no way to fix.
+            simple: simple?.pruned(for: specs))
     }
 }

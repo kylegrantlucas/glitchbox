@@ -32,13 +32,22 @@ struct StudioCommands: Commands {
                 .disabled(!model.isRendering)
             Divider()
             Toggle("Auto-render After Edits", isOn: Bindable(model).autoRender)
+                .disabled(model.mode == .simple)
             Toggle("Play Final Output", isOn: Bindable(model).viewFinal)
+                .disabled(model.mode == .simple)
             Toggle("Show Log", isOn: $showLog)
                 .keyboardShortcut("l")
             Divider()
             Button("Reload Toolchain") { model.reloadToolchain() }
             Button("Clear Render Cache…") { model.confirmClearCache = true }
                 .disabled(model.isExporting)
+        }
+        CommandGroup(before: .toolbar) {
+            Toggle("Simple Mode", isOn: Binding(get: { model.mode == .simple }, set: { if $0 { model.mode = .simple } }))
+                .keyboardShortcut("1")
+            Toggle("Advanced Mode", isOn: Binding(get: { model.mode == .advanced }, set: { if $0 { model.mode = .advanced } }))
+                .keyboardShortcut("2")
+            Divider()
         }
         CommandGroup(replacing: .help) {
             Button("Third-Party Licenses") { PlatformActions.showLicenses(model) }

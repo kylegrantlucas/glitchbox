@@ -6,7 +6,7 @@ struct GlitchboxApp: App {
 
     var body: some Scene {
         Window("Glitchbox", id: "main") {
-            MainView()
+            StudioRootView()
                 .environment(model)
         }
         .defaultSize(width: 1400, height: 860)

@@ -22,24 +22,30 @@ struct ImportedMedia: Transferable {
     }
 }
 
-/// Picks the source from the photo library.
-struct PhotoSourcePicker: View {
+/// The source row's "Choose…" on iOS: one menu offering the photo library and the Files
+/// browser. `chooseFile` opens the caller's file importer.
+struct SourceChooser: View {
+    let chooseFile: () -> Void
     @Environment(StudioModel.self) private var model
+    @State private var showPhotos = false
     @State private var item: PhotosPickerItem?
     @State private var loading = false
 
     var body: some View {
-        let busy = loading
-        PhotosPicker(selection: $item, matching: .any(of: [.videos, .images]), preferredItemEncoding: .current) {
-            if busy {
+        Menu {
+            Button("Photo Library", systemImage: "photo.on.rectangle") { showPhotos = true }
+            Button("Files", systemImage: "folder", action: chooseFile)
+        } label: {
+            if loading {
                 ProgressView()
             } else {
-                Label("Photos", systemImage: "photo.on.rectangle")
+                Text("Choose…")
             }
         }
-        .labelStyle(.iconOnly)
         .disabled(loading)
-        .accessibilityLabel("Choose from Photos")
+        .accessibilityLabel(loading ? "Importing from Photos" : "Choose a photo or video")
+        .photosPicker(isPresented: $showPhotos, selection: $item, matching: .any(of: [.videos, .images]),
+                      preferredItemEncoding: .current)
         .onChange(of: item) {
             guard let item else { return }
             loading = true

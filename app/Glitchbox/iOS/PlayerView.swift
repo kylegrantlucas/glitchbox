@@ -1,6 +1,11 @@
 import AVKit
 import SwiftUI
 
+extension EnvironmentValues {
+    /// False hides AVKit's transport controls (and their gestures) over the picture.
+    @Entry var playerShowsControls = true
+}
+
 /// AVKit's player view controller, with the system transport controls.
 struct PlayerView: UIViewControllerRepresentable {
     let player: AVPlayer
@@ -15,5 +20,6 @@ struct PlayerView: UIViewControllerRepresentable {
 
     func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
         if controller.player !== player { controller.player = player }
+        controller.showsPlaybackControls = context.environment.playerShowsControls
     }
 }

@@ -22,11 +22,12 @@ struct GlitchboxApp: App {
     }
 }
 
-/// The three-column studio when the window is wide enough for the stack, the viewer, and the
-/// inspector side by side (iPad landscape, the 13-inch in portrait); the compact flow
-/// otherwise (iPhone, portrait iPad, narrow split screen), where the viewer sits over the
-/// stack and the library and inspector open as sheets. The shared sheets hang off this view,
-/// above the layout switch, so resizing across the threshold keeps them (and editor drafts) open.
+/// Picks the layout for the mode and the window width. Wide (iPad landscape, the 13-inch in
+/// portrait) fits columns side by side: Advanced's three-column studio, or Simple's looks,
+/// effects, and viewer. Otherwise (iPhone, portrait iPad, narrow split screen) the viewer sits
+/// over the rest: Advanced's stack with the library and inspector as sheets, or Simple's
+/// Looks/Adjust switch. The shared sheets hang off this view, above the layout switch, so
+/// resizing across the threshold or changing mode keeps them (and editor drafts) open.
 struct StudioRootView: View {
     @Environment(StudioModel.self) private var model
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -35,10 +36,11 @@ struct StudioRootView: View {
     var body: some View {
         @Bindable var model = model
         Group {
-            if sizeClass == .regular && wide {
-                MainView()
-            } else {
-                CompactStudioView()
+            switch (model.mode, sizeClass == .regular && wide) {
+            case (.advanced, true): MainView()
+            case (.advanced, false): CompactStudioView()
+            case (.simple, true): SimpleWideView()
+            case (.simple, false): SimpleCompactView()
             }
         }
         .onGeometryChange(for: Bool.self) { $0.size.width >= 1000 } action: { wide = $0 }

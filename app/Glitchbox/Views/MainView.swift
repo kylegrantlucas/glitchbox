@@ -40,15 +40,18 @@ struct MainView: View {
         #else
         .inspector(isPresented: $showInspector) { inspector }
         .toolbar { toolbar }
-        // iOS applies these above the layout switch, in `StudioRootView`.
-        .modifier(StudioPresentations())
-        .frame(minWidth: 1100, minHeight: 640)
         #endif
+        .onChange(of: model.layerToInspect, initial: true) {
+            guard model.layerToInspect != nil else { return }
+            showInspector = true
+            model.layerToInspect = nil
+        }
     }
 }
 
 extension MainView {
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) { SimpleModeButton() }
         StudioToolbar()
         ToolbarItem(placement: .primaryAction) {
             Button("Inspector", systemImage: "sidebar.right") { showInspector.toggle() }
@@ -87,7 +90,9 @@ struct StudioPresentations: ViewModifier {
                 ExportSheet(settings: model.exportSettings, render: exportRender)
             }
             .sheet(isPresented: $model.showSaveChain) {
-                NameSheet(title: "Save Chain", actionTitle: "Save", existsMessage: "A chain with this name exists. Replace it?",
+                NameSheet(title: model.mode == .simple ? "Save Look" : "Save Chain", actionTitle: "Save",
+                          existsMessage: model.mode == .simple ? "A look with this name exists. Replace it?"
+                                                               : "A chain with this name exists. Replace it?",
                           exists: model.chainExists(name:)) { name in
                     try model.saveChain(name: name)
                 }
