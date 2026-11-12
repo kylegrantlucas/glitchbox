@@ -1,0 +1,8 @@
+{
+  "name" : "Combing",
+  "params" : {
+    "tear" : 0
+  },
+  "plugin" : "interlace",
+  "schema" : 1
+}

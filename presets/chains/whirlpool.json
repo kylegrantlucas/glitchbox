@@ -1,0 +1,20 @@
+{
+  "category" : "Trippy",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "phase" : 0.08,
+        "zoom" : 0.2
+      },
+      "plugin" : "vertigo"
+    },
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "glow"
+    }
+  ],
+  "name" : "Whirlpool",
+  "schema" : 1
+}

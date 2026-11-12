@@ -15,7 +15,7 @@ struct StillSuggestionView: View {
                         .truncationMode(.tail)
                         .layoutPriority(-1)
                     Spacer(minLength: 0)
-                    Button("Add \(plugin.name)") { model.addLayer(plugin: plugin.id) }
+                    Button("Add \(model.title(of: plugin))") { model.addLayer(plugin: plugin.id) }
                         .controlSize(.small)
                     Button {
                         model.dismissStillSuggestion()
@@ -23,10 +23,10 @@ struct StillSuggestionView: View {
                         Image(systemName: "xmark")
                     }
                     .buttonStyle(.borderless)
-                    .help("Don't suggest \(plugin.name) for this image")
+                    .help("Don't suggest \(model.title(of: plugin)) for this image")
                     .accessibilityLabel("Dismiss")
                 }
-                .help("A still image glitches as a frozen frame. \(plugin.name) gives it camera motion first.")
+                .help("A still image glitches as a frozen frame. \(model.title(of: plugin)) gives it camera motion first.")
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(Color.accentColor.opacity(0.1))

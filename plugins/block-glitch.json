@@ -45,6 +45,28 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Blocks of the picture jump and change colour at random.",
+    "category" : "Digital",
+    "controls" : [
+      {
+        "key" : "frequency",
+        "label" : "How often"
+      },
+      {
+        "key" : "shift",
+        "label" : "Jump distance"
+      },
+      {
+        "key" : "block_height",
+        "label" : "Block size"
+      },
+      {
+        "key" : "color",
+        "label" : "Colour glitches"
+      }
+    ]
+  },
   "steps" : [
     {
       "argv" : [

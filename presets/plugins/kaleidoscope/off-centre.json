@@ -1,0 +1,10 @@
+{
+  "name" : "Off-centre",
+  "params" : {
+    "origin_x" : 0.3,
+    "origin_y" : 0.4,
+    "segmentation" : 0.0625
+  },
+  "plugin" : "kaleidoscope",
+  "schema" : 1
+}

@@ -1,0 +1,9 @@
+{
+  "name" : "Melting",
+  "params" : {
+    "amplitude" : 1.0,
+    "frequency" : 0.01
+  },
+  "plugin" : "plasma-distort",
+  "schema" : 1
+}

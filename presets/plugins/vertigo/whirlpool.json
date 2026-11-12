@@ -1,0 +1,9 @@
+{
+  "name" : "Whirlpool",
+  "params" : {
+    "phase" : 0.08,
+    "zoom" : 0.2
+  },
+  "plugin" : "vertigo",
+  "schema" : 1
+}

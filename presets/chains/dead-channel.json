@@ -1,0 +1,27 @@
+{
+  "category" : "Tape",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "chroma_delay_horizontal" : 12.0,
+        "chroma_noise_intensity" : 0.3,
+        "chroma_phase_noise_intensity" : 0.15,
+        "vhs_chroma_loss" : 0.02
+      },
+      "plugin" : "analog-pass"
+    },
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "picture-roll"
+    },
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "crt"
+    }
+  ],
+  "name" : "Dead Channel",
+  "schema" : 1
+}

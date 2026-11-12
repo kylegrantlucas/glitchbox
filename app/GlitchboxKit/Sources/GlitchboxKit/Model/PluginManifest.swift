@@ -8,13 +8,36 @@ public struct PluginManifest: Codable, Hashable, Sendable, Identifiable {
     public var params: [ParamSpec]
     public var steps: [PluginStep]
     public var input: PluginInput?
+    public var simple: SimpleInfo?
 
     public init(schema: Int = 1, id: String, name: String, summary: String = "",
                 requires: [String] = [], assets: [String] = [],
-                params: [ParamSpec] = [], steps: [PluginStep] = [], input: PluginInput? = nil) {
+                params: [ParamSpec] = [], steps: [PluginStep] = [], input: PluginInput? = nil,
+                simple: SimpleInfo? = nil) {
         self.schema = schema; self.id = id; self.name = name; self.summary = summary
         self.requires = requires; self.assets = assets; self.params = params; self.steps = steps
-        self.input = input
+        self.input = input; self.simple = simple
+    }
+
+    public var simpleName: String { simple?.name ?? name }
+
+    /// Whether a step reads the source's own audio track (`{source_audio}` / `GB_SOURCE_AUDIO`).
+    public var readsSourceAudio: Bool {
+        steps.contains { step in
+            (step.argv ?? []).contains { $0.contains("{source_audio}") } || (step.script ?? "").contains("GB_SOURCE_AUDIO")
+        }
+    }
+
+    /// Simple-mode controls for `values`: each control's param spec with `label` replaced by the control's label
+    /// and `help`/`group` cleared, in control order, skipping params hidden by `visibleWhen` for `values`.
+    public func simpleControls(values: [String: ParamValue]) -> [ParamSpec] {
+        (simple?.controls ?? []).compactMap { control in
+            guard var spec = spec(control.key), isVisible(spec, values: values) else { return nil }
+            spec.label = control.label
+            spec.help = nil
+            spec.group = nil
+            return spec
+        }
     }
 
     public func defaults() -> [String: ParamValue] {

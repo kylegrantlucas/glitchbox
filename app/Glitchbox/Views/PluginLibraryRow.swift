@@ -4,7 +4,7 @@ import GlitchboxKit
 struct PluginLibraryRow: View {
     let plugin: PluginManifest
     @Environment(StudioModel.self) private var model
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.studioSheetRequest) private var request
 
     var body: some View {
         HStack {
@@ -21,7 +21,7 @@ struct PluginLibraryRow: View {
         .help(plugin.summary)
         .contextMenu {
             Button("Add Layer") { model.addLayer(plugin: plugin.id) }
-            Button("Edit") { openWindow(id: "plugin-editor", value: plugin.id) }
+            Button("Edit") { request { model.editPlugin(plugin.id) } }
         }
     }
 

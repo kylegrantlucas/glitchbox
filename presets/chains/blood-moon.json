@@ -1,0 +1,26 @@
+{
+  "category" : "Colour",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "highlight_b" : 30,
+        "highlight_g" : 40,
+        "highlight_r" : 255,
+        "shadow_b" : 0,
+        "shadow_g" : 0,
+        "shadow_r" : 0
+      },
+      "plugin" : "duotone"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "decay" : 0.8
+      },
+      "plugin" : "trails"
+    }
+  ],
+  "name" : "Blood Moon",
+  "schema" : 1
+}

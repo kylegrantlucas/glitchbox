@@ -1,0 +1,30 @@
+{
+  "category" : "Sound",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "bass" : 0.0,
+        "highs" : 0.0,
+        "hits" : 1.0,
+        "level" : 0.3
+      },
+      "plugin" : "reactive-vcr"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "blur" : 0.3,
+        "chroma" : 2,
+        "chroma_noise" : 2,
+        "noise" : 10,
+        "saturation" : 0.6,
+        "shift" : 3,
+        "vignette" : 0.4
+      },
+      "plugin" : "vhs-filter"
+    }
+  ],
+  "name" : "Beat Tear",
+  "schema" : 1
+}

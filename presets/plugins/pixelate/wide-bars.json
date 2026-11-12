@@ -1,0 +1,9 @@
+{
+  "name" : "Wide bars",
+  "params" : {
+    "height" : 4,
+    "width" : 64
+  },
+  "plugin" : "pixelate",
+  "schema" : 1
+}

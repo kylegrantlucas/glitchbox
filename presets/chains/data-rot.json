@@ -1,0 +1,31 @@
+{
+  "category" : "Digital",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "bits" : 3
+      },
+      "plugin" : "bitcrush"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "block_height" : 0.3,
+        "color" : 0.1,
+        "frequency" : 0.2,
+        "shift" : 0.3
+      },
+      "plugin" : "block-glitch"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "tear" : 12
+      },
+      "plugin" : "interlace"
+    }
+  ],
+  "name" : "Data Rot",
+  "schema" : 1
+}

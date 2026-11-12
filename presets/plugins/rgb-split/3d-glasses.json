@@ -1,0 +1,9 @@
+{
+  "name" : "3D glasses",
+  "params" : {
+    "bh" : 16,
+    "rh" : -16
+  },
+  "plugin" : "rgb-split",
+  "schema" : 1
+}

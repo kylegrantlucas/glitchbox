@@ -1,0 +1,8 @@
+{
+  "name" : "Ghost",
+  "params" : {
+    "mode" : "average"
+  },
+  "plugin" : "frame-blend",
+  "schema" : 1
+}

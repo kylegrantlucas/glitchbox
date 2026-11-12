@@ -42,6 +42,9 @@ struct RenderSettingsView: View {
                 Text("Size")
                 ResolutionPicker(title: "Size", selection: $model.renderOptions.height)
                     .labelsHidden()
+                    #if os(iOS)
+                    .fixedSize()
+                    #endif
                 Text("FPS")
                 FrameRatePicker(selection: $model.renderOptions.fps,
                                 sourceRate: model.sourceIsStill ? nil : model.sourceProbe?.video?.frameRate)

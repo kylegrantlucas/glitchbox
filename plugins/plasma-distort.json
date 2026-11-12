@@ -51,6 +51,21 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "The picture ripples as if seen through moving water.",
+    "category" : "Warp",
+    "controls" : [
+      {
+        "key" : "amplitude",
+        "label" : "Strength"
+      },
+      {
+        "key" : "frequency",
+        "label" : "Ripple size"
+      }
+    ],
+    "name" : "Liquid Wobble"
+  },
   "steps" : [
     {
       "argv" : [

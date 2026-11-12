@@ -1,0 +1,6 @@
+{
+  "name" : "Eight colours",
+  "params" : {},
+  "plugin" : "dither",
+  "schema" : 1
+}

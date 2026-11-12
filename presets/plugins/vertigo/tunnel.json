@@ -1,0 +1,9 @@
+{
+  "name" : "Tunnel",
+  "params" : {
+    "phase" : 0.0,
+    "zoom" : 0.4
+  },
+  "plugin" : "vertigo",
+  "schema" : 1
+}

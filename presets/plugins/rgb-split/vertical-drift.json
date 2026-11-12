@@ -1,0 +1,11 @@
+{
+  "name" : "Vertical drift",
+  "params" : {
+    "bh" : 0,
+    "bv" : 8,
+    "rh" : 0,
+    "rv" : -8
+  },
+  "plugin" : "rgb-split",
+  "schema" : 1
+}

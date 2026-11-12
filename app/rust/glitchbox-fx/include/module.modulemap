@@ -1,0 +1,6 @@
+module GlitchboxFX {
+    header "glitchbox_fx.h"
+    export *
+    link "glitchbox_fx"
+    link "iconv"
+}

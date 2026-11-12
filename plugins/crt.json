@@ -1,0 +1,115 @@
+{
+  "assets" : [],
+  "id" : "crt",
+  "name" : "CRT Screen",
+  "params" : [
+    {
+      "default" : 0.45,
+      "key" : "scanlines",
+      "label" : "Scanline darkness",
+      "max" : 1,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 180,
+      "help" : "How many scanlines fit down the picture.",
+      "key" : "lines",
+      "label" : "Scanlines",
+      "max" : 540,
+      "min" : 60,
+      "type" : "int"
+    },
+    {
+      "default" : 0.08,
+      "key" : "curvature",
+      "label" : "Curvature",
+      "max" : 0.3,
+      "min" : 0,
+      "step" : 0.005,
+      "type" : "float"
+    },
+    {
+      "default" : 0.35,
+      "key" : "glow",
+      "label" : "Glow",
+      "max" : 1,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : 1,
+      "key" : "fringe",
+      "label" : "Colour fringe (px)",
+      "max" : 8,
+      "min" : 0,
+      "type" : "int"
+    },
+    {
+      "default" : 0.6,
+      "key" : "vignette",
+      "label" : "Dark corners",
+      "max" : 1.2,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "simple" : {
+    "blurb" : "An old picture tube: scanlines, a curved screen, and glow.",
+    "category" : "Tape & TV",
+    "controls" : [
+      {
+        "key" : "scanlines",
+        "label" : "Scanlines"
+      },
+      {
+        "key" : "lines",
+        "label" : "Line count"
+      },
+      {
+        "key" : "curvature",
+        "label" : "Curve"
+      },
+      {
+        "key" : "glow",
+        "label" : "Glow"
+      }
+    ]
+  },
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "format=gbrp,split[a][b];[b]gblur=sigma=6[g];[a][g]blend=all_mode=screen:all_opacity={p.glow},rgbashift=rh=-{p.fringe}:bh={p.fringe},drawgrid=x=iw+5:y=0:w=2*iw+20:h=max(2\\,ih/{p.lines}):t=max(1\\,floor(max(2\\,ih/{p.lines})/2)):c=black@{p.scanlines},lenscorrection=k1={p.curvature}:k2={p.curvature}:i=bilinear,vignette=angle={p.vignette},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffvhuff",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "A picture tube (ffmpeg drawgrid, lenscorrection, gblur): scanlines, a curved face, phosphor glow, colour fringes, and dark corners."
+}

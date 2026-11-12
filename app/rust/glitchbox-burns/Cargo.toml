@@ -1,0 +1,26 @@
+[package]
+name = "glitchbox-burns"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.97"
+publish = false
+description = "C API over the burns-rs render core: a still and a project in, RGBA8 frames out; no process spawning"
+
+# A standalone workspace, so it never joins an enclosing one.
+[workspace]
+
+[lib]
+name = "glitchbox_burns"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# burns-rs v0.1.0 (the same commit as the macOS `burns` helper; sources.json `burns-rs`).
+burns = { git = "https://github.com/kylegrantlucas/burns-rs", rev = "ed7c92efc9fd1ead902c0ff0e6912d5639c960db" }
+burns-depth = { git = "https://github.com/kylegrantlucas/burns-rs", rev = "ed7c92efc9fd1ead902c0ff0e6912d5639c960db", features = ["native"] }
+pollster = "0.4"
+# burns's own wgpu (exact pin), for the device request in gpu_context.
+wgpu = { version = "=30.0.1", default-features = false }
+
+[profile.release]
+panic = "unwind"

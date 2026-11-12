@@ -1,0 +1,9 @@
+{
+  "name" : "Shred",
+  "params" : {
+    "amount" : 48,
+    "qscale" : 12
+  },
+  "plugin" : "mv-mangle",
+  "schema" : 1
+}

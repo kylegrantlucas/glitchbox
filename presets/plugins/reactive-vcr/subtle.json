@@ -1,0 +1,11 @@
+{
+  "name" : "Subtle",
+  "params" : {
+    "bass" : 0.25,
+    "highs" : 0.25,
+    "hits" : 0.25,
+    "level" : 0.25
+  },
+  "plugin" : "reactive-vcr",
+  "schema" : 1
+}

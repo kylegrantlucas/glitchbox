@@ -1,0 +1,8 @@
+{
+  "name" : "Shredded",
+  "params" : {
+    "tear" : 40
+  },
+  "plugin" : "interlace",
+  "schema" : 1
+}

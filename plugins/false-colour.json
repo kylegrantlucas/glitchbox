@@ -1,0 +1,101 @@
+{
+  "assets" : [],
+  "id" : "false-colour",
+  "name" : "False Colour",
+  "params" : [
+    {
+      "default" : "turbo",
+      "key" : "preset",
+      "label" : "Palette",
+      "labels" : [
+        "Thermal",
+        "Magma",
+        "Inferno",
+        "Plasma",
+        "Viridis",
+        "Cividis",
+        "Solar",
+        "Spectral",
+        "Cool",
+        "Heat",
+        "Fiery",
+        "Blues",
+        "Green",
+        "Helix"
+      ],
+      "options" : [
+        "turbo",
+        "magma",
+        "inferno",
+        "plasma",
+        "viridis",
+        "cividis",
+        "solar",
+        "spectral",
+        "cool",
+        "heat",
+        "fiery",
+        "blues",
+        "green",
+        "helix"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 1.0,
+      "key" : "opacity",
+      "label" : "Strength",
+      "max" : 1,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "simple" : {
+    "blurb" : "Brightness becomes colour, like a thermal camera.",
+    "category" : "Colour",
+    "controls" : [
+      {
+        "key" : "preset",
+        "label" : "Palette"
+      },
+      {
+        "key" : "opacity",
+        "label" : "Strength"
+      }
+    ]
+  },
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "pseudocolor=preset={p.preset}:opacity={p.opacity},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffvhuff",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Brightness mapped onto a colour scale (ffmpeg pseudocolor), like a thermal camera or a scientific plot."
+}

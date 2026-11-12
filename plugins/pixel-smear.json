@@ -42,6 +42,28 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Bright areas streak across the picture, like pixel sorting.",
+    "category" : "Digital",
+    "controls" : [
+      {
+        "key" : "threshold",
+        "label" : "Brightness cutoff"
+      },
+      {
+        "key" : "length_x",
+        "label" : "Sideways streak"
+      },
+      {
+        "key" : "length_y",
+        "label" : "Vertical streak"
+      },
+      {
+        "key" : "dark",
+        "label" : "Streak dark areas"
+      }
+    ]
+  },
   "steps" : [
     {
       "argv" : [

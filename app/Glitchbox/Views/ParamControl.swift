@@ -6,6 +6,8 @@ import GlitchboxKit
 struct ParamControl: View {
     let spec: ParamSpec
     let value: ParamValue
+    /// Simple mode hides the number field beside a slider.
+    var showsValue = true
     let onChange: (ParamValue) -> Void
 
     /// Stepped sliders allocate one entry per stop; larger ranges slide continuously.
@@ -53,7 +55,7 @@ struct ParamControl: View {
                 HStack {
                     Text(spec.label)
                     Spacer()
-                    numberField(isInt: isInt)
+                    if showsValue { numberField(isInt: isInt) }
                 }
                 slider(lo: lo, hi: hi, isInt: isInt)
                     .labelsHidden()
@@ -126,7 +128,10 @@ struct ParamControl: View {
             }
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: contentTypes) { result in
-            if case .success(let url) = result { onChange(.string(model.workspace.storedFileValue(url))) }
+            guard case .success(let url) = result else { return }
+            do { onChange(.string(model.workspace.storedFileValue(try ImportedFile.adopt(url, into: model.workspace)))) } catch {
+                model.notices.append("import: \(error.localizedDescription)")
+            }
         }
     }
 

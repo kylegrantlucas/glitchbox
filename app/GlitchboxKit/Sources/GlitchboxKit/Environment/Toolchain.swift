@@ -28,10 +28,15 @@ public struct Toolchain: Sendable {
         var environment: [String: String]?
     }
 
-    /// Reads toolchain.json, expanding `@contents` and `@cache` in its strings.
+    /// Reads `<contents>/Resources/toolchain.json`, expanding `@contents` and `@cache` in its strings.
     public static func load(contents: URL, cacheDir: URL) throws -> Toolchain {
+        try load(manifest: manifestURL(contents: contents), contents: contents, cacheDir: cacheDir)
+    }
+
+    /// Reads the toolchain.json at `manifest`, expanding `@contents` to `contents` and `@cache`
+    /// to `cacheDir`. For bundles without the macOS `Contents/Resources` layout (iOS).
+    public static func load(manifest url: URL, contents: URL, cacheDir: URL) throws -> Toolchain {
         let contents = contents.standardizedFileURL
-        let url = manifestURL(contents: contents)
         guard FileManager.default.fileExists(atPath: url.path) else { throw ToolchainError.missing(url) }
         let file: File
         do {
@@ -53,15 +58,30 @@ public struct Toolchain: Sendable {
                          environment: (file.environment ?? [:]).mapValues(expand))
     }
 
-    /// The hermetic tool environment for a base library at `base`.
+    #if os(macOS)
+    /// The hermetic tool environment for a base library at `base`, spawning tools from its PATH.
     public func toolEnvironment(base: URL, parent: [String: String]) -> ToolEnvironment {
+        ToolEnvironment(own: own(base: base), passThrough: parent.filter(Self.passesThrough), digest: digest)
+    }
+    #endif
+
+    private static func passesThrough(_ entry: (key: String, value: String)) -> Bool {
+        passThroughKeys.contains(entry.key) || entry.key.hasPrefix("LC_")
+    }
+
+    /// The hermetic tool environment for a base library at `base`, running tools with `runner`.
+    public func toolEnvironment(base: URL, parent: [String: String], runner: any ToolRunner) -> ToolEnvironment {
+        ToolEnvironment(own: own(base: base), passThrough: parent.filter(Self.passesThrough), digest: digest, runner: runner)
+    }
+
+    /// PATH, `GLITCHBOX_ROOT`, `GLITCHBOX_TOOLCHAIN`, and toolchain.json `environment`.
+    private func own(base: URL) -> [String: String] {
         let base = base.standardizedFileURL
         var own = environment
         own["PATH"] = (path + [base.appending(path: "pipelines").path] + Self.systemPath).joined(separator: ":")
         own["GLITCHBOX_ROOT"] = base.path
         own["GLITCHBOX_TOOLCHAIN"] = contents.path
-        let passThrough = parent.filter { Self.passThroughKeys.contains($0.key) || $0.key.hasPrefix("LC_") }
-        return ToolEnvironment(own: own, passThrough: passThrough, digest: digest)
+        return own
     }
 
     /// `explicit` → `$GLITCHBOX_TOOLCHAIN` → `<executable>/../..` → `<root>/build/Glitchbox.app/Contents`.

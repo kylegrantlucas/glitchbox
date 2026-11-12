@@ -1,0 +1,29 @@
+{
+  "category" : "Trippy",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "mirror"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "amplitude" : 0.6,
+        "frequency" : 0.02,
+        "time_based" : "y",
+        "velocity" : 0.9
+      },
+      "plugin" : "plasma-distort"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "preset" : "spectral"
+      },
+      "plugin" : "false-colour"
+    }
+  ],
+  "name" : "Acid Mirror",
+  "schema" : 1
+}

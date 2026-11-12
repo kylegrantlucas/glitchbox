@@ -1,0 +1,24 @@
+{
+  "category" : "Tape",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "tear" : 40
+      },
+      "plugin" : "interlace"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "head_switching_height" : 16,
+        "tracking_noise_height" : 60,
+        "tracking_noise_snow_intensity" : 0.3,
+        "tracking_noise_wave_intensity" : 20.0
+      },
+      "plugin" : "analog-pass"
+    }
+  ],
+  "name" : "Paused Tape",
+  "schema" : 1
+}

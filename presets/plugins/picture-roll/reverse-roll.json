@@ -1,0 +1,8 @@
+{
+  "name" : "Reverse roll",
+  "params" : {
+    "speed" : -0.03
+  },
+  "plugin" : "picture-roll",
+  "schema" : 1
+}

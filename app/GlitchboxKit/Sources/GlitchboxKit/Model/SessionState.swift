@@ -13,14 +13,18 @@ public struct SessionState: Codable, Sendable {
     public var layers: [LayerSpec]
     /// Absent in older sessions, which read as off.
     public var autoRender: Bool
+    /// Absent in sessions saved before modes existed.
+    public var studioMode: StudioMode?
 
-    public init(source: String?, render: RenderOptions, layers: [LayerSpec], autoRender: Bool = false) {
+    public init(source: String?, render: RenderOptions, layers: [LayerSpec], autoRender: Bool = false,
+                studioMode: StudioMode? = nil) {
         schema = Self.schemaVersion
         self.source = source; self.render = render; self.layers = layers; self.autoRender = autoRender
+        self.studioMode = studioMode
     }
 
     private enum CodingKeys: String, CodingKey {
-        case schema, source, render, layers, autoRender
+        case schema, source, render, layers, autoRender, studioMode
         case mode, previewSettings
     }
 
@@ -38,6 +42,8 @@ public struct SessionState: Codable, Sendable {
         source = try c.decodeIfPresent(String.self, forKey: .source)
         layers = try c.decode([LayerSpec].self, forKey: .layers)
         autoRender = try c.decodeIfPresent(Bool.self, forKey: .autoRender) ?? false
+        // A value this build does not know reads as unset rather than failing the session.
+        studioMode = try? c.decodeIfPresent(StudioMode.self, forKey: .studioMode)
         schema = Self.schemaVersion
         if let render = try c.decodeIfPresent(RenderOptions.self, forKey: .render) {
             self.render = render
@@ -60,5 +66,6 @@ public struct SessionState: Codable, Sendable {
         try c.encode(render, forKey: .render)
         try c.encode(layers, forKey: .layers)
         try c.encode(autoRender, forKey: .autoRender)
+        try c.encodeIfPresent(studioMode, forKey: .studioMode)
     }
 }

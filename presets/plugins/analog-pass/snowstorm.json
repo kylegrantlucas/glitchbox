@@ -1,0 +1,11 @@
+{
+  "name" : "Snowstorm",
+  "params" : {
+    "composite_noise_intensity" : 0.15,
+    "luma_noise" : true,
+    "luma_noise_intensity" : 0.1,
+    "snow_intensity" : 2.0
+  },
+  "plugin" : "analog-pass",
+  "schema" : 1
+}

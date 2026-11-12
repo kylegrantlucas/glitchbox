@@ -1,0 +1,10 @@
+{
+  "name" : "Negative ghost",
+  "params" : {
+    "delay" : 6,
+    "mode" : "difference",
+    "opacity" : 1.0
+  },
+  "plugin" : "echo",
+  "schema" : 1
+}

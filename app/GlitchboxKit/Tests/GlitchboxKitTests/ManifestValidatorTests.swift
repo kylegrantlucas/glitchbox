@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import GlitchboxKit
 
@@ -45,6 +46,25 @@ struct ManifestValidatorTests {
         var m = base()
         m.steps[0].script = "echo hi"
         #expect(messages(m).contains { $0.contains("exactly one of argv or script") })
+    }
+
+    @Test func nativeNeedsANonEmptyIdAndStillAnArgvOrScript() {
+        var m = base()
+        m.steps[0].native = "demo"
+        #expect(messages(m).isEmpty)
+        m.steps[0].native = " "
+        #expect(messages(m).contains { $0.contains("native must not be empty") })
+        m.steps[0] = PluginStep(name: "run", native: "demo")
+        #expect(messages(m).contains { $0.contains("exactly one of argv or script") })
+    }
+
+    @Test func nativeRoundTripsAndIsOmittedWhenUnset() throws {
+        let step = PluginStep(name: "mosh", script: "true", native: "mpeg2-mosh")
+        let data = try JSONEncoder().encode(step)
+        #expect(try JSONDecoder().decode(PluginStep.self, from: data) == step)
+        #expect(String(decoding: data, as: UTF8.self).contains(#""native":"mpeg2-mosh""#))
+        let plain = try JSONEncoder().encode(PluginStep(name: "x", argv: ["ffmpeg"]))
+        #expect(!String(decoding: plain, as: UTF8.self).contains("native"))
     }
 
     @Test func rejectsFileNameMismatch() {
@@ -95,5 +115,96 @@ struct ManifestValidatorTests {
         #expect(found.contains { $0.contains("visibleWhen 'mode': c is not a valid enum value") })
         #expect(found.contains { $0.contains("visibleWhen 'nope' must name another param") })
         #expect(found.contains { $0.contains("param 'mode': visibleWhen forms a cycle") })
+    }
+
+    func simple() -> PluginManifest {
+        var m = gated()
+        m.params += [
+            ParamSpec(key: "amount", label: "Amount (px)", type: .int, default: .int(4), min: 0, max: 10,
+                      help: "Pixels.", group: "Tuning"),
+            ParamSpec(key: "title", label: "Title", type: .string, default: .string("")),
+            ParamSpec(key: "open", label: "Open", type: .int, default: .int(1), min: 0),
+            ParamSpec(key: "track", label: "Track", type: .file, default: .string(""), optional: true),
+        ]
+        m.simple = SimpleInfo(name: "Easy", blurb: "Does a thing.", category: "Digital", controls: [
+            SimpleControl(key: "amount", label: "Strength"),
+            SimpleControl(key: "on", label: "Switch"),
+            SimpleControl(key: "mode", label: "Kind"),
+            SimpleControl(key: "track", label: "Sound file"),
+        ])
+        return m
+    }
+
+    @Test func acceptsSimpleInfoAndRejectsBadControls() {
+        var m = simple()
+        #expect(messages(m).isEmpty)
+
+        m.simple = SimpleInfo(name: " ", blurb: "", category: " ", controls: [
+            SimpleControl(key: "amount", label: "Strength"),
+            SimpleControl(key: "amount", label: "Again"),
+            SimpleControl(key: "on", label: " "),
+            SimpleControl(key: "nope", label: "Missing"),
+            SimpleControl(key: "title", label: "Text"),
+            SimpleControl(key: "open", label: "Unbounded"),
+        ])
+        #expect(messages(m) == [
+            "simple: name must not be empty",
+            "simple: blurb must not be empty",
+            "simple: category must not be empty",
+            "simple: at most 4 controls (got 6)",
+            "simple control 'amount': duplicate",
+            "simple control 'on': label must not be empty",
+            "simple control 'nope': must name a declared param",
+            "simple control 'title': needs a bool, enum, file, or ranged int/float param",
+            "simple control 'open': needs a bool, enum, file, or ranged int/float param",
+        ])
+    }
+
+    @Test func simpleControlsRelabelAndFollowVisibility() {
+        let m = simple()
+        let shown = m.simpleControls(values: ["mode": .string("b")])
+        #expect(shown.map(\.key) == ["amount", "on", "mode", "track"])
+        #expect(shown.map(\.label) == ["Strength", "Switch", "Kind", "Sound file"])
+        #expect(shown[0].help == nil && shown[0].group == nil)
+        #expect(shown[0].min == 0 && shown[0].max == 10)
+        // `on` is only shown while mode is "b".
+        #expect(m.simpleControls(values: [:]).map(\.key) == ["amount", "mode", "track"])
+        #expect(m.simpleName == "Easy")
+        #expect(base().simpleName == "Demo")
+        #expect(base().simpleControls(values: [:]).isEmpty)
+    }
+
+    @Test func prunedDropsControlsWithoutAnEligibleParam() {
+        let info = simple().simple!
+        let kept = info.pruned(for: [
+            ParamSpec(key: "amount", label: "Amount", type: .string, default: .string("")),
+            ParamSpec(key: "mode", label: "Mode", type: .enumeration, default: .string("a"), options: ["a", "b"]),
+        ])
+        #expect(kept.controls == [SimpleControl(key: "mode", label: "Kind")])
+        #expect(kept.name == info.name && kept.blurb == info.blurb && kept.category == info.category)
+    }
+
+    /// The app warns before running such a plugin on a clip with no sound.
+    @Test func readsSourceAudioFollowsTheSteps() {
+        var m = base()
+        #expect(!m.readsSourceAudio)
+        m.steps[0].argv = ["ffmpeg", "-i", "{in}", "-i", "{source_audio}", "{out}"]
+        #expect(m.readsSourceAudio)
+        m.steps = [PluginStep(name: "run", script: "tool --audio \"${GB_P_AUDIO:-$GB_SOURCE_AUDIO}\"")]
+        #expect(m.readsSourceAudio)
+    }
+
+    /// A hand-written block for an effect with styles only (like bender's) may leave `controls` out.
+    @Test func simpleControlsAreOptionalInJSON() throws {
+        let info = try JSONDecoder().decode(SimpleInfo.self, from: Data(#"{"blurb":"Does a thing.","category":"Digital"}"#.utf8))
+        #expect(info == SimpleInfo(blurb: "Does a thing.", category: "Digital"))
+    }
+
+    @Test func simpleRoundTripsAndIsOmittedWhenUnset() throws {
+        let m = simple()
+        let data = try JSONEncoder().encode(m)
+        #expect(try JSONDecoder().decode(PluginManifest.self, from: data) == m)
+        let plain = try JSONEncoder().encode(base())
+        #expect(!String(decoding: plain, as: UTF8.self).contains("simple"))
     }
 }

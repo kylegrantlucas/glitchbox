@@ -1,0 +1,9 @@
+{
+  "name" : "Subtle fringe",
+  "params" : {
+    "bh" : 3,
+    "rh" : -3
+  },
+  "plugin" : "rgb-split",
+  "schema" : 1
+}

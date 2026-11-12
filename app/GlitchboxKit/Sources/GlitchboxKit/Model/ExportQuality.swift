@@ -3,9 +3,9 @@ public enum ExportQuality: String, Codable, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .good: "Good"
-        case .high: "High"
-        case .max: "Max"
+        case .good: "Smaller"
+        case .high: "Balanced"
+        case .max: "Best"
         }
     }
 

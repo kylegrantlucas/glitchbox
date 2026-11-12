@@ -85,6 +85,29 @@ struct ExportPlanTests {
         #expect(value("-pix_fmt", p4444) == "p410le")
     }
 
+    @Test func iOSUsesBitratesAndProResKS() {
+        // ffmpeg rejects -q:v for VideoToolbox on iOS and has no prores_videotoolbox there.
+        func ios(_ s: ExportSettings) -> [String] {
+            ExportPlan.arguments(input: input, video: hd, duration: 4, sourceTags: .bt709, audio: .source(wav),
+                                 settings: s, output: URL(filePath: "/out/x"), progress: progress, support: .iOS)
+        }
+        let h264 = ios(ExportSettings(format: .h264))
+        #expect(value("-c:v", h264) == "h264_videotoolbox")
+        #expect(value("-q:v", h264) == nil)
+        #expect(value("-b:v", h264) == "12441600") // 1080p30 at 0.2 bits per pixel
+        let hevc = ios(ExportSettings(format: .hevc, quality: .max))
+        #expect(value("-q:v", hevc) == nil)
+        #expect(value("-b:v", hevc) == "14929920") // 0.6 × 0.4 bits per pixel
+        #expect(value("-q:v", ios(ExportSettings(format: .h264, videoToolboxQuality: 30))) == nil)
+        #expect(value("-b:v", ios(ExportSettings(format: .h264, videoToolboxQuality: 1))) == "500000") // floor
+        let prores = ios(ExportSettings(format: .prores, proresProfile: .p4444))
+        #expect(value("-c:v", prores) == "prores_ks")
+        #expect(value("-profile:v", prores) == "4")
+        #expect(value("-pix_fmt", prores) == "yuv444p10le")
+        #expect(value("-allow_sw", prores) == nil)
+        #expect(value("-pix_fmt", ios(ExportSettings(format: .prores))) == "yuv422p10le")
+    }
+
     @Test func ffv1ReencodesAndKeepsChroma() {
         let a = args(ExportSettings(format: .ffv1))
         #expect(value("-c:v", a) == "ffv1")

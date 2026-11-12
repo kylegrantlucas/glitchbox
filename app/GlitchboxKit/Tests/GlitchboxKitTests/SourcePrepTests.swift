@@ -107,10 +107,10 @@ struct SourcePrepTests {
         let video = MediaProbe.Video(width: 640, height: 480)
         let deep = SourcePrep.manifest(settings: RenderSettings(), video: video,
                                        audio: MediaProbe.Audio(codec: "pcm_s24le", sampleFormat: "s32", bitDepth: 24), still: false)
-        #expect(deep.steps[1].script!.contains("-c:a pcm_s24le"))
+        #expect(value(after: "-c:a", in: deep.steps[1].argv!) == "pcm_s24le")
         let aac = SourcePrep.manifest(settings: RenderSettings(), video: video,
                                       audio: MediaProbe.Audio(codec: "aac", sampleFormat: "fltp"), still: false)
-        #expect(aac.steps[1].script!.contains("-c:a pcm_s16le"))
+        #expect(value(after: "-c:a", in: aac.steps[1].argv!) == "pcm_s16le")
         #expect(SourcePrep.manifest(settings: RenderSettings(), video: video, audio: nil, still: false).steps.count == 1)
     }
 
@@ -121,6 +121,22 @@ struct SourcePrepTests {
         let argv = m.steps[0].argv!
         #expect(argv.firstIndex(of: "-ss")! < argv.firstIndex(of: "-i")!)
         #expect(m.defaults()["start"] == .float(1.5))
-        #expect(m.steps[1].script!.contains("-ss 1.5 -t 2.0 -i"))
+        let audio = m.steps[1].argv!
+        #expect(m.steps[1].script == nil)
+        #expect(value(after: "-ss", in: audio) == "{p.start}")
+        #expect(value(after: "-t", in: audio) == "{p.duration}")
+        #expect(audio.firstIndex(of: "-t")! < audio.firstIndex(of: "-i")!)
+    }
+
+    @Test func audioIsAnFfmpegArgvStepIntoTheLayerDirectory() throws {
+        let m = SourcePrep.manifest(settings: RenderSettings(), video: MediaProbe.Video(width: 640, height: 480),
+                                    audio: MediaProbe.Audio(codec: "aac", sampleFormat: "fltp"), still: false)
+        let argv = try #require(m.steps[1].argv)
+        #expect(argv.first == "ffmpeg")
+        #expect(!argv.contains("-ss"))
+        #expect(argv.last == "{layer}/audio.wav")
+        #expect(ManifestValidator.validate(m, fileName: nil).isEmpty)
+        let expanded = try argv.map { try TemplateExpander.expand($0, values: ["in": "/s.mov", "layer": "/c/source-1"]) }
+        #expect(expanded.last == "/c/source-1/audio.wav")
     }
 }

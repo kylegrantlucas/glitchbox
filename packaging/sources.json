@@ -70,6 +70,13 @@
       "check": "burns-rs release.yml ort_sha256 (official Microsoft release)"
     },
     {
+      "name": "onnxruntime-c-pod", "version": "1.27.0",
+      "url": "https://download.onnxruntime.ai/pod-archive-onnxruntime-c-1.27.0.zip",
+      "file": "pod-archive-onnxruntime-c-1.27.0.zip",
+      "sha256": "8c74edd600eafc3055de9e8f7a9602afee44ed516913cb5e132bca02cc34622c",
+      "check": "tofu; official Microsoft onnxruntime-c CocoaPods archive (podspec 1.27.0 source.http; no 1.27.1 pod was published); static xcframework, ios-arm64/simulator/macos"
+    },
+    {
       "name": "depth-anything-v2-small", "version": "4472b736",
       "url": "https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/4472b7362082ad9968fee890ca0f1e5aca36b93d/onnx/model.onnx",
       "file": "depth-anything-v2-small-4472b736.onnx",
@@ -82,6 +89,13 @@
       "file": "ffglitch-0.10.2-macos-aarch64.zip",
       "sha256": "25a5a7d51217919db5a093b211fd8a1e27845284efb0a6f616b8f371f6638eef",
       "check": "matches pkgs/ffglitch.nix sha256-JaWn1RIXkZ21oJOyEf2KHieEUoTvsKb2FrjzcfZjju8="
+    },
+    {
+      "name": "ffglitch-src", "version": "0.10.2", "rev": "225c210d02a30949e7d0443109c4cd2a8bea94d0",
+      "url": "https://ffglitch.org/pub/src/ffglitch-0.10.2.tar.xz",
+      "file": "ffglitch-0.10.2.tar.xz",
+      "sha256": "7aecbbd4ce1b042846e43038be8b4cab16616505279d5310d33d16aa425ba46e",
+      "check": "tofu; source of the macOS prebuilt (ffglitch-core 225c210, an FFmpeg 7.0 fork); the iOS build compiles it"
     },
     {
       "name": "reactive-vcr", "version": "0.4.1",

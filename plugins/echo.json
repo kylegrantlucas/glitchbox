@@ -1,0 +1,97 @@
+{
+  "assets" : [],
+  "id" : "echo",
+  "name" : "Echo",
+  "params" : [
+    {
+      "default" : 8,
+      "key" : "delay",
+      "label" : "Delay (frames)",
+      "max" : 60,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : 0.6,
+      "key" : "opacity",
+      "label" : "Strength",
+      "max" : 1,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float"
+    },
+    {
+      "default" : "screen",
+      "key" : "mode",
+      "label" : "Blend",
+      "labels" : [
+        "Screen",
+        "Lighten",
+        "Average",
+        "Add",
+        "Difference",
+        "Darken"
+      ],
+      "options" : [
+        "screen",
+        "lighten",
+        "average",
+        "addition",
+        "difference",
+        "darken"
+      ],
+      "type" : "enum"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "simple" : {
+    "blurb" : "The picture from a moment ago, laid over now.",
+    "category" : "Time",
+    "controls" : [
+      {
+        "key" : "delay",
+        "label" : "Delay"
+      },
+      {
+        "key" : "opacity",
+        "label" : "Strength"
+      },
+      {
+        "key" : "mode",
+        "label" : "Blend"
+      }
+    ]
+  },
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "format=gbrp,split[a][b];[b]tpad=start={p.delay}:start_mode=clone[d];[d][a]blend=all_mode={p.mode}:all_opacity={p.opacity}:shortest=1,format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffvhuff",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "A delayed copy of the picture blended over itself (ffmpeg tpad, blend)."
+}

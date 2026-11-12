@@ -1,0 +1,10 @@
+{
+  "name" : "Torn bands",
+  "params" : {
+    "intensity" : 0.25,
+    "max" : 0.15,
+    "min" : 0.02
+  },
+  "plugin" : "row-shift",
+  "schema" : 1
+}

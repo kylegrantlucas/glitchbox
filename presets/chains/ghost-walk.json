@@ -1,0 +1,23 @@
+{
+  "category" : "Trippy",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "delay" : 30,
+        "mode" : "average",
+        "opacity" : 0.5
+      },
+      "plugin" : "echo"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "mode" : "average"
+      },
+      "plugin" : "frame-blend"
+    }
+  ],
+  "name" : "Ghost Walk",
+  "schema" : 1
+}

@@ -1,0 +1,6 @@
+{
+  "name" : "Wind",
+  "params" : {},
+  "plugin" : "pixel-smear",
+  "schema" : 1
+}

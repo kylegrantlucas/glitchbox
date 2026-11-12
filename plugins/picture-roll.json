@@ -1,0 +1,86 @@
+{
+  "assets" : [],
+  "id" : "picture-roll",
+  "name" : "Picture Roll",
+  "params" : [
+    {
+      "default" : 0.02,
+      "help" : "Picture heights per frame; negative rolls the other way.",
+      "key" : "speed",
+      "label" : "Roll speed",
+      "max" : 0.1,
+      "min" : -0.1,
+      "step" : 0.005,
+      "type" : "float"
+    },
+    {
+      "default" : 0.0,
+      "key" : "drift",
+      "label" : "Sideways drift",
+      "max" : 0.05,
+      "min" : -0.05,
+      "step" : 0.0025,
+      "type" : "float"
+    },
+    {
+      "default" : 0.05,
+      "key" : "bar",
+      "label" : "Bar size",
+      "max" : 0.3,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "simple" : {
+    "blurb" : "The picture rolls like a TV that lost its hold.",
+    "category" : "Tape & TV",
+    "controls" : [
+      {
+        "key" : "speed",
+        "label" : "Roll speed"
+      },
+      {
+        "key" : "drift",
+        "label" : "Sideways drift"
+      },
+      {
+        "key" : "bar",
+        "label" : "Bar size"
+      }
+    ]
+  },
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "drawbox=x=0:y=0:w=iw:h=ih*{p.bar}:c=black:t=fill:enable='gt({p.bar}\\,0)',scroll=vertical={p.speed}:horizontal={p.drift},format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffvhuff",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Lost vertical hold (ffmpeg drawbox, scroll): the picture rolls up or down past a black bar, and can drift sideways."
+}

@@ -1,0 +1,13 @@
+{
+  "name" : "Toxic",
+  "params" : {
+    "highlight_b" : 60,
+    "highlight_g" : 255,
+    "highlight_r" : 190,
+    "shadow_b" : 20,
+    "shadow_g" : 30,
+    "shadow_r" : 10
+  },
+  "plugin" : "duotone",
+  "schema" : 1
+}

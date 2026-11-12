@@ -1,0 +1,10 @@
+{
+  "name" : "Earthquake",
+  "params" : {
+    "intensity" : 0.6,
+    "max" : 0.3,
+    "min" : 0.05
+  },
+  "plugin" : "row-shift",
+  "schema" : 1
+}

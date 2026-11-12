@@ -1,0 +1,16 @@
+{
+  "category" : "Datamosh",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "h_scale" : -100,
+        "tail" : 1,
+        "v_scale" : -100
+      },
+      "plugin" : "mpeg2-mosh"
+    }
+  ],
+  "name" : "Rewind",
+  "schema" : 1
+}

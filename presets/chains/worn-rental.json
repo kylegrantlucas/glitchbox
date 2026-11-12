@@ -1,0 +1,31 @@
+{
+  "category" : "Tape",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "luma_smear" : 0.4,
+        "vhs_chroma_loss" : 0.05,
+        "vhs_edge_wave" : 2.5,
+        "vhs_tape_speed" : "3"
+      },
+      "plugin" : "analog-pass"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "black" : 0.06,
+        "blur" : 1.2,
+        "chroma" : 12,
+        "chroma_noise" : 20,
+        "deband" : 24,
+        "noise" : 55,
+        "saturation" : 0.15,
+        "shift" : 14
+      },
+      "plugin" : "vhs-filter"
+    }
+  ],
+  "name" : "Worn Rental",
+  "schema" : 1
+}

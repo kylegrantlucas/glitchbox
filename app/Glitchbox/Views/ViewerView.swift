@@ -19,6 +19,20 @@ struct ViewerView: View {
                     } actions: {
                         Button("Reload Toolchain") { model.reloadToolchain() }
                     }
+                } else if model.mode == .simple {
+                    if model.source == nil {
+                        ContentUnavailableView("Choose a Photo or Video", systemImage: "photo.on.rectangle",
+                                               description: Text("Then pick a look."))
+                    } else if simpleIsRendering {
+                        ProgressView("Rendering…")
+                    } else if model.stack.isEmpty {
+                        ContentUnavailableView("Pick a Look", systemImage: "sparkles",
+                                               description: Text("Looks apply a finished style in one tap."))
+                    } else {
+                        // Stopped, failed (the effect's card says why), or the cache was cleared.
+                        ContentUnavailableView("Not Rendered", systemImage: "play.rectangle",
+                                               description: Text("Render to try again."))
+                    }
                 } else {
                     ContentUnavailableView("Nothing to Play", systemImage: "play.rectangle",
                                            description: Text(placeholder))
@@ -32,6 +46,12 @@ struct ViewerView: View {
             }
         }
         .onChange(of: model.playerItemURL, initial: true) { model.player.load(model.playerItemURL) }
+    }
+
+    /// Simple mode renders by itself: an edit waiting for its render, the render, and the
+    /// finished render's player proxy all read as rendering.
+    private var simpleIsRendering: Bool {
+        model.isRendering || model.isRenderPending || model.isMakingProxy
     }
 
     private var placeholder: String {

@@ -1,0 +1,9 @@
+{
+  "name" : "Blocky smear",
+  "params" : {
+    "qscale" : 20,
+    "tail" : 20
+  },
+  "plugin" : "mpeg2-mosh",
+  "schema" : 1
+}

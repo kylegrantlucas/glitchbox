@@ -21,8 +21,7 @@ public struct LayerRunner: Sendable {
                     sourceAudio: URL? = nil, still: StillTarget? = nil,
                     onStep: @Sendable (_ step: Int, _ of: Int, _ name: String, _ log: URL) -> Void) async throws -> LayerOutput {
         let fm = FileManager.default
-        let missing = env.missing(manifest.requires)
-        guard missing.isEmpty else { throw RenderError.unavailable(plugin: manifest.id, missing: missing) }
+        let modes = try Self.modes(for: manifest, runner: env.runner)
 
         var rendered: [String: String] = [:]
         var typed: [String: ParamValue] = [:]
@@ -79,7 +78,7 @@ public struct LayerRunner: Sendable {
 
         let root = workspace.base.path
         var values = ["in": input.path, "out": out.path, "work": work.path, "root": root,
-                      "params": paramsFile.path, "source_audio": audioPath]
+                      "params": paramsFile.path, "source_audio": audioPath, "layer": partial.path]
         var stepEnv = env.variables
         stepEnv["GB_IN"] = input.path
         stepEnv["GB_OUT"] = out.path
@@ -104,26 +103,31 @@ public struct LayerRunner: Sendable {
         do {
             for (i, step) in manifest.steps.enumerated() {
                 onStep(i + 1, manifest.steps.count, step.name, log)
-                let executable: URL
-                let arguments: [String]
-                if let argv = step.argv, !argv.isEmpty {
+                let header = "== step \(i + 1)/\(manifest.steps.count): \(step.name) ==\n"
+                let code: Int32
+                switch modes[i] {
+                case .argv(let argv):
                     let expanded = try argv.map { try TemplateExpander.expand($0, values: values) }
-                    guard let exe = env.which(expanded[0]) else {
+                    guard env.runner.has(expanded[0]) else {
                         throw RenderError.commandNotFound(plugin: manifest.id, command: expanded[0])
                     }
-                    executable = exe
-                    arguments = Array(expanded.dropFirst())
                     resolvedSteps.append(PluginStep(name: step.name, argv: expanded))
-                    Self.append(log, "== step \(i + 1)/\(manifest.steps.count): \(step.name) ==\n\(expanded.map(Self.shellQuote).joined(separator: " "))\n")
-                } else {
-                    let script = step.script ?? ""
-                    executable = env.which("bash") ?? URL(filePath: "/bin/bash")
-                    arguments = ["-euo", "pipefail", "-c", script]
+                    Self.append(log, header + expanded.map(Self.shellQuote).joined(separator: " ") + "\n")
+                    code = try await env.runner.run(ToolInvocation(command: expanded[0], arguments: Array(expanded.dropFirst()),
+                                                                   environment: stepEnv, cwd: work, log: log))
+                case .script(let script):
                     resolvedSteps.append(PluginStep(name: step.name, script: script))
-                    Self.append(log, "== step \(i + 1)/\(manifest.steps.count): \(step.name) ==\nbash script:\n\(script)\n")
+                    Self.append(log, header + "bash script:\n\(script)\n")
+                    code = try await env.runner.run(ToolInvocation(command: "bash", arguments: ["-euo", "pipefail", "-c", script],
+                                                                   environment: stepEnv, cwd: work, log: log))
+                case .native(let id, let impl):
+                    resolvedSteps.append(PluginStep(name: step.name, native: id))
+                    Self.append(log, header + "native: \(id)\n")
+                    code = try await impl.run(NativeStepContext(
+                        plugin: manifest.id, step: step.name, input: input, output: out, work: work,
+                        root: workspace.base, params: typed, paramsFile: paramsFile, sourceAudio: sourceAudio,
+                        log: log, environment: stepEnv))
                 }
-                let code = try await Spawner.run(executable: executable, arguments: arguments,
-                                                 environment: stepEnv, cwd: work, log: log)
                 if code != 0 {
                     let failedLog = try fail(partial: partial, dirName: dirName)
                     throw RenderError.stepFailed(plugin: manifest.id, step: step.name, code: code,
@@ -161,6 +165,39 @@ public struct LayerRunner: Sendable {
             }
         }
         return LayerOutput(key: key, dir: finalDir, output: finalOut, cached: false)
+    }
+
+    /// How one step runs on a given runner.
+    enum StepMode {
+        case argv([String])
+        case script(String)
+        case native(String, any NativeStep)
+    }
+
+    /// Picks each step's mode: argv when the runner has `argv[0]` (an `argv[0]` built from
+    /// placeholders is checked once expanded), else the script when it has bash, else the
+    /// `native` implementation. `requires` applies only when some step spawns a tool. Throws
+    /// `unavailable` naming the missing requirements and tools when a step has no mode.
+    static func modes(for manifest: PluginManifest, runner: any ToolRunner) throws -> [StepMode] {
+        var modes: [StepMode] = []
+        var missingTools: [String] = []
+        for step in manifest.steps {
+            if let argv = step.argv, let command = argv.first,
+               command.contains("{") || runner.has(command) {
+                modes.append(.argv(argv))
+            } else if let script = step.script, runner.has("bash") {
+                modes.append(.script(script))
+            } else if let id = step.native, let impl = runner.native(id) {
+                modes.append(.native(id, impl))
+            } else {
+                missingTools.append(step.argv?.first ?? (step.script != nil ? "bash" : "native \(step.native ?? step.name)"))
+            }
+        }
+        let spawns = modes.contains { if case .native = $0 { false } else { true } }
+        var missing = spawns || !missingTools.isEmpty ? manifest.requires.filter { !runner.has($0) } : []
+        for tool in missingTools where !missing.contains(tool) { missing.append(tool) }
+        guard missing.isEmpty else { throw RenderError.unavailable(plugin: manifest.id, missing: missing) }
+        return modes
     }
 
     /// Moves `partial` to `<dirName>.failed`, replacing an older failure; returns its log.

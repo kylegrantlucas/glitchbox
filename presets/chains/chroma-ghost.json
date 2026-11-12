@@ -1,0 +1,23 @@
+{
+  "category" : "Colour",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "bh" : 24,
+        "gv" : 10,
+        "rh" : -24
+      },
+      "plugin" : "rgb-split"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "mode" : "average"
+      },
+      "plugin" : "frame-blend"
+    }
+  ],
+  "name" : "Chroma Ghost",
+  "schema" : 1
+}

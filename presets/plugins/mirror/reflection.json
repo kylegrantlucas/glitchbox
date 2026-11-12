@@ -1,0 +1,9 @@
+{
+  "name" : "Reflection",
+  "params" : {
+    "horizontal" : false,
+    "vertical" : true
+  },
+  "plugin" : "mirror",
+  "schema" : 1
+}

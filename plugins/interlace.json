@@ -1,0 +1,70 @@
+{
+  "assets" : [],
+  "id" : "interlace",
+  "name" : "Interlace",
+  "params" : [
+    {
+      "default" : true,
+      "help" : "Take the two fields from neighbouring frames, so motion combs.",
+      "key" : "delay",
+      "label" : "Field delay",
+      "type" : "bool"
+    },
+    {
+      "default" : 8,
+      "help" : "Shift every other row sideways.",
+      "key" : "tear",
+      "label" : "Line tear (px)",
+      "max" : 60,
+      "min" : 0,
+      "type" : "int"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "simple" : {
+    "blurb" : "Comb teeth on anything that moves, and rows torn sideways.",
+    "category" : "Tape & TV",
+    "controls" : [
+      {
+        "key" : "delay",
+        "label" : "Motion combing"
+      },
+      {
+        "key" : "tear",
+        "label" : "Line tear"
+      }
+    ]
+  },
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "format=gbrp,separatefields,select='gte(n\\,{p.delay})',rgbashift=rh={p.tear}:gh={p.tear}:bh={p.tear}:edge=wrap:enable='mod(n\\,2)',weave,format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffvhuff",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Broken interlacing (ffmpeg separatefields, rgbashift, weave): each frame's two fields come from different moments, and one can be torn sideways. With field delay on, the output is one frame shorter."
+}

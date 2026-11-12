@@ -1,0 +1,6 @@
+{
+  "name" : "Motion edges",
+  "params" : {},
+  "plugin" : "frame-blend",
+  "schema" : 1
+}

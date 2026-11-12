@@ -1,0 +1,13 @@
+{
+  "name" : "Faded holiday",
+  "params" : {
+    "fade" : 0.2,
+    "flicker" : 0.04,
+    "grain" : 14,
+    "saturation" : 0.9,
+    "temperature" : 5600,
+    "weave" : 0.2
+  },
+  "plugin" : "old-film",
+  "schema" : 1
+}

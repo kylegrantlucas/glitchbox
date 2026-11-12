@@ -15,18 +15,18 @@ public enum ProxyMaker {
         let fm = FileManager.default
         let proxy = out.dir.appending(path: "proxy.mp4")
         if fm.fileExists(atPath: proxy.path) { return proxy }
-        guard let ffmpeg = env.which("ffmpeg") else { throw RenderError.commandNotFound(plugin: "proxy", command: "ffmpeg") }
+        guard env.runner.has("ffmpeg") else { throw RenderError.commandNotFound(plugin: "proxy", command: "ffmpeg") }
         let partial = out.dir.appending(path: "proxy.partial-\(UUID().uuidString.prefix(8)).mp4")
         let log = out.dir.appending(path: "proxy.log")
         var code: Int32 = 0
         for (i, encoder) in encoders.enumerated() {
             if i > 0 { LayerRunner.append(log, "== \(encoders[i - 1].name) failed (exit \(code)); falling back to \(encoder.name) ==\n") }
-            code = try await Spawner.run(
-                executable: ffmpeg,
+            code = try await env.runner.run(ToolInvocation(
+                command: "ffmpeg",
                 arguments: ["-hide_banner", "-nostdin", "-loglevel", "error", "-i", out.output.path, "-an",
                             "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2"] + encoder.arguments
                     + ["-pix_fmt", "yuv420p", "-movflags", "+faststart", "-y", partial.path],
-                environment: env.variables, cwd: out.dir, log: log)
+                environment: env.variables, cwd: out.dir, log: log))
             if code == 0 { break }
             try? fm.removeItem(at: partial)
         }

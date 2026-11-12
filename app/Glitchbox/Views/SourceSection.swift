@@ -11,27 +11,43 @@ struct SourceSection: View {
             HStack {
                 Image(systemName: "film")
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(model.source?.lastPathComponent ?? "No source")
+                    Text(model.source?.lastPathComponent ?? (model.mode == .simple ? "Choose a photo or video" : "No source"))
                         .font(.headline)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    LayerStatusText(status: model.sourceStatus)
+                        // The Simple prompt must fit beside Choose… in the iPad's narrow column; file names truncate as before.
+                        .minimumScaleFactor(model.source == nil ? 0.8 : 1)
+                    // Simple mode has no Render button to explain an idle source.
+                    if model.mode == .advanced || model.sourceStatus != .idle {
+                        LayerStatusText(status: model.sourceStatus)
+                    }
                 }
                 Spacer()
+                #if os(iOS)
+                // Photos or Files.
+                SourceChooser { importing = true }
+                #else
                 Button("Choose…") { importing = true }
+                #endif
             }
             .help(model.source?.path ?? "Drop a movie or image here")
-            RenderSettingsView()
+            if model.mode == .advanced {
+                RenderSettingsView()
+            } else if model.source != nil, !model.sourceIsStill, model.renderOptions.range == .inOut {
+                Text("Previewing a short section. Export renders the whole clip.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
         .padding(12)
         .background(dropTargeted ? Color.accentColor.opacity(0.15) : Color.clear)
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first else { return false }
-            model.source = url
-            return true
-        } isTargeted: { dropTargeted = $0 }
+        .modifier(SourceDropModifier(isTargeted: $dropTargeted))
         .fileImporter(isPresented: $importing, allowedContentTypes: [.movie, .image]) { result in
-            if case .success(let url) = result { model.source = url }
+            guard case .success(let url) = result else { return }
+            do { model.source = try ImportedFile.adopt(url, into: model.workspace, asSource: true) } catch {
+                model.notices.append("import: \(error.localizedDescription)")
+            }
         }
     }
 }

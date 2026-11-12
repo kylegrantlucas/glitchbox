@@ -1,0 +1,8 @@
+{
+  "name" : "Solar",
+  "params" : {
+    "preset" : "solar"
+  },
+  "plugin" : "false-colour",
+  "schema" : 1
+}

@@ -1,0 +1,28 @@
+{
+  "category" : "Tape",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "composite_noise_intensity" : 0.15,
+        "luma_noise" : true,
+        "luma_noise_intensity" : 0.1,
+        "snow_intensity" : 2.0
+      },
+      "plugin" : "analog-pass"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "curvature" : 0.15,
+        "glow" : 0.5,
+        "lines" : 90,
+        "scanlines" : 0.7,
+        "vignette" : 1.0
+      },
+      "plugin" : "crt"
+    }
+  ],
+  "name" : "Channel 3",
+  "schema" : 1
+}

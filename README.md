@@ -10,15 +10,28 @@
   <img src="site/assets/demos/stack.jpg" width="720" alt="A gradient after four Glitchbox layers: row shift, MPEG-2 mosh, analog pass, and VHS filter">
 </p>
 
-Glitchbox is a Mac app for wrecking video in ways that look intentional. Stack
-datamosh, VHS tape damage, circuit-bent video hardware, and pixel-level effects
-into a chain, turn the knobs on each layer, and watch the result in the built-in
-player. Every tool it runs ships inside the app, so there's no Homebrew setup and
-no FFmpeg fork to compile.
+Glitchbox is a Mac app, with an iPhone and iPad version, for wrecking video in
+ways that look intentional. Stack datamosh, VHS tape damage, circuit-bent video
+hardware, and pixel-level effects into a chain, turn the knobs on each layer, and
+watch the result in the built-in player. Every tool it runs ships inside the app,
+so there's no Homebrew setup and no FFmpeg fork to compile.
 
 **[Download Glitchbox for macOS](https://github.com/kylegrantlucas/glitchbox/releases/latest)** · Apple silicon, macOS 26 or later
 
 ## What it does
+
+### Simple and Advanced
+
+A new install opens in Simple mode: choose a photo or video, tap a look, and the
+result renders by itself. Each effect in the look is a card with a row of styles
+and a few plain sliders, and Add Effect shows the effects with a picture of what
+each does. Advanced mode is the full studio: the library, the layer stack, every
+parameter of every layer, and a few specialist effects Simple leaves out. A
+card's All Controls opens that effect in Advanced, and Advanced has a Simple
+button to come back (⌘1 and ⌘2 on the Mac). Both are views of the same session,
+so moving between them never changes your layers or their settings, and
+Glitchbox reopens in the mode you left. On iPhone and iPad, swipe down on the
+preview to fill the screen, then swipe sideways to flip through the looks.
 
 ### Effects in layers
 
@@ -37,19 +50,20 @@ adds no extra compression in between.
 
 ### Export
 
-Export the finished chain as H.264 or HEVC, ProRes from 422 LT up to 4444,
-lossless FFV1, an animated GIF, or a folder of PNG frames. Keep the clip's own
-audio, swap in another track, or leave it silent. Resize on the way out to a
-set height, a custom frame, or a 9:16, 1:1, or 4:5 crop for social posts.
-Changing export settings never re-renders the chain, and the frame under the
-playhead can be saved as a PNG.
+Export asks three things: video, GIF, or frames; smaller, balanced, or best; and
+what size, from the original down to 720p or a 9:16 or 1:1 crop for social posts.
+More Options opens the rest in place: H.264 or HEVC, ProRes from 422 LT up to
+4444, lossless FFV1, custom frames, in and out points, the clip's own audio or
+another track, and the encoder's own settings. Changing export settings never
+re-renders the chain, and the frame under the playhead can be saved as a PNG.
 
-### Presets for chains and for single effects
+### Looks, styles, and your own presets
 
-Save a whole stack as a chain preset, or save one layer's settings as a preset
-for that effect. Three effects come with presets: the MPEG-2 mosh has long smear,
-pan drift, and sink and rise, the circuit-bend effect brings every preset that
-ships with bender, and Still Motion has every camera move that ships with burns.
+Glitchbox comes with 70 looks, each a whole chain (tape, film, datamosh, digital,
+colour, trippy, sound-driven, and looks that start from a photo), and 161 styles across its
+effects, including every preset that ships with bender and every camera move
+that ships with burns. Save your own stack as a chain preset and it joins the
+looks; save one layer's settings as a preset and it joins that effect's styles.
 If you edit a built-in preset, your copy replaces it until you revert it.
 
 ### Your own effects
@@ -78,7 +92,7 @@ generators.
 | <img src="site/assets/demos/vhs-bars.jpg" width="240" alt="SMPTE bars after analog-pass"><br>VHS dub (analog pass) | <img src="site/assets/demos/mosh-bands.jpg" width="240" alt="Gradient bands after MPEG-2 mosh"><br>Long smear (MPEG-2 mosh) | <img src="site/assets/demos/mv-zoom.jpg" width="240" alt="Mandelbrot zoom after an MV script"><br>Zoom in, zoom out (MV script) |
 | <img src="site/assets/demos/bend-life.jpg" width="240" alt="Game of Life after circuit bend"><br>Rolling tear (circuit bend) | <img src="site/assets/demos/smear-testcard.jpg" width="240" alt="Test card after pixel smear and RGB split"><br>Smeared test card (pixel smear, RGB split) | <img src="site/assets/demos/reactive-pulse.jpg" width="240" alt="Pulsing disc after Reactive VCR"><br>Kick drum on the tracking (Reactive VCR) |
 
-Twenty effects come built in.
+Thirty effects come built in.
 
 ### Datamosh
 
@@ -92,9 +106,11 @@ Mangle shuffles MPEG-4 motion vectors from a seed. All three run on
 
 Analog Pass is a full NTSC and VHS simulation from
 [ntsc-rs](https://github.com/valadaptive/ntsc-rs), with every one of its settings
-exposed. Reactive VCR drives those artifacts from audio, either the clip's own
-soundtrack or a file you choose. Its default mapping lets the bass push tracking
-noise and sharp hits trigger head switching. VHS Filter is a lighter ffmpeg take
+exposed. Reactive VCR (Sound Reactive in Simple mode) drives those artifacts from
+audio, either the clip's own soundtrack or a file you choose: sliders set how hard
+the bass bends the tracking, how far each hit tears the picture, and how much
+snow and colour noise the level and the highs add, or you can hand it a mapping
+file of your own. VHS Filter is a lighter ffmpeg take
 with levels, misregistration, noise, softness, and vignette.
 
 ### Circuit bending
@@ -107,9 +123,18 @@ order.
 
 ### Pixel effects
 
-RGB Split, Pixel Smear (pixel-sort-style streaks), Pixelate, Bitcrush, Trails,
-Frame Blend, and Datascope come from ffmpeg. Block Glitch, Row Shift, Plasma
-Distort, Kaleidoscope, and Vertigo come from frei0r.
+RGB Split, Pixel Smear (pixel-sort-style streaks), Pixelate, Bitcrush, Dither,
+Trails, Frame Blend, Echo, Mirror, and Datascope come from ffmpeg. Block Glitch,
+Row Shift, Plasma Distort, Kaleidoscope, and Vertigo come from frei0r.
+
+### Screens, film, and colour
+
+CRT Screen puts the picture on a tube with scanlines, a curved face, and glow.
+Interlace combs anything that moves and tears rows sideways, and Picture Roll
+loses vertical hold. Old Film adds grain, flicker, gate weave, and faded stock,
+and Glow blooms the highlights. Duotone prints the picture in two inks, and
+False Colour maps brightness onto a thermal-camera scale. All seven are ffmpeg
+filter chains.
 
 ### Stills in motion
 
@@ -136,6 +161,19 @@ in Terminal:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Glitchbox.app
+```
+
+### iPhone and iPad
+
+The same app runs on iPhone and iPad (iOS and iPadOS 26 or later) with every
+effect, rendering on the device. Bring footage in from Photos or Files, and send
+exports to Photos, Files, or the share sheet. It isn't on the App Store, because
+several of the tools it links are GPL, so you build and install it yourself from
+a clone of this repository, with Xcode 27 signed into an Apple developer account
+and the device connected:
+
+```sh
+just ios <device-udid>   # packaging/build.sh ios-app, then ios-install
 ```
 
 ## Built on

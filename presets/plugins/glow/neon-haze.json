@@ -1,0 +1,10 @@
+{
+  "name" : "Neon haze",
+  "params" : {
+    "radius" : 40.0,
+    "strength" : 1.0,
+    "threshold" : 0.6
+  },
+  "plugin" : "glow",
+  "schema" : 1
+}

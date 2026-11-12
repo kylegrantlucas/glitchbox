@@ -1,0 +1,22 @@
+{
+  "category" : "Digital",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "height" : 8,
+        "width" : 8
+      },
+      "plugin" : "pixelate"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "bits" : 2
+      },
+      "plugin" : "bitcrush"
+    }
+  ],
+  "name" : "8-Bit",
+  "schema" : 1
+}

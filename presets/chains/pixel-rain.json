@@ -1,0 +1,16 @@
+{
+  "category" : "Digital",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "length_x" : 0,
+        "length_y" : 160,
+        "threshold" : 140
+      },
+      "plugin" : "pixel-smear"
+    }
+  ],
+  "name" : "Pixel Rain",
+  "schema" : 1
+}

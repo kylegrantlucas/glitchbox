@@ -1,0 +1,8 @@
+{
+  "name" : "Short",
+  "params" : {
+    "decay" : 0.8
+  },
+  "plugin" : "trails",
+  "schema" : 1
+}

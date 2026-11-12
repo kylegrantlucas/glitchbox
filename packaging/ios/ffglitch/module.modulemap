@@ -1,0 +1,4 @@
+framework module FFglitch {
+  umbrella header "ffglitch.h"
+  export *
+}

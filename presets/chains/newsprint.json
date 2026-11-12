@@ -1,0 +1,16 @@
+{
+  "category" : "Digital",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "colors" : 2,
+        "dither" : "floyd_steinberg",
+        "pixel" : 2
+      },
+      "plugin" : "dither"
+    }
+  ],
+  "name" : "Newsprint",
+  "schema" : 1
+}

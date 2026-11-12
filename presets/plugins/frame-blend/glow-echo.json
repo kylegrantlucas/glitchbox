@@ -1,0 +1,9 @@
+{
+  "name" : "Glow echo",
+  "params" : {
+    "mode" : "screen",
+    "opacity" : 0.6
+  },
+  "plugin" : "frame-blend",
+  "schema" : 1
+}

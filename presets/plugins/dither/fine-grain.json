@@ -1,0 +1,10 @@
+{
+  "name" : "Fine grain",
+  "params" : {
+    "colors" : 4,
+    "dither" : "sierra2_4a",
+    "pixel" : 1
+  },
+  "plugin" : "dither",
+  "schema" : 1
+}

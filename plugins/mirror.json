@@ -1,0 +1,98 @@
+{
+  "assets" : [],
+  "id" : "mirror",
+  "name" : "Mirror",
+  "params" : [
+    {
+      "default" : true,
+      "key" : "horizontal",
+      "label" : "Left and right",
+      "type" : "bool"
+    },
+    {
+      "default" : "0",
+      "key" : "side",
+      "label" : "Keep",
+      "labels" : [
+        "Left half",
+        "Right half"
+      ],
+      "options" : [
+        "0",
+        "1"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : false,
+      "key" : "vertical",
+      "label" : "Top and bottom",
+      "type" : "bool"
+    },
+    {
+      "default" : "0",
+      "key" : "vside",
+      "label" : "Keep",
+      "labels" : [
+        "Top half",
+        "Bottom half"
+      ],
+      "options" : [
+        "0",
+        "1"
+      ],
+      "type" : "enum"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "simple" : {
+    "blurb" : "One half of the picture reflected onto the other.",
+    "category" : "Warp",
+    "controls" : [
+      {
+        "key" : "horizontal",
+        "label" : "Left and right"
+      },
+      {
+        "key" : "vertical",
+        "label" : "Top and bottom"
+      },
+      {
+        "key" : "side",
+        "label" : "Keep side"
+      }
+    ]
+  },
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "format=gbrp,split[a][b];[b]hflip,crop=iw/2:ih:(1-{p.side})*iw/2:0[bh];[a][bh]overlay=x=(1-{p.side})*W/2:y=0:format=gbrp:enable='{p.horizontal}',split[c][d];[d]vflip,crop=iw:ih/2:0:(1-{p.vside})*ih/2[dv];[c][dv]overlay=x=0:y=(1-{p.vside})*H/2:format=gbrp:enable='{p.vertical}',format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffvhuff",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Reflection (ffmpeg hflip, vflip, overlay): one half of the picture is mirrored onto the other, left to right, top to bottom, or both."
+}

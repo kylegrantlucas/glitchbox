@@ -1,0 +1,8 @@
+{
+  "name" : "Snowflake",
+  "params" : {
+    "segmentation" : 0.09375
+  },
+  "plugin" : "kaleidoscope",
+  "schema" : 1
+}

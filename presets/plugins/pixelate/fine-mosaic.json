@@ -1,0 +1,9 @@
+{
+  "name" : "Fine mosaic",
+  "params" : {
+    "height" : 8,
+    "width" : 8
+  },
+  "plugin" : "pixelate",
+  "schema" : 1
+}

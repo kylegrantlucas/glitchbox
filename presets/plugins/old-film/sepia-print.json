@@ -1,0 +1,10 @@
+{
+  "name" : "Sepia print",
+  "params" : {
+    "fade" : 0.1,
+    "saturation" : 0.15,
+    "temperature" : 3200
+  },
+  "plugin" : "old-film",
+  "schema" : 1
+}

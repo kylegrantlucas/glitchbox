@@ -78,8 +78,18 @@ public struct Workspace: Sendable {
         [user, base].map { $0.appending(path: relativePath) }.first { FileManager.default.fileExists(atPath: $0.path) }
     }
 
+    /// `presets/thumbnails/looks/<chain slug>.jpg` (user copy first); nil when absent.
+    public func lookThumbnail(name: String) -> URL? {
+        (try? Slug.slug(name)).flatMap { libraryFile("presets/thumbnails/looks/\($0).jpg") }
+    }
+
+    /// `presets/thumbnails/effects/<plugin id>.jpg` (user copy first); nil when absent.
+    public func effectThumbnail(plugin id: String) -> URL? {
+        libraryFile("presets/thumbnails/effects/\(id).jpg")
+    }
+
     /// JSON files in `dir` from both roots, user copies replacing base files of the same name.
-    private func overlaidJSON(in dir: String) -> [URL] {
+    func overlaidJSON(in dir: String) -> [URL] {
         var byName: [String: URL] = [:]
         for root in [base, user] {
             let files = (try? FileManager.default.contentsOfDirectory(at: root.appending(path: dir, directoryHint: .isDirectory),
@@ -87,6 +97,20 @@ public struct Workspace: Sendable {
             for f in files where f.pathExtension == "json" { byName[f.lastPathComponent] = f }
         }
         return byName.keys.sorted().map { byName[$0]! }
+    }
+
+    /// Sorted, unique names of the `presets/plugins` subfolders in either root.
+    func pluginPresetFolders() -> [String] {
+        var names = Set<String>()
+        for root in [base, user] {
+            let entries = (try? FileManager.default.contentsOfDirectory(
+                at: root.appending(path: "presets/plugins", directoryHint: .isDirectory),
+                includingPropertiesForKeys: [.isDirectoryKey])) ?? []
+            for entry in entries where (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                names.insert(entry.lastPathComponent)
+            }
+        }
+        return names.sorted()
     }
 
     private func save<T: Encodable>(_ value: T, at relativePath: String) throws {

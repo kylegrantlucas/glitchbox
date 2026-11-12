@@ -1,0 +1,13 @@
+{
+  "name" : "Blood moon",
+  "params" : {
+    "highlight_b" : 30,
+    "highlight_g" : 40,
+    "highlight_r" : 255,
+    "shadow_b" : 0,
+    "shadow_g" : 0,
+    "shadow_r" : 0
+  },
+  "plugin" : "duotone",
+  "schema" : 1
+}

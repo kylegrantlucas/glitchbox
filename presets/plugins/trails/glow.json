@@ -1,0 +1,8 @@
+{
+  "name" : "Glow",
+  "params" : {
+    "decay" : 0.95
+  },
+  "plugin" : "trails",
+  "schema" : 1
+}

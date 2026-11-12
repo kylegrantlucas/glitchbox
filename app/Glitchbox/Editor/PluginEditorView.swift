@@ -68,7 +68,9 @@ struct PluginEditorView: View {
             }
         }
         .formStyle(.grouped)
+        #if os(macOS)
         .frame(minWidth: 640, minHeight: 600)
+        #endif
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 if origin == .overridden {
@@ -83,7 +85,7 @@ struct PluginEditorView: View {
                     .disabled(!issues.isEmpty || !dirty)
             }
         }
-        .background(WindowCloseGuard(isDirty: dirty, closer: closer) { askClose = true })
+        .editorCloseGuard(isDirty: dirty, closer: closer) { askClose = true }
         .confirmationDialog("Save changes to “\(draft.name)”?", isPresented: $askClose) {
             if issues.isEmpty {
                 Button("Save") { if save() { closer.close() } }

@@ -77,6 +77,28 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Pulls red and blue apart for a 3D-glasses fringe.",
+    "category" : "Colour",
+    "controls" : [
+      {
+        "key" : "rh",
+        "label" : "Red sideways"
+      },
+      {
+        "key" : "bh",
+        "label" : "Blue sideways"
+      },
+      {
+        "key" : "rv",
+        "label" : "Red up/down"
+      },
+      {
+        "key" : "bv",
+        "label" : "Blue up/down"
+      }
+    ]
+  },
   "steps" : [
     {
       "argv" : [

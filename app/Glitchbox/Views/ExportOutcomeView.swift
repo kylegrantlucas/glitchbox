@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The last export's result: a Reveal in Finder link, or the failure and its log tail.
+/// The last export's result: ways to reach the file (Finder, or Share/Photos/Files on iOS),
+/// or the failure and its log tail.
 struct ExportOutcomeView: View {
     @Environment(StudioModel.self) private var model
 
@@ -14,7 +15,7 @@ struct ExportOutcomeView: View {
                             .lineLimit(1)
                             .truncationMode(.middle)
                         Spacer()
-                        Button("Reveal in Finder") { model.revealExport() }
+                        ExportDeliveryButtons(url: url)
                         dismissButton
                     }
                 case .failed(let message, let tail):

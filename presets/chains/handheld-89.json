@@ -1,0 +1,27 @@
+{
+  "category" : "Digital",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "colors" : 2,
+        "pixel" : 3
+      },
+      "plugin" : "dither"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "highlight_b" : 60,
+        "highlight_g" : 255,
+        "highlight_r" : 190,
+        "shadow_b" : 20,
+        "shadow_g" : 30,
+        "shadow_r" : 10
+      },
+      "plugin" : "duotone"
+    }
+  ],
+  "name" : "Handheld '89",
+  "schema" : 1
+}

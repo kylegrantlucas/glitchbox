@@ -1,0 +1,12 @@
+{
+  "category" : "Colour",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "false-colour"
+    }
+  ],
+  "name" : "Thermal",
+  "schema" : 1
+}

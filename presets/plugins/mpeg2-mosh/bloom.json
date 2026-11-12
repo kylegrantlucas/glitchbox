@@ -1,0 +1,10 @@
+{
+  "name" : "Bloom",
+  "params" : {
+    "h_scale" : 200,
+    "tail" : 10,
+    "v_scale" : 200
+  },
+  "plugin" : "mpeg2-mosh",
+  "schema" : 1
+}

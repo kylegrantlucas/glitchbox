@@ -1,0 +1,11 @@
+{
+  "name" : "Hard hits",
+  "params" : {
+    "bass" : 0.0,
+    "highs" : 0.0,
+    "hits" : 1.0,
+    "level" : 0.3
+  },
+  "plugin" : "reactive-vcr",
+  "schema" : 1
+}

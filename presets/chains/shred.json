@@ -1,0 +1,15 @@
+{
+  "category" : "Datamosh",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "amount" : 48,
+        "qscale" : 12
+      },
+      "plugin" : "mv-mangle"
+    }
+  ],
+  "name" : "Shred",
+  "schema" : 1
+}

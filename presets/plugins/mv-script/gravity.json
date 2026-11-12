@@ -1,0 +1,8 @@
+{
+  "name" : "Gravity",
+  "params" : {
+    "script" : "dd_gravity.js"
+  },
+  "plugin" : "mv-script",
+  "schema" : 1
+}

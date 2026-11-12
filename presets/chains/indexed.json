@@ -1,0 +1,16 @@
+{
+  "category" : "Digital",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "bayer_scale" : 1,
+        "colors" : 16,
+        "pixel" : 8
+      },
+      "plugin" : "dither"
+    }
+  ],
+  "name" : "Indexed",
+  "schema" : 1
+}

@@ -1,0 +1,10 @@
+{
+  "name" : "Halation",
+  "params" : {
+    "radius" : 8.0,
+    "strength" : 0.9,
+    "threshold" : 0.7
+  },
+  "plugin" : "glow",
+  "schema" : 1
+}

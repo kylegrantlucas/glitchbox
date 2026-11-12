@@ -1,0 +1,12 @@
+{
+  "name" : "Bass wobble",
+  "params" : {
+    "bass" : 0.75,
+    "highs" : 0.0,
+    "hits" : 0.0,
+    "level" : 0.0,
+    "response" : 0.65
+  },
+  "plugin" : "reactive-vcr",
+  "schema" : 1
+}

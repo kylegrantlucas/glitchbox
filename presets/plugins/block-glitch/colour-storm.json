@@ -1,0 +1,11 @@
+{
+  "name" : "Colour storm",
+  "params" : {
+    "block_height" : 0.4,
+    "color" : 0.9,
+    "frequency" : 0.7,
+    "shift" : 0.4
+  },
+  "plugin" : "block-glitch",
+  "schema" : 1
+}

@@ -1,0 +1,13 @@
+{
+  "name" : "Cyanotype",
+  "params" : {
+    "highlight_b" : 250,
+    "highlight_g" : 240,
+    "highlight_r" : 220,
+    "shadow_b" : 90,
+    "shadow_g" : 40,
+    "shadow_r" : 8
+  },
+  "plugin" : "duotone",
+  "schema" : 1
+}

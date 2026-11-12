@@ -1,0 +1,12 @@
+{
+  "category" : "Trippy",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "mirror"
+    }
+  ],
+  "name" : "Butterfly",
+  "schema" : 1
+}

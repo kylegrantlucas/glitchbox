@@ -47,6 +47,20 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Bands of rows slide left and right at random.",
+    "category" : "Digital",
+    "controls" : [
+      {
+        "key" : "intensity",
+        "label" : "Slide distance"
+      },
+      {
+        "key" : "block_height",
+        "label" : "Band height"
+      }
+    ]
+  },
   "steps" : [
     {
       "argv" : [

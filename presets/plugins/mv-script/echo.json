@@ -1,0 +1,8 @@
+{
+  "name" : "Echo",
+  "params" : {
+    "script" : "dd_delay.js"
+  },
+  "plugin" : "mv-script",
+  "schema" : 1
+}

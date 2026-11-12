@@ -1,0 +1,27 @@
+{
+  "category" : "Colour",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {},
+      "plugin" : "frame-blend"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "bh" : 3,
+        "rh" : -3
+      },
+      "plugin" : "rgb-split"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "decay" : 0.95
+      },
+      "plugin" : "trails"
+    }
+  ],
+  "name" : "Neon Edges",
+  "schema" : 1
+}

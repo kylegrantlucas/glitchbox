@@ -1,0 +1,11 @@
+{
+  "name" : "Jelly",
+  "params" : {
+    "amplitude" : 0.6,
+    "frequency" : 0.02,
+    "time_based" : "y",
+    "velocity" : 0.9
+  },
+  "plugin" : "plasma-distort",
+  "schema" : 1
+}

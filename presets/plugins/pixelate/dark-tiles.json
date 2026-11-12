@@ -1,0 +1,10 @@
+{
+  "name" : "Dark tiles",
+  "params" : {
+    "height" : 24,
+    "mode" : "min",
+    "width" : 24
+  },
+  "plugin" : "pixelate",
+  "schema" : 1
+}

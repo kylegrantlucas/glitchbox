@@ -1,0 +1,101 @@
+{
+  "assets" : [],
+  "id" : "dither",
+  "name" : "Dither",
+  "params" : [
+    {
+      "default" : 8,
+      "key" : "colors",
+      "label" : "Colours",
+      "max" : 64,
+      "min" : 2,
+      "type" : "int"
+    },
+    {
+      "default" : 4,
+      "key" : "pixel",
+      "label" : "Pixel size",
+      "max" : 16,
+      "min" : 1,
+      "type" : "int"
+    },
+    {
+      "default" : "bayer",
+      "key" : "dither",
+      "label" : "Pattern",
+      "labels" : [
+        "Ordered (Bayer)",
+        "Floyd–Steinberg",
+        "Sierra",
+        "None"
+      ],
+      "options" : [
+        "bayer",
+        "floyd_steinberg",
+        "sierra2_4a",
+        "none"
+      ],
+      "type" : "enum"
+    },
+    {
+      "default" : 2,
+      "help" : "Ordered pattern only: lower is coarser.",
+      "key" : "bayer_scale",
+      "label" : "Bayer coarseness",
+      "max" : 5,
+      "min" : 0,
+      "type" : "int"
+    }
+  ],
+  "requires" : [
+    "ffmpeg"
+  ],
+  "schema" : 1,
+  "simple" : {
+    "blurb" : "A handful of colours and a dot pattern, like early computer graphics.",
+    "category" : "Digital",
+    "controls" : [
+      {
+        "key" : "colors",
+        "label" : "Colours"
+      },
+      {
+        "key" : "pixel",
+        "label" : "Pixel size"
+      },
+      {
+        "key" : "dither",
+        "label" : "Pattern"
+      }
+    ]
+  },
+  "steps" : [
+    {
+      "argv" : [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-loglevel",
+        "error",
+        "-i",
+        "{in}",
+        "-vf",
+        "split[o][s];[s]scale=iw/{p.pixel}:ih/{p.pixel}:flags=neighbor,split[a][b];[b]palettegen=max_colors={p.colors}:stats_mode=single:reserve_transparent=0[p];[a][p]paletteuse=new=1:dither={p.dither}:bayer_scale={p.bayer_scale}[d];[d][o]scale=rw:rh:flags=neighbor,format=yuv420p",
+        "-fflags",
+        "+bitexact",
+        "-flags:v",
+        "+bitexact",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-c:v",
+        "ffvhuff",
+        "-y",
+        "{out}"
+      ],
+      "name" : "filter"
+    }
+  ],
+  "summary" : "Indexed colour (ffmpeg palettegen, paletteuse): each frame is cut to a few colours of its own and dithered, at a chunky pixel size."
+}

@@ -1,0 +1,13 @@
+{
+  "name" : "Sepia",
+  "params" : {
+    "highlight_b" : 190,
+    "highlight_g" : 225,
+    "highlight_r" : 245,
+    "shadow_b" : 10,
+    "shadow_g" : 24,
+    "shadow_r" : 40
+  },
+  "plugin" : "duotone",
+  "schema" : 1
+}

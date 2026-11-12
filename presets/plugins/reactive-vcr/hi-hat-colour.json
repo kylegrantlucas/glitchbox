@@ -1,0 +1,11 @@
+{
+  "name" : "Hi-hat colour",
+  "params" : {
+    "bass" : 0.0,
+    "highs" : 1.0,
+    "hits" : 0.0,
+    "level" : 0.25
+  },
+  "plugin" : "reactive-vcr",
+  "schema" : 1
+}

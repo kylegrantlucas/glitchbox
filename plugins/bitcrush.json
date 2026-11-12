@@ -16,6 +16,16 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Fewer colours: banding and poster-like blocks.",
+    "category" : "Digital",
+    "controls" : [
+      {
+        "key" : "bits",
+        "label" : "Colour depth"
+      }
+    ]
+  },
   "steps" : [
     {
       "argv" : [

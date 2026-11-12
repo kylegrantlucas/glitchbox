@@ -1,0 +1,10 @@
+{
+  "name" : "Chunky 16",
+  "params" : {
+    "bayer_scale" : 1,
+    "colors" : 16,
+    "pixel" : 8
+  },
+  "plugin" : "dither",
+  "schema" : 1
+}

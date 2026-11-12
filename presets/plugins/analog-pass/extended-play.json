@@ -1,0 +1,11 @@
+{
+  "name" : "Extended play",
+  "params" : {
+    "luma_smear" : 0.4,
+    "vhs_chroma_loss" : 0.05,
+    "vhs_edge_wave" : 2.5,
+    "vhs_tape_speed" : "3"
+  },
+  "plugin" : "analog-pass",
+  "schema" : 1
+}

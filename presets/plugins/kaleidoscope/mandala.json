@@ -1,0 +1,8 @@
+{
+  "name" : "Mandala",
+  "params" : {
+    "segmentation" : 0.25
+  },
+  "plugin" : "kaleidoscope",
+  "schema" : 1
+}

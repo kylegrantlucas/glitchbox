@@ -66,6 +66,24 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Mirrors the picture into repeating wedges.",
+    "category" : "Warp",
+    "controls" : [
+      {
+        "key" : "segmentation",
+        "label" : "Segments"
+      },
+      {
+        "key" : "origin_x",
+        "label" : "Centre X"
+      },
+      {
+        "key" : "origin_y",
+        "label" : "Centre Y"
+      }
+    ]
+  },
   "steps" : [
     {
       "argv" : [

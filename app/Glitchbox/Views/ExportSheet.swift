@@ -1,13 +1,22 @@
-import AppKit
 import GlitchboxKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Export settings, then a save panel. The export itself runs in the model, so the sheet
-/// closes as soon as a destination is chosen.
+/// Export settings, then a save panel. Three choices cover most exports (what to make, its
+/// quality, its size); More Options unfolds every other setting in place and stays open once
+/// opened. The export itself runs in the model, so the sheet closes as soon as a destination
+/// is chosen.
 struct ExportSheet: View {
+    /// What the first row calls the formats.
+    private enum Kind: Hashable { case video, gif, frames }
+
+    private static let videoFormats: [ExportFormat] = [.h264, .hevc, .prores, .ffv1]
+    /// Sizes offered before More Options; the rest are in its Size menu.
+    private static let commonSizes: [ExportSizeChoice] = [.asRendered, .shortSide(1080), .shortSide(720), .social(0), .social(1)]
+
     @Environment(StudioModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("exportShowsMoreOptions") private var showMore = false
 
     @State private var settings: ExportSettings
     /// The export's own render: whole clip at native size by default.
@@ -22,7 +31,8 @@ struct ExportSheet: View {
     @State private var choosingAudio = false
     @State private var crf: Int
     @State private var vtQuality: Int
-    @State private var showAdvanced = false
+    /// The codec Video last used, restored when coming back from GIF or Frames.
+    @State private var videoFormat: ExportFormat
 
     init(settings: ExportSettings, render: RenderOptions) {
         _settings = State(initialValue: settings)
@@ -47,24 +57,69 @@ struct ExportSheet: View {
         }
         _crf = State(initialValue: settings.effectiveX264CRF)
         _vtQuality = State(initialValue: settings.effectiveVideoToolboxQuality)
+        _videoFormat = State(initialValue: Self.videoFormats.contains(settings.format) ? settings.format : .h264)
     }
 
     var body: some View {
+        withChangeHandlers(layout)
+    }
+
+    @ViewBuilder private var layout: some View {
+        #if os(macOS)
         VStack(spacing: 0) {
-            Form {
-                formatSection
-                sizeSection
-                rangeSection
-                if settings.format.hasAudio { audioSection }
-                advancedSection
-            }
-            .formStyle(.grouped)
+            form
             Divider()
             footer
                 .padding(16)
         }
-        .frame(width: 520, height: 640)
-        .onChange(of: settings.format) { normalizeAudioCodec() }
+        .frame(width: 520, height: showMore ? 640 : 300)
+        #else
+        NavigationStack {
+            form
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    summaryView
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(.bar)
+                }
+                .navigationTitle("Export")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel", role: .cancel) { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Export", role: .confirm) { chooseDestination() }
+                            .disabled(!canExport)
+                    }
+                }
+        }
+        .presentationDetents(showMore ? [.large] : [.medium, .large])
+        #endif
+    }
+
+    private var form: some View {
+        Form {
+            essentials
+            moreOptionsRow
+            if showMore {
+                formatSection
+                sizeSection
+                rangeSection
+                if settings.format.hasAudio { audioSection }
+                encoderSection
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    /// The sheet's change handlers, applied to whichever platform layout wraps the form.
+    private func withChangeHandlers(_ content: some View) -> some View {
+        content
+        .onChange(of: settings.format) {
+            if Self.videoFormats.contains(settings.format) { videoFormat = settings.format }
+            normalizeAudioCodec()
+        }
         .onChange(of: settings.preferredContainer) { normalizeAudioCodec() }
         .onChange(of: settings.quality) {
             settings.x264CRF = nil
@@ -79,7 +134,10 @@ struct ExportSheet: View {
         .onAppear { normalizeAudioCodec() }
         .fileImporter(isPresented: $choosingAudio, allowedContentTypes: [.audio, .movie]) { result in
             if case .success(let url) = result {
-                audioFile = url
+                do { audioFile = try ImportedFile.adopt(url, into: model.workspace) } catch {
+                    model.notices.append("import: \(error.localizedDescription)")
+                    if audioFile == nil { audioChoice = .none }
+                }
             } else if audioFile == nil {
                 audioChoice = .none
             }
@@ -88,49 +146,103 @@ struct ExportSheet: View {
 
     // MARK: Sections
 
-    private var formatSection: some View {
-        Section("Format") {
-            Picker("Format", selection: $settings.format) {
-                ForEach(ExportFormat.allCases, id: \.self) { Text($0.title).tag($0) }
+    /// What to make, how good, how big.
+    private var essentials: some View {
+        Section {
+            Picker("Export", selection: kind) {
+                Text("Video").tag(Kind.video)
+                Text("GIF").tag(Kind.gif)
+                Text("Frames").tag(Kind.frames)
             }
-            if settings.format.containers.count > 1 {
-                Picker("Container", selection: $settings.preferredContainer) {
-                    ForEach(settings.format.containers, id: \.self) { Text($0.title).tag($0) }
-                }
-            }
+            .pickerStyle(.segmented)
             switch settings.format {
             case .h264, .hevc:
                 Picker("Quality", selection: $settings.quality) {
                     ForEach(ExportQuality.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                .help("A smaller file, or a cleaner picture")
             case .prores:
-                Picker("Profile", selection: $settings.proresProfile) {
-                    ForEach(ProResProfile.allCases, id: \.self) { Text($0.title).tag($0) }
-                }
-                .pickerStyle(.segmented)
+                LabeledContent("Quality", value: "ProRes \(settings.proresProfile.title)")
             case .ffv1:
                 LabeledContent("Quality", value: "Lossless")
-            case .gif, .pngSequence:
-                EmptyView()
+            case .gif:
+                Picker("Width", selection: $settings.gif.width) {
+                    ForEach(GIFOptions.widths, id: \.self) { Text("\($0) px").tag(Int?.some($0)) }
+                    Text("Original").tag(Int?.none)
+                }
+            case .pngSequence:
+                LabeledContent("Frames", value: "A folder of PNGs, one per frame")
+            }
+            if settings.format.usesOutputSize {
+                Picker("Size", selection: $sizeChoice) {
+                    ForEach(Self.commonSizes, id: \.self) { Text(title(of: $0)).tag($0) }
+                    // A size picked under More Options still shows here.
+                    if !Self.commonSizes.contains(sizeChoice) { Text(title(of: sizeChoice)).tag(sizeChoice) }
+                }
             }
         }
     }
 
-    @ViewBuilder
-    private var sizeSection: some View {
-        Section("Size") {
-            if settings.format == .gif {
-                Picker("Width", selection: $settings.gif.width) {
-                    ForEach(GIFOptions.widths, id: \.self) { Text("\($0) px").tag(Int?.some($0)) }
-                    Text("As rendered").tag(Int?.none)
+    private var moreOptionsRow: some View {
+        Section {
+            Button {
+                withAnimation(.snappy(duration: 0.2)) { showMore.toggle() }
+            } label: {
+                HStack {
+                    Text("More Options")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .rotationEffect(.degrees(showMore ? 90 : 0))
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
                 }
-                Picker("GIF frame rate", selection: $settings.gif.fps) {
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(showMore ? "Expanded" : "Collapsed")
+        } footer: {
+            if !showMore { Text("Codec, custom sizes, range, audio, and encoder settings.") }
+        }
+    }
+
+    @ViewBuilder
+    private var formatSection: some View {
+        switch settings.format {
+        case .h264, .hevc, .prores, .ffv1:
+            Section("Format") {
+                Picker("Codec", selection: $settings.format) {
+                    ForEach(Self.videoFormats, id: \.self) { Text($0.title).tag($0) }
+                }
+                if settings.format.containers.count > 1 {
+                    Picker("Container", selection: $settings.preferredContainer) {
+                        ForEach(settings.format.containers, id: \.self) { Text($0.title).tag($0) }
+                    }
+                }
+                if settings.format == .prores {
+                    Picker("Profile", selection: $settings.proresProfile) {
+                        ForEach(ProResProfile.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+            }
+        case .gif:
+            Section("GIF") {
+                Picker("Frame rate", selection: $settings.gif.fps) {
                     ForEach(GIFOptions.frameRates, id: \.self) { Text("\($0) fps").tag($0) }
                 }
-            } else {
+                gifAdvanced
+            }
+        case .pngSequence:
+            EmptyView()
+        }
+    }
+
+    private var sizeSection: some View {
+        Section("Size") {
+            if settings.format.usesOutputSize {
                 Picker("Size", selection: $sizeChoice) {
-                    Text("As rendered").tag(ExportSizeChoice.asRendered)
+                    Text(title(of: .asRendered)).tag(ExportSizeChoice.asRendered)
                     Section("Short side") {
                         ForEach(OutputSize.shortSides, id: \.self) { Text("\($0)p").tag(ExportSizeChoice.shortSide($0)) }
                     }
@@ -167,7 +279,7 @@ struct ExportSheet: View {
     private var rangeSection: some View {
         Section("Range") {
             if model.sourceIsStill {
-                TextField("Duration (s)", value: $render.stillDuration, format: .number)
+                secondsField("Duration (s)", TextField("Duration (s)", value: $render.stillDuration, format: .number))
             } else {
                 Picker("Range", selection: $render.range) {
                     Text("Whole clip").tag(RenderOptions.Range.whole)
@@ -175,13 +287,26 @@ struct ExportSheet: View {
                 }
                 .pickerStyle(.segmented)
                 if render.range == .inOut {
-                    TextField("In (s)", value: $render.inPoint, format: .number)
-                    TextField("Out (s)", value: $render.outPoint, format: .number, prompt: Text("End"))
+                    secondsField("In (s)", TextField("In (s)", value: $render.inPoint, format: .number))
+                    secondsField("Out (s)", TextField("Out (s)", value: $render.outPoint, format: .number, prompt: Text("End")))
                 }
             }
             ResolutionPicker(title: "Render at", selection: $render.height)
             LabeledContent("Frame rate", value: frameRateLabel)
         }
+    }
+
+    /// macOS forms show a text field's title as its label; iOS forms need an explicit one.
+    @ViewBuilder private func secondsField(_ title: String, _ field: some View) -> some View {
+        #if os(iOS)
+        LabeledContent(title) {
+            field
+                .multilineTextAlignment(.trailing)
+                .keyboardType(.decimalPad)
+        }
+        #else
+        field
+        #endif
     }
 
     private var audioSection: some View {
@@ -217,29 +342,26 @@ struct ExportSheet: View {
     }
 
     @ViewBuilder
-    private var advancedSection: some View {
+    private var encoderSection: some View {
         let format = settings.format
-        if format == .h264 || format == .hevc || format == .gif {
-            Section {
-                DisclosureGroup("Advanced", isExpanded: $showAdvanced) {
-                    if format == .h264 {
-                        Picker("Encoder", selection: $settings.h264Encoder) {
-                            ForEach(H264Encoder.allCases, id: \.self) { Text($0.title).tag($0) }
-                        }
+        if format == .h264 || format == .hevc {
+            Section("Encoder") {
+                if format == .h264 {
+                    Picker("Encoder", selection: $settings.h264Encoder) {
+                        ForEach(H264Encoder.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
-                    if format == .h264 && settings.h264Encoder == .x264 {
-                        Picker("Preset", selection: $settings.x264Preset) {
-                            ForEach(H264Encoder.x264Presets, id: \.self) { Text($0).tag($0) }
-                        }
-                        Stepper("CRF \(crf)", value: $crf, in: 0...51)
-                            .help("Lower is better quality and larger files")
-                    } else if format == .h264 || format == .hevc {
-                        LabeledContent("Quality \(vtQuality)") {
-                            Slider(value: vtQualityValue, in: 1...100, step: 1)
-                        }
-                        .help("VideoToolbox quality from 1 to 100")
+                }
+                if format == .h264 && settings.h264Encoder == .x264 {
+                    Picker("Preset", selection: $settings.x264Preset) {
+                        ForEach(H264Encoder.x264Presets, id: \.self) { Text($0).tag($0) }
                     }
-                    if format == .gif { gifAdvanced }
+                    Stepper("CRF \(crf)", value: $crf, in: 0...51)
+                        .help("Lower is better quality and larger files")
+                } else {
+                    LabeledContent("Quality \(vtQuality)") {
+                        Slider(value: vtQualityValue, in: 1...100, step: 1)
+                    }
+                    .help("VideoToolbox quality from 1 to 100")
                 }
             }
         }
@@ -264,17 +386,21 @@ struct ExportSheet: View {
         }
     }
 
+    private var summaryView: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(summary)
+                .monospacedDigit()
+            if let warning = gifWarning {
+                Label(warning, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                    .font(.callout)
+            }
+        }
+    }
+
     private var footer: some View {
         HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(summary)
-                    .monospacedDigit()
-                if let warning = gifWarning {
-                    Label(warning, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                        .font(.callout)
-                }
-            }
+            summaryView
             Spacer()
             Button("Cancel", role: .cancel) { dismiss() }
                 .keyboardShortcut(.cancelAction)
@@ -285,6 +411,33 @@ struct ExportSheet: View {
     }
 
     // MARK: Derived
+
+    private var kind: Binding<Kind> {
+        Binding {
+            switch settings.format {
+            case .gif: .gif
+            case .pngSequence: .frames
+            case .h264, .hevc, .prores, .ffv1: .video
+            }
+        } set: { kind in
+            switch kind {
+            case .video: settings.format = videoFormat
+            case .gif: settings.format = .gif
+            case .frames: settings.format = .pngSequence
+            }
+        }
+    }
+
+    private func title(of choice: ExportSizeChoice) -> String {
+        switch choice {
+        case .asRendered: "Original"
+        case .shortSide(let n): "\(n)p"
+        case .social(0): "Vertical 9:16"
+        case .social(1): "Square 1:1"
+        case .social(let i): OutputSize.social[i].title
+        case .custom: "Custom (\(customWidth) × \(customHeight))"
+        }
+    }
 
     /// The Slider needs a Double; quality is stored as an Int.
     private var vtQualityValue: Binding<Double> {
@@ -349,12 +502,16 @@ struct ExportSheet: View {
     }
 
     private var summary: String {
-        var parts: [String] = []
+        var parts = [settings.format.containers.count > 1 ? "\(settings.format.title) \(settings.container.title)" : settings.format.title]
         if let dimensions { parts.append("\(dimensions.width) × \(dimensions.height)") }
         if let duration { parts.append(duration.formatted(.number.precision(.fractionLength(1))) + " s") }
         if let gifBytes { parts.append("about " + gifBytes.formatted(.byteCount(style: .file))) }
-        return parts.isEmpty ? "Choose a source to see the output size" : parts.joined(separator: " · ")
+        if settings.format.hasAudio { parts.append(audioChoice == .none || !hasSound ? "no sound" : "sound") }
+        return parts.joined(separator: " · ")
     }
+
+    /// Whether the chosen audio will actually be there.
+    private var hasSound: Bool { audioChoice == .file ? audioFile != nil : sourceHasAudio }
 
     private var gifWarning: String? {
         guard let gifBytes, gifBytes > ExportPlan.largeGIFBytes else { return nil }
@@ -388,26 +545,7 @@ struct ExportSheet: View {
 
     private func chooseDestination() {
         let final = finalSettings
-        let url: URL
-        if final.format.isSequence {
-            let panel = NSOpenPanel()
-            panel.canChooseDirectories = true
-            panel.canChooseFiles = false
-            panel.canCreateDirectories = true
-            panel.prompt = "Export"
-            panel.message = "Choose a folder for the PNG frames. Frames from an earlier export there are replaced."
-            panel.directoryURL = model.exportDirectory
-            guard panel.runModal() == .OK, let chosen = panel.url else { return }
-            url = chosen
-        } else {
-            let panel = NSSavePanel()
-            panel.allowedContentTypes = [contentType]
-            panel.canCreateDirectories = true
-            panel.nameFieldStringValue = final.defaultFileName(source: model.source)
-            panel.directoryURL = model.exportDirectory
-            guard panel.runModal() == .OK, let chosen = panel.url else { return }
-            url = chosen
-        }
+        guard let url = PlatformActions.exportDestination(for: final, contentType: contentType, model: model) else { return }
         model.exportSettings = final
         model.startExport(render: renderSettings, to: url)
         dismiss()

@@ -8,32 +8,45 @@ public struct ToolEnvironment: Sendable {
     public let variables: [String: String]
     /// toolchain.json `digest`; part of every layer cache key.
     public let digest: String
+    /// Runs every tool and native step.
+    public let runner: any ToolRunner
 
-    public init(own: [String: String], passThrough: [String: String] = [:], digest: String) {
+    public init(own: [String: String], passThrough: [String: String] = [:], digest: String, runner: any ToolRunner) {
         self.own = own
         self.variables = passThrough.merging(own) { _, mine in mine }
         self.digest = digest
+        self.runner = runner
+    }
+
+    #if os(macOS)
+    /// Spawns tools found on the resulting `variables["PATH"]`.
+    public init(own: [String: String], passThrough: [String: String] = [:], digest: String) {
+        let variables = passThrough.merging(own) { _, mine in mine }
+        self.init(own: own, passThrough: passThrough, digest: digest, runner: SpawnRunner(path: variables["PATH"] ?? ""))
     }
 
     /// Absolute executable for `cmd`, searched on `variables["PATH"]`.
     public func which(_ cmd: String) -> URL? {
-        let fm = FileManager.default
-        if cmd.contains("/") {
-            let url = URL(filePath: cmd)
-            return cmd.hasPrefix("/") && fm.isExecutableFile(atPath: url.path) ? url : nil
-        }
-        for dir in (variables["PATH"] ?? "").split(separator: ":") where !dir.isEmpty {
-            let url = URL(filePath: String(dir), directoryHint: .isDirectory).appending(path: cmd)
-            var isDir: ObjCBool = false
-            if fm.fileExists(atPath: url.path, isDirectory: &isDir), !isDir.boolValue, fm.isExecutableFile(atPath: url.path) {
-                return url
-            }
-        }
-        return nil
+        SpawnRunner(path: variables["PATH"] ?? "").which(cmd)
+    }
+    #endif
+
+    /// The `requires` entries `runner` cannot run.
+    public func missing(_ requires: [String]) -> [String] {
+        requires.filter { !runner.has($0) }
     }
 
-    public func missing(_ requires: [String]) -> [String] {
-        requires.filter { which($0) == nil }
+    /// What `manifest` lacks on this runner, by the rule a render applies (see
+    /// `LayerRunner.modes`); empty when every step can run.
+    public func missing(for manifest: PluginManifest) -> [String] {
+        do {
+            _ = try LayerRunner.modes(for: manifest, runner: runner)
+            return []
+        } catch RenderError.unavailable(_, let missing) {
+            return missing
+        } catch {
+            return []
+        }
     }
 
     /// `own` as sorted `export KEY='value'` lines for `eval "$(glitchbox env)"`.

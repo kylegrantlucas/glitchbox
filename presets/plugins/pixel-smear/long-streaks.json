@@ -1,0 +1,9 @@
+{
+  "name" : "Long streaks",
+  "params" : {
+    "length_x" : 300,
+    "threshold" : 100
+  },
+  "plugin" : "pixel-smear",
+  "schema" : 1
+}

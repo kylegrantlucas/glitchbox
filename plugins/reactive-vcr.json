@@ -12,6 +12,7 @@
         "aiff",
         "m4a"
       ],
+      "group" : "Sound",
       "help" : "Track that drives the effect; empty = the source video's audio",
       "key" : "audio",
       "label" : "Audio",
@@ -19,26 +20,149 @@
       "type" : "file"
     },
     {
-      "default" : "presets/reactive-vcr.toml",
+      "default" : 0.5,
+      "group" : "Sound drives",
+      "help" : "How far the low end bends and widens the tracking band.",
+      "key" : "bass",
+      "label" : "Bass → tracking wobble",
+      "max" : 1,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "map" : [
+          ""
+        ]
+      }
+    },
+    {
+      "default" : 0.5,
+      "group" : "Sound drives",
+      "help" : "How far each beat or transient tears the bottom of the picture sideways.",
+      "key" : "hits",
+      "label" : "Hits → head-switch tear",
+      "max" : 1,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "map" : [
+          ""
+        ]
+      }
+    },
+    {
+      "default" : 0.5,
+      "group" : "Sound drives",
+      "help" : "How much snow the overall level adds.",
+      "key" : "level",
+      "label" : "Loudness → snow",
+      "max" : 1,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "map" : [
+          ""
+        ]
+      }
+    },
+    {
+      "default" : 0.5,
+      "group" : "Sound drives",
+      "help" : "How much the high end speckles the colour.",
+      "key" : "highs",
+      "label" : "Highs → colour noise",
+      "max" : 1,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "map" : [
+          ""
+        ]
+      }
+    },
+    {
+      "default" : 0.5,
+      "group" : "Feel",
+      "help" : "How long each artifact takes to fade after the sound that caused it.",
+      "key" : "response",
+      "label" : "Settle time",
+      "max" : 1,
+      "min" : 0,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "map" : [
+          ""
+        ]
+      }
+    },
+    {
+      "default" : 1.5,
+      "group" : "Feel",
+      "help" : "How readily a transient counts as a hit.",
+      "key" : "sensitivity",
+      "label" : "Hit sensitivity",
+      "max" : 3.0,
+      "min" : 0.5,
+      "step" : 0.01,
+      "type" : "float",
+      "visibleWhen" : {
+        "map" : [
+          ""
+        ]
+      }
+    },
+    {
+      "default" : "",
       "extensions" : [
         "toml"
       ],
-      "help" : "Audio-feature → ntsc-rs mapping (TOML)",
+      "group" : "Custom map",
+      "help" : "A reactive-vcr mapping (TOML) to use instead of the sliders, e.g. presets/reactive-vcr.toml",
       "key" : "map",
       "label" : "Map",
+      "optional" : true,
       "type" : "file"
     }
   ],
   "requires" : [
     "reactive-vcr",
-    "ffmpeg"
+    "ffmpeg",
+    "jq"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Tape damage that moves with the sound: bass bends the picture, hits tear it.",
+    "category" : "Tape & TV",
+    "controls" : [
+      {
+        "key" : "bass",
+        "label" : "Bass wobble"
+      },
+      {
+        "key" : "hits",
+        "label" : "Hits"
+      },
+      {
+        "key" : "level",
+        "label" : "Snow"
+      },
+      {
+        "key" : "audio",
+        "label" : "Other sound track"
+      }
+    ],
+    "name" : "Sound Reactive"
+  },
   "steps" : [
     {
       "name" : "render",
-      "script" : "audio=${GB_P_AUDIO:-$GB_SOURCE_AUDIO}\nif [ -z \"$audio\" ]; then\n  echo \"reactive-vcr: the source has no audio track; choose an Audio file\" >&2\n  exit 1\nfi\n# The pipeline, not the same-named binary that precedes it on PATH.\n\"$GB_ROOT/pipelines/reactive-vcr\" --audio \"$audio\" --map \"$GB_P_MAP\" --audio-mode none -o \"$GB_OUT\" \"$GB_IN\"\n"
+      "native" : "reactive-vcr",
+      "script" : "audio=${GB_P_AUDIO:-$GB_SOURCE_AUDIO}\nif [ -z \"$audio\" ]; then\n  echo \"reactive-vcr: the source has no audio track; choose an Audio file\" >&2\n  exit 1\nfi\nmap=$GB_P_MAP\nif [ -z \"$map\" ]; then\n  # No Map file: build the mapping from the sliders. ReactiveVCRStep.mapping (iOS) writes the same text.\n  map=$GB_WORK/map.toml\n  jq -r '\ndef f3: (. * 1000 | round) as $n | \"\\($n / 1000 | floor).\\(\"000\\($n % 1000)\"[-3:])\";\ndef ms($base): ($base * ([0.2, 2 * .response] | max)) | round | tostring;\ndef block($target; $source; $lines): \"\\n[[modulate]]\\ntarget = \\\"\\($target)\\\"\\nsource = \\\"\\($source)\\\"\\n\" + ($lines | map(. + \"\\n\") | add);\n\"# Built by Glitchbox from the Reactive VCR sliders.\\n\\n[audio]\\nbands.bass = [20, 200]\\nbands.high = [3000, 12000]\\nnormalize = \\\"percentile:98\\\"\\nonset_sensitivity = \\(.sensitivity | f3)\\n\"\n+ (if .bass > 0 then\n    block(\"tracking_noise\"; \"rms\"; [\"threshold = 0.0\"])\n    + block(\"tracking_noise_wave_intensity\"; \"band:bass\"; [\"range = [\\(4 * .bass | f3), \\(50 * .bass | f3)]\", \"curve = \\\"pow:2\\\"\", \"attack_ms = 10\", \"release_ms = \\(ms(300))\"])\n    + block(\"tracking_noise_height\"; \"band:bass\"; [\"range = [\\(12 * .bass | round), \\(120 * .bass | round)]\", \"release_ms = \\(ms(200))\"])\n  else \"\" end)\n+ (if .hits > 0 then\n    block(\"head_switching\"; \"onset\"; [\"threshold = 0.5\", \"release_ms = \\(ms(120))\"])\n    + block(\"head_switching_horizontal_shift\"; \"onset\"; [\"range = [0.000, \\(80 * .hits | f3)]\", \"release_ms = \\(ms(120))\"])\n  else \"\" end)\n+ (if .level > 0 then block(\"snow_intensity\"; \"rms\"; [\"range = [0.000, \\(4 * .level | f3)]\", \"curve = \\\"exp\\\"\", \"release_ms = \\(ms(400))\"]) else \"\" end)\n+ (if .highs > 0 then block(\"chroma_noise_intensity\"; \"band:high\"; [\"range = [0.000, \\(0.8 * .highs | f3)]\", \"release_ms = \\(ms(150))\"]) else \"\" end)\n  ' \"$GB_PARAMS\" > \"$map\"\nfi\n# The pipeline, not the same-named binary that precedes it on PATH.\n\"$GB_ROOT/pipelines/reactive-vcr\" --audio \"$audio\" --map \"$map\" --audio-mode none -o \"$GB_OUT\" \"$GB_IN\"\n"
     }
   ],
-  "summary" : "Audio-reactive VCR artifacts (pipelines/reactive-vcr). Driven by the source video's own audio unless an audio file is chosen."
+  "summary" : "Audio-reactive VCR artifacts (pipelines/reactive-vcr): bass bends the tracking, hits tear the picture, loudness adds snow, and highs add colour noise. Driven by the source video's own audio unless an audio file is chosen. A Map file replaces the sliders."
 }

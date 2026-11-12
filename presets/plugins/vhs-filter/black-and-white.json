@@ -1,0 +1,13 @@
+{
+  "name" : "Black and white",
+  "params" : {
+    "chroma" : 0,
+    "chroma_noise" : 0,
+    "contrast" : 1.25,
+    "noise" : 35,
+    "saturation" : 0.0,
+    "shift" : 0
+  },
+  "plugin" : "vhs-filter",
+  "schema" : 1
+}

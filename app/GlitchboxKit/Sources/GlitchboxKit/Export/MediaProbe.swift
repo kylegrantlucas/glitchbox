@@ -154,17 +154,17 @@ public struct MediaProbe: Hashable, Sendable {
 
     /// Runs the toolchain's ffprobe on `url`.
     public static func probe(_ url: URL, env: ToolEnvironment) async throws -> MediaProbe {
-        guard let ffprobe = env.which("ffprobe") else { throw RenderError.commandNotFound(plugin: "probe", command: "ffprobe") }
+        guard env.runner.has("ffprobe") else { throw RenderError.commandNotFound(plugin: "probe", command: "ffprobe") }
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appending(path: "glitchbox-probe-\(UUID().uuidString)", directoryHint: .isDirectory)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: dir) }
         let json = dir.appending(path: "probe.json")
         let log = dir.appending(path: "log.txt")
-        let code = try await Spawner.run(
-            executable: ffprobe,
+        let code = try await env.runner.run(ToolInvocation(
+            command: "ffprobe",
             arguments: ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", "-o", json.path, url.path],
-            environment: env.variables, cwd: dir, log: log)
+            environment: env.variables, cwd: dir, log: log))
         guard code == 0, let data = try? Data(contentsOf: json) else {
             throw ExportError.probeFailed(url, tail: LayerRunner.tail(log, lines: 10))
         }

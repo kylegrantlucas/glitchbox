@@ -1,0 +1,10 @@
+{
+  "name" : "Dreamy",
+  "params" : {
+    "radius" : 30.0,
+    "strength" : 0.7,
+    "threshold" : 0.2
+  },
+  "plugin" : "glow",
+  "schema" : 1
+}

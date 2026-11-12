@@ -1,0 +1,25 @@
+{
+  "category" : "Datamosh",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "h_scale" : 200,
+        "tail" : 10,
+        "v_scale" : 200
+      },
+      "plugin" : "mpeg2-mosh"
+    },
+    {
+      "enabled" : true,
+      "params" : {
+        "delay" : 3,
+        "mode" : "lighten",
+        "opacity" : 0.5
+      },
+      "plugin" : "echo"
+    }
+  ],
+  "name" : "Mosh Echo",
+  "schema" : 1
+}

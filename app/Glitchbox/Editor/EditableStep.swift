@@ -13,6 +13,8 @@ struct EditableStep: Identifiable, Hashable {
     var mode: Mode
     var argvText: String
     var script: String
+    /// The engine-provided implementation id; not editable, carried through saves.
+    let native: String?
 
     init(_ step: PluginStep) {
         name = step.name
@@ -20,15 +22,18 @@ struct EditableStep: Identifiable, Hashable {
         mode = argv.isEmpty && step.script != nil ? .script : .argv
         argvText = argv.joined(separator: "\n")
         script = step.script ?? ""
+        native = step.native
     }
 
     var step: PluginStep {
         switch mode {
         case .argv:
-            PluginStep(name: name, argv: argvText.split(separator: "\n", omittingEmptySubsequences: true)
-                .map(String.init).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
+            let args = argvText.split(separator: "\n", omittingEmptySubsequences: true)
+                .map(String.init).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            // A native-only step has no argv; don't invent an empty one.
+            return PluginStep(name: name, argv: args.isEmpty && native != nil ? nil : args, native: native)
         case .script:
-            PluginStep(name: name, script: script)
+            return PluginStep(name: name, script: script, native: native)
         }
     }
 }

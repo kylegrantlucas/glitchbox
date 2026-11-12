@@ -1,0 +1,15 @@
+{
+  "category" : "Datamosh",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "amount" : 16,
+        "qscale" : 8
+      },
+      "plugin" : "mv-mangle"
+    }
+  ],
+  "name" : "Scatter",
+  "schema" : 1
+}

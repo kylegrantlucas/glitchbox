@@ -1,0 +1,15 @@
+module GlitchFFmpeg {
+  header "GlitchFFmpeg.h"
+  export *
+  link "z"
+  link "bz2"
+  link "iconv"
+  link "c++"
+  link framework "AudioToolbox"
+  link framework "CoreAudio"
+  link framework "CoreFoundation"
+  link framework "CoreMedia"
+  link framework "CoreServices"
+  link framework "CoreVideo"
+  link framework "VideoToolbox"
+}

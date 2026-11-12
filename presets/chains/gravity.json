@@ -1,0 +1,14 @@
+{
+  "category" : "Datamosh",
+  "layers" : [
+    {
+      "enabled" : true,
+      "params" : {
+        "script" : "dd_gravity.js"
+      },
+      "plugin" : "mv-script"
+    }
+  ],
+  "name" : "Gravity",
+  "schema" : 1
+}

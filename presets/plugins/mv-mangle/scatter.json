@@ -1,0 +1,9 @@
+{
+  "name" : "Scatter",
+  "params" : {
+    "amount" : 16,
+    "qscale" : 8
+  },
+  "plugin" : "mv-mangle",
+  "schema" : 1
+}

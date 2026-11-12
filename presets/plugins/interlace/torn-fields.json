@@ -1,0 +1,8 @@
+{
+  "name" : "Torn fields",
+  "params" : {
+    "tear" : 12
+  },
+  "plugin" : "interlace",
+  "schema" : 1
+}

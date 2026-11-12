@@ -48,6 +48,21 @@
     "ffmpeg"
   ],
   "schema" : 1,
+  "simple" : {
+    "blurb" : "Moving areas tear apart and scatter.",
+    "category" : "Datamosh",
+    "controls" : [
+      {
+        "key" : "amount",
+        "label" : "Amount"
+      },
+      {
+        "key" : "qscale",
+        "label" : "Blockiness"
+      }
+    ],
+    "name" : "Motion Scramble"
+  },
   "steps" : [
     {
       "argv" : [
@@ -64,7 +79,8 @@
         "{out}",
         "{in}"
       ],
-      "name" : "mangle"
+      "name" : "mangle",
+      "native" : "mv-mangle"
     }
   ],
   "summary" : "MPEG-4 motion-vector shuffle via FFglitch (pipelines/mv-mangle)."

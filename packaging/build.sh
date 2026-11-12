@@ -2,6 +2,7 @@
 # packaging/build.sh — no-Nix build of Glitchbox.app and its DMG.
 #
 #   packaging/build.sh [tools|app|dmg|all|verify]      (default: all)
+#   packaging/build.sh [ios-tools|ios-app|ios-install|stage NAME...]
 #
 #   tools   fetch + verify every input in packaging/sources.json, build the
 #           toolchain, assemble it into build/stage/Contents, verify it.
@@ -11,6 +12,13 @@
 #   dmg     build/dist/Glitchbox-<packaging/VERSION>.dmg from the app.
 #   all     tools, app, dmg.
 #   verify  re-run verification on build/Glitchbox.app (or the staging).
+#
+#   ios-tools    build the iOS toolchain stages (packaging/ios/*.sh) into
+#                build/ios/xcframeworks and app/GlitchboxInProcess/Artifacts.
+#   ios-app      ios-tools + build/ios/Toolchain + xcodegen (with app/ios.yml)
+#                + a signed Release device build: build/ios/Glitchbox.app.
+#   ios-install  install build/ios/Glitchbox.app on $GLITCHBOX_DEVICE.
+#   stage NAME…  run the named stages only (e.g. ios_ffmpeg).
 #
 # Build machine: Xcode 27, cargo/rustc >= 1.97 (burns-rs needs 1.97), cmake,
 # curl, jq. Nothing else: pkg-config is GStreamer devel's own, XcodeGen is
@@ -114,13 +122,13 @@ menv_swift() {
     LANG=C LC_ALL=C TERM=dumb PATH=/usr/bin:/bin:/usr/sbin:/sbin "$@"
 }
 
+# Idempotent (no rm -rf), so concurrent `build.sh stage` runs share it safely.
 setup_toolbin() {
-  rm -rf "$TOOLBIN"
   mkdir -p "$TOOLBIN" "$BUILD/home" "$BUILD/tmp" "$LOGS" "$STAMPS" "$PREFIX/bin"
-  ln -s "$CARGO_BIN" "$TOOLBIN/cargo"
-  ln -s "$RUSTC_BIN" "$TOOLBIN/rustc"
-  ln -s "$CMAKE_BIN" "$TOOLBIN/cmake"
-  ln -s "$GST_SDK/$GST_V/bin/pkg-config" "$TOOLBIN/pkg-config" # dangling until gst
+  ln -sfn "$CARGO_BIN" "$TOOLBIN/cargo"
+  ln -sfn "$RUSTC_BIN" "$TOOLBIN/rustc"
+  ln -sfn "$CMAKE_BIN" "$TOOLBIN/cmake"
+  ln -sfn "$GST_SDK/$GST_V/bin/pkg-config" "$TOOLBIN/pkg-config" # dangling until gst
 }
 
 # --- Pinned inputs -----------------------------------------------------------
@@ -175,6 +183,7 @@ stage_srcs() {
     burns) echo burns-rs ;;
     bash) echo "bash bash-patch" ;;
     licenses) echo "ffmpeg x264 frei0r sox bash ntsc-rs bender-rs burns-rs onnxruntime ffglitch ffglitch-scripts reactive-vcr" ;;
+    ios_*) eval "printf '%s\n' \"\${${1}_srcs:-}\"" ;;
     *) echo "$1" ;;
   esac
 }
@@ -188,6 +197,12 @@ stage_recipe() { # what else, besides build_<stage>, a stage's output depends on
       cat "$PKG/about.toml" "$PKG/about.hbs" "$PKG/licenses/jq/COPYING"
       echo "cargo-about: $("$CARGO_ABOUT" --version 2>/dev/null || true)"
       ;;
+    ios_licenses)
+      ios_recipe "$1"
+      declare -f lic_copy
+      echo "cargo-about: $("$CARGO_ABOUT" --version 2>/dev/null || true)"
+      ;;
+    ios_*) ios_recipe "$1" ;;
   esac
 }
 stage_key() {
@@ -590,22 +605,199 @@ sox|SoX|GPL-2.0-or-later|audio in the pipelines||sox
 bash|GNU Bash|GPL-3.0-or-later|runs the pipeline and plugin scripts||bash
 jq|jq|MIT|JSON in the pipelines|https://github.com/jqlang/jq|jq'
 
-write_credits() { # OUT
-  local name shown lic role url dir ver
+# Shared by both apps: TABLE (default $CREDITS) and WHERE, the sentence saying
+# where the licence texts are.
+write_credits() { # OUT [TABLE [WHERE]]
+  local name shown lic role url dir ver table=${2:-$CREDITS}
+  local where=${3:-'Their full licence texts are in Help &gt; Third-Party Licenses (Glitchbox.app/Contents/Resources/licenses).'}
   {
     printf '%s\n' '<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font:11px -apple-system,sans-serif}td{vertical-align:top;padding:2px 6px 2px 0}</style></head><body>'
-    printf '<p>Glitchbox is MIT licensed: <a href="https://github.com/kylegrantlucas/glitchbox">github.com/kylegrantlucas/glitchbox</a>. It runs these tools, each under its own licence. Their full licence texts are in Help &gt; Third-Party Licenses (Glitchbox.app/Contents/Resources/licenses).</p>\n<table>\n'
+    printf '<p>Glitchbox is MIT licensed: <a href="https://github.com/kylegrantlucas/glitchbox">github.com/kylegrantlucas/glitchbox</a>. It runs these tools, each under its own licence. %s</p>\n<table>\n' "$where"
     while IFS='|' read -r name shown lic role url dir; do
       ver=$(lock_field "$name" version)
       [ -n "$url" ] || url=$(lock_field "$name" url)
       url=${url//\{v\}/$ver}
       printf '<tr><td><a href="%s">%s</a> %s</td><td>%s</td><td>%s</td></tr>\n' "$url" "$shown" "$ver" "$lic" "$role"
-    done <<< "$CREDITS"
+    done <<< "$table"
     printf '</table></body></html>\n'
   } > "$1"
 }
 
 TOOL_STAGES="gst gst_runtime x264 frei0r ffmpeg sox bash ntsc_rs bender burns licenses"
+
+# --- iOS toolchain -------------------------------------------------------------
+# The iOS app cannot spawn processes, so its tools are libraries. Each
+# packaging/ios/<name>.sh defines the stage build_ios_<name>, which writes
+# build/ios/xcframeworks/<Name>.xcframework with ios-arm64, ios-arm64-simulator,
+# and macos-arm64 slices (the last only for host tests of app/GlitchboxInProcess).
+# A recipe may set ios_<name>_srcs (the sources.json names it unpacks) and
+# ios_<name>_inputs (repo-relative files or directories, e.g. patches or a
+# crate, whose contents key the stage); the recipe file itself keys it too.
+IOS=$BUILD/ios
+IOS_XCF=$IOS/xcframeworks
+IOS_STAGES="ios_ffmpeg ios_ffglitch ios_fx ios_burns ios_licenses"
+for f in "$PKG"/ios/*.sh; do [ -e "$f" ] && . "$f"; done
+
+ios_recipe() { # STAGE: the recipe file and its input files, for stage_key
+  local inputs p f
+  cat "$PKG/ios/${1#ios_}.sh"
+  eval "inputs=\${${1}_inputs:-}"
+  for p in $inputs; do
+    find "$ROOT/$p" -type f ! -path '*/target/*' ! -name .DS_Store | LC_ALL=C sort |
+      while IFS= read -r f; do printf '%s\n' "${f#$ROOT/}"; cat "$f"; done
+  done
+}
+
+ios_frameworks() { # STAGE: the xcframeworks it writes
+  case $1 in
+    ios_ffmpeg) echo GlitchFFmpeg ;;
+    ios_ffglitch) echo FFglitch ;;
+    ios_fx) echo GlitchboxFX ;;
+    ios_burns) echo "GlitchboxBurns onnxruntime" ;;
+  esac
+}
+
+# app/GlitchboxInProcess's binary targets (gitignored; SwiftPM refuses binary
+# targets outside the package directory): STAGEs' xcframeworks, each replaced
+# through its own temporary copy so a `swift build` never sees half of one.
+IOS_ARTIFACTS=$ROOT/app/GlitchboxInProcess/Artifacts
+ios_sync_artifacts() { # STAGE...
+  local s n t
+  mkdir -p "$IOS_ARTIFACTS"
+  for s in "$@"; do
+    for n in $(ios_frameworks "$s"); do
+      [ -d "$IOS_XCF/$n.xcframework" ] || die "ios: $s left no $n.xcframework"
+      t=$(mktemp -d "$IOS_ARTIFACTS/.sync.XXXXXX")
+      cp -cR "$IOS_XCF/$n.xcframework" "$t/"
+      rm -rf "${IOS_ARTIFACTS:?}/$n.xcframework"
+      mv "$t/$n.xcframework" "$IOS_ARTIFACTS/"
+      rmdir "$t"
+    done
+  done
+}
+
+ios_tools_build() {
+  local s
+  setup_toolbin
+  fetch
+  for s in $IOS_STAGES; do run_stage "$s"; done
+  ios_sync_artifacts $IOS_STAGES
+}
+
+# Credits.html rows for the iOS app (same format as CREDITS).
+CREDITS_IOS='ffmpeg|FFmpeg|GPL-2.0-or-later (built with --enable-gpl)|decoding, encoding, and the ffmpeg filters, linked in-process||ffmpeg
+x264|x264|GPL-2.0-or-later|H.264 encoding, linked into FFmpeg||x264
+frei0r|frei0r|GPL-2.0-or-later|the frei0r effects, linked statically into FFmpeg||frei0r
+ffglitch-src|FFglitch|GPL-2.0-or-later; includes QuickJS (MIT)|bitstream editing: ffgac and ffedit, built from source and linked in-process|https://ffglitch.org/pub/src/ffglitch-{v}.tar.xz|ffglitch
+ffglitch-scripts|ffglitch-scripts|Unlicense|the DD-GlitchAssist scripts behind MV Script||ffglitch-scripts
+ntsc-rs|ntsc-rs|core MIT, ISC, or Apache-2.0|NTSC and VHS emulation (its core library)||ntsc-rs
+bender-rs|bender-rs|MIT or Apache-2.0|circuit-bent video hardware||bender-rs
+reactive-vcr|reactive-vcr|MIT|audio-reactive VCR artifacts|https://github.com/kylegrantlucas/reactive-vcr|reactive-vcr
+burns-rs|burns|MIT or Apache-2.0|still-image camera motion (Still Motion)||burns-rs
+onnxruntime-c-pod|ONNX Runtime|MIT|on-device depth estimation for Still Motion|https://github.com/microsoft/onnxruntime|onnxruntime'
+
+# The iOS toolchain's identity: the pins, this script, every iOS stage's stamp
+# (which already hash each recipe, its patches, and its crates), and
+# GlitchboxInProcess's sources, which implement the native steps whose
+# manifests carry only an id.
+ios_digest() {
+  local s f
+  {
+    cat "$LOCK" "$PKG/build.sh"
+    for s in $IOS_STAGES; do cat "$STAMPS/$s"; done
+    cat "$ROOT/app/GlitchboxInProcess/Package.swift"
+    find "$ROOT/app/GlitchboxInProcess/Sources" -type f ! -name .DS_Store | LC_ALL=C sort |
+      while IFS= read -r f; do printf '%s\n' "${f#$ROOT/}"; cat "$f"; done
+  } | shasum -a 256 | cut -d' ' -f1
+}
+
+# Same schema as the macOS toolchain.json; `@contents` is the app's Toolchain/
+# folder and `@cache` the app's cache. Nothing is on a PATH: GlitchboxInProcess
+# runs ffmpeg, ffprobe, ffgac, and ffedit in-process and implements the script
+# plugins natively. BURNS_CACHE holds Still Motion's depth model (downloaded on
+# first use) and depth maps.
+write_ios_toolchain_json() { # OUT
+  "$JQ" -n --arg digest "$(ios_digest)" --slurpfile lock "$LOCK" '
+    def v($n): first($lock[0].sources[] | select(.name == $n)) | .version;
+    {
+      schema: 1,
+      digest: $digest,
+      tools: {
+        ffmpeg: v("ffmpeg"), ffglitch: v("ffglitch-src"), "ntsc-rs": v("ntsc-rs"),
+        bender: v("bender-rs"), "reactive-vcr": v("reactive-vcr"), burns: v("burns-rs"),
+        onnxruntime: v("onnxruntime-c-pod"), frei0r: v("frei0r"), x264: v("x264")
+      },
+      path: [],
+      environment: {
+        FFGLITCH_SCRIPTS: "@contents/ffglitch-scripts",
+        BENDER_PRESETS: "@contents/bender-presets",
+        BURNS_CACHE: "@cache/burns"
+      }
+    }' > "$1"
+}
+
+# build/ios/Toolchain: the folder the iOS app bundles as Glitchbox.app/Toolchain.
+assemble_ios() {
+  local t=$IOS/Toolchain x=$WORK/assemble-ios n
+  log "ios: assembling build/ios/Toolchain"
+  rm -rf "$t" "$x"
+  mkdir -p "$t/library" "$t/ffglitch-scripts" "$x"
+  for n in plugins presets scripts pipelines; do
+    cp -R "$ROOT/$n" "$t/library/$n"
+  done
+  find "$t/library" -name .DS_Store -delete
+  tar -xf "$(src ffglitch-scripts)" -C "$t/ffglitch-scripts" --strip-components 1
+  tar -xf "$(src bender-rs)" -C "$x" --strip-components 1
+  cp -R "$x/presets" "$t/bender-presets"
+  cp -R "$IOS/licenses" "$t/licenses"
+  write_credits "$t/Credits.html" "$CREDITS_IOS" 'Their full licence texts are under Licenses in the app.'
+  write_ios_toolchain_json "$t/toolchain.json"
+  rm -rf "$x"
+}
+
+IOS_APP=$IOS/Glitchbox.app
+IOS_SCHEME="Glitchbox iOS"
+
+# xcodegen with the iOS spec included (app/ios.yml, enabled by GLITCHBOX_IOS),
+# then a signed Release build for devices with the team's development
+# certificate. -allowProvisioningUpdates lets xcodebuild use the Apple Account
+# signed into Xcode to create or refresh the provisioning profile, and
+# -allowProvisioningDeviceRegistration registers the destination device with the
+# team. The profile lists only registered devices, so with GLITCHBOX_DEVICE set
+# the build targets that device (same arm64 product) to get it into the profile.
+compile_ios_app() {
+  local xg=$WORK/xcodegen dest=generic/platform=iOS
+  [ -z "${GLITCHBOX_DEVICE:-}" ] || dest="id=$GLITCHBOX_DEVICE"
+  rm -rf "$xg"
+  mkdir -p "$xg"
+  unzip -q "$(src xcodegen)" -d "$xg"
+  (cd "$ROOT/$APP_DIR" && menv_swift GLITCHBOX_IOS=YES "$xg/xcodegen/bin/xcodegen" generate)
+  menv_swift xcodebuild -project "$ROOT/$APP_DIR/$APP_PROJECT" -scheme "$IOS_SCHEME" \
+    -configuration Release -destination "$dest" -derivedDataPath "$WORK/xcode-ios" \
+    -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
+    MARKETING_VERSION="$VERSION" build
+  [ -d "$WORK/xcode-ios/Build/Products/Release-iphoneos/$APP_PRODUCT" ]
+}
+
+build_ios_app() {
+  ios_tools_build
+  assemble_ios
+  log "ios: xcodegen, xcodebuild $IOS_SCHEME Release (log: build/logs/ios-app.log)"
+  logged ios-app compile_ios_app
+  rm -rf "$IOS_APP"
+  cp -cRP "$WORK/xcode-ios/Build/Products/Release-iphoneos/$APP_PRODUCT" "$IOS_APP"
+  codesign --verify --deep --strict "$IOS_APP"
+  [ -f "$IOS_APP/Toolchain/toolchain.json" ] || die "ios: the app has no Toolchain/toolchain.json"
+  log "ios: build/ios/Glitchbox.app ($(du -sh "$IOS_APP" | cut -f1)), signed: $(codesign -dvv "$IOS_APP" 2>&1 | sed -n 's/^Authority=//p' | head -1)"
+}
+
+# Installs build/ios/Glitchbox.app on GLITCHBOX_DEVICE (a UDID from `xcrun
+# devicectl list devices`; build with the same GLITCHBOX_DEVICE so it's registered).
+install_ios_app() {
+  [ -d "$IOS_APP" ] || die "ios-install: build/ios/Glitchbox.app missing; run build.sh ios-app"
+  [ -n "${GLITCHBOX_DEVICE:-}" ] || die "ios-install: set GLITCHBOX_DEVICE (see xcrun devicectl list devices)"
+  xcrun devicectl device install app --device "$GLITCHBOX_DEVICE" "$IOS_APP"
+}
 
 # --- Staging -------------------------------------------------------------------
 digest() { cat "$LOCK" "$PKG/build.sh" | shasum -a 256 | cut -d' ' -f1; }
@@ -1082,8 +1274,12 @@ tools_build() {
 }
 
 main() {
-  local cmd=${1:-all}
-  case $cmd in tools | app | dmg | all | verify) ;; *) die "usage: packaging/build.sh [tools|app|dmg|all|verify]" ;; esac
+  local cmd=${1:-all} s
+  case $cmd in
+    tools | app | dmg | all | verify | ios-tools | ios-app | ios-install) ;;
+    stage) [ $# -gt 1 ] || die "usage: packaging/build.sh stage NAME..." ;;
+    *) die "usage: packaging/build.sh [tools|app|dmg|all|verify|ios-tools|ios-app|ios-install|stage NAME...]" ;;
+  esac
   # build/ ignores itself, so VCS snapshots never pick up gigabytes of output
   # even before the repository's .gitignore lists it.
   mkdir -p "$BUILD"
@@ -1110,6 +1306,16 @@ main() {
     verify)
       mkdir -p "$BUILD/tmp" "$WORK"
       if [ -d "$APP" ]; then verify_app; else verify_contents "$BUILD/stage"; fi
+      ;;
+    ios-tools) ios_tools_build ;;
+    ios-app) build_ios_app ;;
+    ios-install) install_ios_app ;;
+    stage)
+      shift
+      setup_toolbin
+      fetch
+      for s in "$@"; do run_stage "$s"; done
+      ios_sync_artifacts "$@"
       ;;
   esac
   log "$cmd: done"

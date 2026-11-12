@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 
 /// Set once the spawned group leader has been reaped.
@@ -7,3 +8,4 @@ final class ReapFlag: @unchecked Sendable {
     func set() { lock.withLock { value = true } }
     var isSet: Bool { lock.withLock { value } }
 }
+#endif
