@@ -7,7 +7,8 @@ import GlitchboxKit
 /// --audio AUDIO --map MAP --audio-mode none`, in-process through GlitchboxFX's reactive core
 /// (see glitchbox_fx.h, "reactive-vcr"): mono 48 kHz audio drives a per-frame schedule;
 /// video is decoded to RGB24, retimed to the constant rate, effected, and written as
-/// limited-range yuv444p FFV1 with the source's SAR.
+/// limited-range yuv444p FFV1 with the source's SAR. With no Map file the mapping comes from
+/// the sliders, as the plugin script's jq builds it.
 public struct ReactiveVCRStep: NativeStep {
     public init() {}
 
@@ -17,18 +18,72 @@ public struct ReactiveVCRStep: NativeStep {
             ToolCall.append(c.log, "reactive-vcr: the source has no audio track; choose an Audio file\n")
             return 1
         }
-        let map = c.fileParam("map") ?? c.root.appending(path: "presets/reactive-vcr.toml").path
+        let mapping: String, baseDir: String
+        if let map = c.fileParam("map") {
+            guard FileManager.default.fileExists(atPath: map) else {
+                ToolCall.append(c.log, "reactive-vcr: map not found: \(map)\n")
+                return 1
+            }
+            mapping = try String(contentsOfFile: map, encoding: .utf8)
+            baseDir = URL(filePath: map).deletingLastPathComponent().path
+        } else {
+            mapping = Self.mapping(c.params)
+            baseDir = c.work.path
+        }
         return try await Effect.run(c, name: "reactive-vcr") { flag in
-            try Self.render(c, audio: audio, map: map, flag: flag)
+            try Self.render(c, audio: audio, mapping: mapping, baseDir: baseDir, flag: flag)
         }
     }
 
-    static func render(_ c: NativeStepContext, audio: String, map: String, flag: CancelFlag) throws {
+    /// The mapping for the plugin's sliders: the text the plugin script's jq program writes
+    /// (minus jq's trailing newline), number for number. Keep the two in step.
+    static func mapping(_ params: [String: ParamValue]) -> String {
+        func value(_ key: String, _ fallback: Double) -> Double { params[key]?.doubleValue ?? fallback }
+        let bass = value("bass", 0.5), hits = value("hits", 0.5), level = value("level", 0.5), highs = value("highs", 0.5)
+        let response = value("response", 0.5), sensitivity = value("sensitivity", 1.5)
+        /// Three decimals, from the rounded thousandths like the jq `f3`.
+        func f3(_ x: Double) -> String {
+            let n = Int((x * 1000).rounded())
+            return "\(n / 1000).\(String(format: "%03d", n % 1000))"
+        }
+        func whole(_ x: Double) -> String { String(Int(x.rounded())) }
+        func ms(_ base: Double) -> String { whole(base * max(0.2, 2 * response)) }
+        func block(_ target: String, _ source: String, _ lines: [String]) -> String {
+            "\n[[modulate]]\ntarget = \"\(target)\"\nsource = \"\(source)\"\n" + lines.map { $0 + "\n" }.joined()
+        }
+        var text = """
+        # Built by Glitchbox from the Reactive VCR sliders.
+
+        [audio]
+        bands.bass = [20, 200]
+        bands.high = [3000, 12000]
+        normalize = "percentile:98"
+        onset_sensitivity = \(f3(sensitivity))
+
+        """
+        if bass > 0 {
+            text += block("tracking_noise", "rms", ["threshold = 0.0"])
+            text += block("tracking_noise_wave_intensity", "band:bass",
+                          ["range = [\(f3(4 * bass)), \(f3(50 * bass))]", "curve = \"pow:2\"", "attack_ms = 10", "release_ms = \(ms(300))"])
+            text += block("tracking_noise_height", "band:bass",
+                          ["range = [\(whole(12 * bass)), \(whole(120 * bass))]", "release_ms = \(ms(200))"])
+        }
+        if hits > 0 {
+            text += block("head_switching", "onset", ["threshold = 0.5", "release_ms = \(ms(120))"])
+            text += block("head_switching_horizontal_shift", "onset", ["range = [0.000, \(f3(80 * hits))]", "release_ms = \(ms(120))"])
+        }
+        if level > 0 {
+            text += block("snow_intensity", "rms", ["range = [0.000, \(f3(4 * level))]", "curve = \"exp\"", "release_ms = \(ms(400))"])
+        }
+        if highs > 0 {
+            text += block("chroma_noise_intensity", "band:high", ["range = [0.000, \(f3(0.8 * highs))]", "release_ms = \(ms(150))"])
+        }
+        return text
+    }
+
+    static func render(_ c: NativeStepContext, audio: String, mapping: String, baseDir: String, flag: CancelFlag) throws {
         let fm = FileManager.default
         guard fm.fileExists(atPath: audio) else { throw EffectError("audio not found: \(audio)") }
-        guard fm.fileExists(atPath: map) else { throw EffectError("map not found: \(map)") }
-        let mapping = try String(contentsOfFile: map, encoding: .utf8)
-        let baseDir = URL(filePath: map).deletingLastPathComponent().path
 
         let samples = try MediaAudio.decodeMono(url: URL(filePath: audio), sampleRate: 48_000)
         try Effect.check(flag)

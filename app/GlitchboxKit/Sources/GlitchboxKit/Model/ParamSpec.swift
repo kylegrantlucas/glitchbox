@@ -35,6 +35,28 @@ public struct ParamSpec: Codable, Hashable, Sendable {
         self.visibleWhen = visibleWhen
     }
 
+    /// JSON has one number type, so `0.0` decodes as an integer: the default is stored in the
+    /// param's own type, equal to the same value once `Workspace.resolveParams` has coerced it.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        key = try c.decode(String.self, forKey: .key)
+        label = try c.decode(String.self, forKey: .label)
+        type = try c.decode(ParamType.self, forKey: .type)
+        `default` = try c.decode(ParamValue.self, forKey: .default)
+        min = try c.decodeIfPresent(Double.self, forKey: .min)
+        max = try c.decodeIfPresent(Double.self, forKey: .max)
+        step = try c.decodeIfPresent(Double.self, forKey: .step)
+        options = try c.decodeIfPresent([String].self, forKey: .options)
+        extensions = try c.decodeIfPresent([String].self, forKey: .extensions)
+        help = try c.decodeIfPresent(String.self, forKey: .help)
+        group = try c.decodeIfPresent(String.self, forKey: .group)
+        labels = try c.decodeIfPresent([String].self, forKey: .labels)
+        scale = try c.decodeIfPresent(ParamScale.self, forKey: .scale)
+        optional = try c.decodeIfPresent(Bool.self, forKey: .optional)
+        visibleWhen = try c.decodeIfPresent([String: [ParamValue]].self, forKey: .visibleWhen)
+        if let typed = coerce(`default`) { `default` = typed }
+    }
+
     /// Display name for an enum option.
     public func label(forOption option: String) -> String {
         guard let labels, let i = options?.firstIndex(of: option), labels.indices.contains(i) else { return option }
@@ -42,6 +64,17 @@ public struct ParamSpec: Codable, Hashable, Sendable {
     }
 
     public var isOptional: Bool { optional ?? false }
+
+    /// Whether Simple mode can show this param: a switch, a menu, a file chooser, or a slider with both ends.
+    public var isSimpleEligible: Bool {
+        switch type {
+        case .bool, .enumeration, .file: return true
+        case .int, .float:
+            guard let min, let max else { return false }
+            return min < max
+        case .string: return false
+        }
+    }
 
     /// Converts `v` to this spec's type, or nil when it is not representable.
     public func coerce(_ v: ParamValue) -> ParamValue? {

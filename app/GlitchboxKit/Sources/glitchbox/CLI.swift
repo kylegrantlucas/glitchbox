@@ -5,7 +5,7 @@ enum CLI {
     static let usage = """
     usage: glitchbox [--root DIR] [--toolchain DIR] COMMAND
       list                         plugins and tool availability
-      validate [FILE...]           validate plugin manifests (default: every library plugin)
+      validate [FILE...]           validate plugin manifests (default: every library plugin and preset)
       render --chain NAME|FILE [RENDER] INPUT
                                    render a chain; prints the final out.mkv path
       export --chain NAME|FILE [RENDER] [EXPORT] -o OUT INPUT
@@ -111,17 +111,7 @@ enum CLI {
             ? ws.pluginFiles()
             : files.map { URL(filePath: $0, relativeTo: cwd).standardizedFileURL }
         var failed = false
-        for url in urls {
-            // Base files print library-relative; user and ad-hoc files print absolute.
-            let basePrefix = ws.base.path + "/"
-            let label = url.path.hasPrefix(basePrefix) ? String(url.path.dropFirst(basePrefix.count)) : url.path
-            let issues: [ValidationIssue]
-            do {
-                let m = try JSONDecoder().decode(PluginManifest.self, from: Data(contentsOf: url))
-                issues = ManifestValidator.validate(m, fileName: url.lastPathComponent, roots: [ws.user, ws.base])
-            } catch {
-                issues = [ValidationIssue("cannot read: \(error.localizedDescription)")]
-            }
+        func report(_ label: String, _ issues: [ValidationIssue]) {
             if issues.isEmpty {
                 print("ok \(label)")
             } else {
@@ -129,6 +119,20 @@ enum CLI {
                 print("invalid \(label)")
                 for i in issues { print("  \(i.message)") }
             }
+        }
+        for url in urls {
+            // Base files print library-relative; user and ad-hoc files print absolute.
+            let basePrefix = ws.base.path + "/"
+            let label = url.path.hasPrefix(basePrefix) ? String(url.path.dropFirst(basePrefix.count)) : url.path
+            do {
+                let m = try JSONDecoder().decode(PluginManifest.self, from: Data(contentsOf: url))
+                report(label, ManifestValidator.validate(m, fileName: url.lastPathComponent, roots: [ws.user, ws.base]))
+            } catch {
+                report(label, [ValidationIssue("cannot read: \(error.localizedDescription)")])
+            }
+        }
+        if files.isEmpty {
+            for entry in PresetValidator.validate(ws) { report(entry.path, entry.issues) }
         }
         return failed ? 1 : 0
     }

@@ -39,4 +39,21 @@ struct ResolveParamsTests {
         #expect(r.values == ["amount": .int(7), "gain": .float(1)])
         #expect(r.warnings.isEmpty)
     }
+
+    /// JSON has one number type, so a float param's `0.0` default reads as an integer. Left that
+    /// way, an untouched default differs from the same value once it has been through a session
+    /// or preset, and a layer matching a preset exactly compares as changed.
+    @Test func manifestDefaultsTakeTheParamType() throws {
+        let json = """
+        {"schema":1,"id":"demo","name":"Demo","summary":"","requires":[],"assets":[],
+         "params":[{"key":"gain","label":"Gain","type":"float","default":0.0,"min":0,"max":1},
+                   {"key":"count","label":"Count","type":"int","default":3}],
+         "steps":[{"name":"x","argv":["true"]}]}
+        """
+        let decoded = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        #expect(decoded.spec("gain")?.default == .float(0))
+        #expect(decoded.spec("count")?.default == .int(3))
+        #expect(ws.resolveParams(["gain": .int(0)], for: decoded).values == decoded.defaults())
+        #expect(try JSONDecoder().decode(PluginManifest.self, from: JSONEncoder().encode(decoded)) == decoded)
+    }
 }

@@ -72,6 +72,25 @@ public enum ManifestValidator {
                 frontier += (m.spec(key)?.visibleWhen ?? [:]).keys
             }
         }
+        if let simple = m.simple {
+            if let name = simple.name, name.trimmingCharacters(in: .whitespaces).isEmpty {
+                issues.append("simple: name must not be empty")
+            }
+            if simple.blurb.trimmingCharacters(in: .whitespaces).isEmpty { issues.append("simple: blurb must not be empty") }
+            if simple.category.trimmingCharacters(in: .whitespaces).isEmpty { issues.append("simple: category must not be empty") }
+            if simple.controls.count > 4 { issues.append("simple: at most 4 controls (got \(simple.controls.count))") }
+            var used = Set<String>()
+            for control in simple.controls {
+                let tag = "simple control '\(control.key)'"
+                if !used.insert(control.key).inserted { issues.append("\(tag): duplicate") }
+                if control.label.trimmingCharacters(in: .whitespaces).isEmpty { issues.append("\(tag): label must not be empty") }
+                if let spec = m.spec(control.key) {
+                    if !spec.isSimpleEligible { issues.append("\(tag): needs a bool, enum, file, or ranged int/float param") }
+                } else {
+                    issues.append("\(tag): must name a declared param")
+                }
+            }
+        }
 
         if m.steps.isEmpty { issues.append("at least one step is required") }
         let declared = Set(m.params.map(\.key))

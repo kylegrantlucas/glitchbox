@@ -57,6 +57,25 @@ struct EffectsTests {
         #expect(EffectsFixture.log(c.log).contains("reactive-vcr: the source has no audio track; choose an Audio file"))
     }
 
+    /// With no Map file the mapping comes from the sliders: the macOS script builds it with jq,
+    /// iOS with `ReactiveVCRStep.mapping`. Same text, or the two platforms render different effects.
+    @Test func reactiveMappingIsThePluginsJq() async throws {
+        let f = try await EffectsFixture.get()
+        let cases: [[String: ParamValue]] = [
+            [:],
+            ["bass": .float(0.75), "hits": .float(0), "level": .float(0), "highs": .float(0), "response": .float(0.65)],
+            ["bass": .float(0), "hits": .float(1), "level": .float(0.3), "highs": .float(0)],
+            ["bass": .float(0.33), "hits": .float(0.07), "level": .float(0.99), "highs": .float(0.01), "response": .float(0.03),
+             "sensitivity": .float(2.37)],
+            ["bass": .float(1), "hits": .float(1), "level": .float(1), "highs": .float(1), "response": .float(1), "sensitivity": .float(3)],
+            ["bass": .float(0), "hits": .float(0), "level": .float(0), "highs": .float(0)],
+        ]
+        for given in cases {
+            let params = f.params("reactive-vcr", given)
+            #expect(ReactiveVCRStep.mapping(params) == (try f.jqReactiveMapping(params)), "\(given)")
+        }
+    }
+
     @Test func stillMotionKenBurnsMatchesBurns() async throws {
         let f = try await EffectsFixture.get()
         let r = try await f.compare(plugin: "still-motion", input: f.still, params: [:])
@@ -308,8 +327,15 @@ struct EffectsFixture: Sendable {
             try Self.remux(rawOut, out, ["-map", "0", "-c", "copy"])
         case "reactive-vcr":
             let audio = c.fileParam("audio") ?? c.sourceAudio!.path
+            let map: String
+            if let file = c.fileParam("map") {
+                map = file
+            } else {
+                map = ref.appending(path: "map.toml").path
+                try jqReactiveMapping(c.params).write(toFile: map, atomically: true, encoding: .utf8)
+            }
             try Self.tool("reactive-vcr", ["render", "--video", c.input.path, "--audio", audio, "--map",
-                                           c.fileParam("map")!, "--audio-mode", "none", "--output", rawOut.path])
+                                           map, "--audio-mode", "none", "--output", rawOut.path])
             try Self.remux(rawOut, out, ["-c:v", "copy", "-c:a", "copy"])
         case "still-motion":
             let project = ref.appending(path: "project.json")
@@ -337,6 +363,21 @@ struct EffectsFixture: Sendable {
         try JSONEncoder().encode(params).write(to: file)
         defer { try? FileManager.default.removeItem(at: file) }
         return try JSONSerialization.jsonObject(with: Data(try Self.tool("jq", [filter, file.path]).utf8))
+    }
+
+    /// reactive-vcr's own jq mapping builder (extracted from the plugin script) over `params`.
+    func jqReactiveMapping(_ params: [String: ParamValue]) throws -> String {
+        let plugin = try JSONSerialization.jsonObject(with: Data(contentsOf: Self.repo.appending(path: "plugins/reactive-vcr.json")))
+            as! [String: Any]
+        let script = ((plugin["steps"] as! [[String: Any]])[0]["script"] as! String)
+        let start = try #require(script.range(of: "jq -r '\n"))
+        let end = try #require(script.range(of: "\n  ' \"$GB_PARAMS\"", range: start.upperBound..<script.endIndex))
+        let filter = String(script[start.upperBound..<end.lowerBound])
+        let file = dir.appending(path: "rv-params-\(UUID().uuidString).json")
+        try JSONEncoder().encode(params).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        let text = try Self.tool("jq", ["-r", filter, file.path])
+        return text.hasSuffix("\n") ? String(text.dropLast()) : text
     }
 
     // MARK: Tools

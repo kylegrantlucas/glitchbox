@@ -54,6 +54,23 @@ struct SessionStateTests {
         #expect(try !decode(#"{"schema":2,"render":{"range":"whole","inPoint":0,"stillDuration":5},"layers":[]}"#).autoRender)
     }
 
+    @Test func studioModeIsOptionalAndSurvivesARoundTrip() throws {
+        let render = #""render":{"range":"whole","inPoint":0,"stillDuration":5},"layers":[]"#
+        #expect(try decode("{\"schema\":2,\(render)}").studioMode == nil)
+        #expect(try decode("{\"schema\":2,\"studioMode\":\"simple\",\(render)}").studioMode == .simple)
+        // Schema 1's `mode` is the preview/full switch, not a studio mode.
+        #expect(try decode("""
+        {"schema":1,"mode":"preview","previewSettings":{"start":2,"duration":3,"height":480,"fps":25,"stillDuration":5},"layers":[]}
+        """).studioMode == nil)
+        // A mode this build does not know must not cost the user their session.
+        #expect(try decode("{\"schema\":2,\"studioMode\":\"expert\",\(render)}").studioMode == nil)
+
+        let saved = SessionState(source: nil, render: RenderOptions(range: .whole), layers: [], studioMode: .simple)
+        let json = String(decoding: try Workspace.encoder().encode(saved), as: UTF8.self)
+        #expect(json.contains("\"studioMode\" : \"simple\""))
+        #expect(try decode(json).studioMode == .simple)
+    }
+
     @Test func stillsIgnoreTheRange() {
         let options = RenderOptions(range: .inOut, inPoint: 3, outPoint: 4, stillDuration: 8)
         #expect(options.settings(still: true) == RenderSettings(start: 0, duration: nil, height: 480, fps: nil, stillDuration: 8))
