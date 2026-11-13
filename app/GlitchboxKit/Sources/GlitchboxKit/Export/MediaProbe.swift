@@ -152,9 +152,12 @@ public struct MediaProbe: Hashable, Sendable {
 
     // MARK: Running ffprobe
 
-    /// Runs the toolchain's ffprobe on `url`.
+    /// Runs the toolchain's ffprobe on `url`, once per file identity and toolchain: renders and
+    /// exports re-probe the same files, and in-process ffprobe waits behind a running ffmpeg.
     public static func probe(_ url: URL, env: ToolEnvironment) async throws -> MediaProbe {
         guard env.runner.has("ffprobe") else { throw RenderError.commandNotFound(plugin: "probe", command: "ffprobe") }
+        let key = (try? FileIdentity(url)).map { ProbeKey(file: $0, toolchain: env.digest) }
+        if let key, let probe = probes[key] { return probe }
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appending(path: "glitchbox-probe-\(UUID().uuidString)", directoryHint: .isDirectory)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -168,6 +171,15 @@ public struct MediaProbe: Hashable, Sendable {
         guard code == 0, let data = try? Data(contentsOf: json) else {
             throw ExportError.probeFailed(url, tail: LayerRunner.tail(log, lines: 10))
         }
-        return try parse(data)
+        let probe = try parse(data)
+        if let key, (try? FileIdentity(url)) == key.file { probes[key] = probe }
+        return probe
     }
+
+    private struct ProbeKey: Hashable, Sendable {
+        var file: FileIdentity
+        var toolchain: String
+    }
+
+    private static let probes = Memo<ProbeKey, MediaProbe>()
 }
