@@ -107,7 +107,7 @@
         "-i",
         "{in}",
         "-vf",
-        "format=gbrp,split[o][d];[d]format=yuv444p,eq=contrast={p.contrast},format=gray,format=rgb24,lutrgb=r='{p.shadow_r}+val*({p.highlight_r}-{p.shadow_r})/255':g='{p.shadow_g}+val*({p.highlight_g}-{p.shadow_g})/255':b='{p.shadow_b}+val*({p.highlight_b}-{p.shadow_b})/255',format=gbrp[t];[t][o]blend=all_mode=normal:all_opacity={p.mix},format=yuv420p",
+        "format=gbrp,split[o][d];[d]format=yuv444p,lutyuv=y='clip(({p.contrast})*(val-128)+128,0,255)',format=gray,format=rgb24,lutrgb=r='{p.shadow_r}+val*({p.highlight_r}-{p.shadow_r})/255':g='{p.shadow_g}+val*({p.highlight_g}-{p.shadow_g})/255':b='{p.shadow_b}+val*({p.highlight_b}-{p.shadow_b})/255',format=gbrp[t];[t][o]blend=all_mode=normal:all_opacity={p.mix},format=yuv420p",
         "-fflags",
         "+bitexact",
         "-flags:v",

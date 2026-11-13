@@ -174,21 +174,22 @@ public struct LayerRunner: Sendable {
         case native(String, any NativeStep)
     }
 
-    /// Picks each step's mode: argv when the runner has `argv[0]` (an `argv[0]` built from
-    /// placeholders is checked once expanded), else the script when it has bash, else the
-    /// `native` implementation. `requires` applies only when some step spawns a tool. Throws
-    /// `unavailable` naming the missing requirements and tools when a step has no mode.
+    /// Picks each step's mode: the `native` implementation whenever the runner has it, else
+    /// argv when the runner has `argv[0]` (an `argv[0]` built from placeholders is checked once
+    /// expanded), else the script when it has bash. `requires` applies only when some step
+    /// spawns a tool. Throws `unavailable` naming the missing requirements and tools when a
+    /// step has no mode.
     static func modes(for manifest: PluginManifest, runner: any ToolRunner) throws -> [StepMode] {
         var modes: [StepMode] = []
         var missingTools: [String] = []
         for step in manifest.steps {
-            if let argv = step.argv, let command = argv.first,
+            if let id = step.native, let impl = runner.native(id) {
+                modes.append(.native(id, impl))
+            } else if let argv = step.argv, let command = argv.first,
                command.contains("{") || runner.has(command) {
                 modes.append(.argv(argv))
             } else if let script = step.script, runner.has("bash") {
                 modes.append(.script(script))
-            } else if let id = step.native, let impl = runner.native(id) {
-                modes.append(.native(id, impl))
             } else {
                 missingTools.append(step.argv?.first ?? (step.script != nil ? "bash" : "native \(step.native ?? step.name)"))
             }

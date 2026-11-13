@@ -1,24 +1,16 @@
 {
   "schema": 1,
-  "comment": "Every input packaging/build.sh downloads. build.sh refuses any file whose sha256 differs. `check` records how the hash was established: a checksum the upstream publishes, a hash already pinned in the old Nix packaging, or trust-on-first-use (tofu) for archives with no published sum.",
+  "comment": "Every input packaging/build.sh downloads. build.sh refuses any file whose sha256 differs. `check` records how the hash was established: a checksum the upstream publishes, a hash already pinned in the old Nix packaging, or trust-on-first-use (tofu) for archives with no published sum. `mirror: true` puts the file in the release's source bundle (build.sh sources: the complete corresponding source of the GPL/LGPL components); `mirrorOnly: true` inputs are fetched only for that bundle, never for a build.",
   "sources": [
     {
-      "name": "ffmpeg", "version": "8.1.2",
+      "name": "ffmpeg", "version": "8.1.2", "mirror": true,
       "url": "https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz",
       "file": "ffmpeg-8.1.2.tar.xz",
       "sha256": "464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c",
       "check": "tofu; same release as nixpkgs nixos-26.05 ffmpeg_8-full (upstream signs with .asc)"
     },
     {
-      "name": "x264", "version": "0-unstable-2025-01-03",
-      "rev": "373697b467f7cd0af88f1e9e32d4f10540df4687",
-      "url": "https://code.videolan.org/videolan/x264/-/archive/373697b467f7cd0af88f1e9e32d4f10540df4687/x264-373697b467f7cd0af88f1e9e32d4f10540df4687.tar.bz2",
-      "file": "x264-373697b467f7cd0af88f1e9e32d4f10540df4687.tar.bz2",
-      "sha256": "ea6417256fdd3390e3092cbbacb7560f2ea63ddd61681b062542b84c8d76e64a",
-      "check": "tofu; rev is nixpkgs nixos-26.05 x264 0-unstable-2025-01-03"
-    },
-    {
-      "name": "frei0r", "version": "2.5.1",
+      "name": "frei0r", "version": "2.5.1", "mirror": true,
       "url": "https://github.com/dyne/frei0r/archive/refs/tags/v2.5.1.tar.gz",
       "file": "frei0r-2.5.1.tar.gz",
       "sha256": "318ec4a3042c94a00a58fccdc1eb0d911f36a22beb3504d27aefcca4598f40b0",
@@ -39,7 +31,7 @@
       "check": "upstream gstreamer-1.0-devel-1.28.8-universal.pkg.sha256sum"
     },
     {
-      "name": "ntsc-rs", "version": "0.9.4",
+      "name": "ntsc-rs", "version": "0.9.4", "mirror": true,
       "rev": "add90f5bf1bf7e3c573e4e945a16f44a82941b51",
       "url": "https://github.com/valadaptive/ntsc-rs/archive/add90f5bf1bf7e3c573e4e945a16f44a82941b51.tar.gz",
       "file": "ntsc-rs-add90f5bf1bf7e3c573e4e945a16f44a82941b51.tar.gz",
@@ -47,7 +39,7 @@
       "check": "tofu; rev is the old flake.lock ntsc-rs-src (v0.9.4)"
     },
     {
-      "name": "bender-rs", "version": "0.2.1",
+      "name": "bender-rs", "version": "0.2.1", "mirror": true,
       "rev": "1ddcf66e08e34e01fb8113b4a872762d0132cbb1",
       "url": "https://github.com/kylegrantlucas/bender-rs/archive/1ddcf66e08e34e01fb8113b4a872762d0132cbb1.tar.gz",
       "file": "bender-rs-1ddcf66e08e34e01fb8113b4a872762d0132cbb1.tar.gz",
@@ -55,12 +47,12 @@
       "check": "tofu; rev is the v0.2.1 tag commit (threaded FFV1 encode)"
     },
     {
-      "name": "burns-rs", "version": "0.1.0",
-      "rev": "ed7c92efc9fd1ead902c0ff0e6912d5639c960db",
-      "url": "https://github.com/kylegrantlucas/burns-rs/archive/ed7c92efc9fd1ead902c0ff0e6912d5639c960db.tar.gz",
-      "file": "burns-rs-ed7c92efc9fd1ead902c0ff0e6912d5639c960db.tar.gz",
-      "sha256": "3840bfcc2b0e823384dcd3e5f70ac2494d848cf9dfa6c04835ea04075699325c",
-      "check": "tofu; rev is the v0.1.0 tag commit"
+      "name": "burns-rs", "version": "0.2.0", "mirror": true,
+      "rev": "6d09b29b92cbf661b0325dd6b5b24c5d04be211e",
+      "url": "https://github.com/kylegrantlucas/burns-rs/archive/6d09b29b92cbf661b0325dd6b5b24c5d04be211e.tar.gz",
+      "file": "burns-rs-6d09b29b92cbf661b0325dd6b5b24c5d04be211e.tar.gz",
+      "sha256": "b8539f0414bf11329e698cc75ef6bbc9821a04f11e0c0a9dd71dfd991e12c748",
+      "check": "tofu; rev is the v0.2.0 tag commit"
     },
     {
       "name": "onnxruntime", "version": "1.27.1",
@@ -91,11 +83,46 @@
       "check": "matches pkgs/ffglitch.nix sha256-JaWn1RIXkZ21oJOyEf2KHieEUoTvsKb2FrjzcfZjju8="
     },
     {
-      "name": "ffglitch-src", "version": "0.10.2", "rev": "225c210d02a30949e7d0443109c4cd2a8bea94d0",
+      "name": "ffglitch-src", "version": "0.10.2", "rev": "225c210d02a30949e7d0443109c4cd2a8bea94d0", "mirror": true,
       "url": "https://ffglitch.org/pub/src/ffglitch-0.10.2.tar.xz",
       "file": "ffglitch-0.10.2.tar.xz",
       "sha256": "7aecbbd4ce1b042846e43038be8b4cab16616505279d5310d33d16aa425ba46e",
       "check": "tofu; source of the macOS prebuilt (ffglitch-core 225c210, an FFmpeg 7.0 fork); the iOS build compiles it"
+    },
+    {
+      "name": "sdl2-src", "version": "2.30.8", "mirror": true,
+      "url": "https://github.com/libsdl-org/SDL/releases/download/release-2.30.8/SDL2-2.30.8.tar.gz",
+      "file": "SDL2-2.30.8.tar.gz",
+      "sha256": "380c295ea76b9bd72d90075793971c8bcb232ba0a69a9b14da4ae8f603350058",
+      "check": "tofu; library statically linked into the FFglitch 0.10.2 macOS prebuilt (its readme.txt)"
+    },
+    {
+      "name": "zlib-ng-src", "version": "2.2.2", "mirror": true,
+      "url": "https://github.com/zlib-ng/zlib-ng/archive/refs/tags/2.2.2.tar.gz",
+      "file": "zlib-ng-2.2.2.tar.gz",
+      "sha256": "fcb41dd59a3f17002aeb1bb21f04696c9b721404890bb945c5ab39d2cb69654c",
+      "check": "tofu; library statically linked into the FFglitch 0.10.2 macOS prebuilt (its readme.txt)"
+    },
+    {
+      "name": "rtmidi-src", "version": "6.0.0", "mirror": true,
+      "url": "https://github.com/thestk/rtmidi/archive/refs/tags/6.0.0.tar.gz",
+      "file": "rtmidi-6.0.0.tar.gz",
+      "sha256": "ef7bcda27fee6936b651c29ebe9544c74959d0b1583b716ce80a1c6fea7617f0",
+      "check": "tofu; library statically linked into the FFglitch 0.10.2 macOS prebuilt (its readme.txt)"
+    },
+    {
+      "name": "zeromq-src", "version": "4.3.1", "mirror": true,
+      "url": "https://github.com/zeromq/libzmq/releases/download/v4.3.1/zeromq-4.3.1.tar.gz",
+      "file": "zeromq-4.3.1.tar.gz",
+      "sha256": "bcbabe1e2c7d0eec4ed612e10b94b112dd5f06fcefa994a0c79a45d835cd21eb",
+      "check": "tofu; library statically linked into the FFglitch 0.10.2 macOS prebuilt (its readme.txt)"
+    },
+    {
+      "name": "gstreamer-src", "version": "1.28.8", "mirror": true, "mirrorOnly": true,
+      "url": "https://gstreamer.freedesktop.org/data/pkg/src/1.28.8/cerbero-1.28.8.tar.xz",
+      "file": "cerbero-1.28.8.tar.xz",
+      "sha256": "81cf10e536d3829bd6993efc3d0cd08ddcda9383d5eb30db5b772a6505589382",
+      "check": "upstream cerbero-1.28.8.tar.xz.sha256sum; complete source of the bundled GStreamer runtime"
     },
     {
       "name": "reactive-vcr", "version": "0.4.1",
@@ -105,7 +132,7 @@
       "check": "upstream SHA256SUMS; only the CLI (reactive-vcr.app/Contents/MacOS/reactive-vcr) ships. It is built against the same official GStreamer 1.28.8 runtime and loads it via @executable_path/../Frameworks, so it runs on the bundled framework"
     },
     {
-      "name": "ffglitch-scripts", "version": "3ae36ef",
+      "name": "ffglitch-scripts", "version": "3ae36ef", "mirror": true,
       "rev": "3ae36ef943a7fdaedd130cd884b13ae59af1dde4",
       "url": "https://github.com/ramiropolla/ffglitch-scripts/archive/3ae36ef943a7fdaedd130cd884b13ae59af1dde4.tar.gz",
       "file": "ffglitch-scripts-3ae36ef943a7fdaedd130cd884b13ae59af1dde4.tar.gz",
@@ -120,7 +147,7 @@
       "check": "upstream sha256sum.txt (official release binary; links only libSystem)"
     },
     {
-      "name": "sox", "version": "14.4.2",
+      "name": "sox", "version": "14.4.2", "mirror": true,
       "url": "https://downloads.sourceforge.net/project/sox/sox/14.4.2/sox-14.4.2.tar.bz2",
       "file": "sox-14.4.2.tar.bz2",
       "sha256": "81a6956d4330e75b5827316e44ae381e6f1e8928003c6aa45896da9041ea149c",
@@ -134,31 +161,31 @@
       "check": "tofu; build-time only (generates app/Glitchbox.xcodeproj), never bundled"
     },
     {
-      "name": "bash", "version": "5.3",
+      "name": "bash", "version": "5.3", "mirror": true,
       "url": "https://ftp.gnu.org/gnu/bash/bash-5.3.tar.gz",
       "file": "bash-5.3.tar.gz",
       "sha256": "0d5cd86965f869a26cf64f4b71be7b96f90a3ba8b3d74e27e8e9d9d5550f31ba",
       "check": "tofu (GNU signs with .sig)"
     },
-    { "name": "bash-patch", "version": "001", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-001", "file": "bash53-001", "sha256": "1f608434364af86b9b45c8b0ea3fb3b165fb830d27697e6cdfc7ac17dee3287f", "check": "tofu" },
-    { "name": "bash-patch", "version": "002", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-002", "file": "bash53-002", "sha256": "e385548a00130765ec7938a56fbdca52447ab41fabc95a25f19ade527e282001", "check": "tofu" },
-    { "name": "bash-patch", "version": "003", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-003", "file": "bash53-003", "sha256": "f245d9c7dc3f5a20d84b53d249334747940936f09dc97e1dcb89fc3ab37d60ed", "check": "tofu" },
-    { "name": "bash-patch", "version": "004", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-004", "file": "bash53-004", "sha256": "9591d245045529f32f0812f94180b9d9ce9023f5a765c039b852e5dfc99747d0", "check": "tofu" },
-    { "name": "bash-patch", "version": "005", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-005", "file": "bash53-005", "sha256": "cca1ef52dbbf433bc98e33269b64b2c814028efe2538be1e2c9a377da90bc99d", "check": "tofu" },
-    { "name": "bash-patch", "version": "006", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-006", "file": "bash53-006", "sha256": "29119addefed8eff91ae37fd51822c31780ee30d4a28376e96002706c995ff10", "check": "tofu" },
-    { "name": "bash-patch", "version": "007", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-007", "file": "bash53-007", "sha256": "c0976bbfffa1453c7cfdd62058f206a318568ff2d690f5d4fa048793fa3eb299", "check": "tofu" },
-    { "name": "bash-patch", "version": "008", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-008", "file": "bash53-008", "sha256": "097cd723cbfb8907674ac32214063a3fd85282657ec5b4e544d2c0f719653fb4", "check": "tofu" },
-    { "name": "bash-patch", "version": "009", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-009", "file": "bash53-009", "sha256": "eee30fe78a4b0cb2fe20e010e00308899cfc613e0774ebb3c8557a1552f24f8c", "check": "tofu" },
-    { "name": "bash-patch", "version": "010", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-010", "file": "bash53-010", "sha256": "cf76f1cce2ea300c18bff9f002d21f280cc931acd17c28518110b93fe6e72569", "check": "tofu" },
-    { "name": "bash-patch", "version": "011", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-011", "file": "bash53-011", "sha256": "0298df8f5ea2a31d3be43ed7d269c5b3c7c342dd5b570bea7f64d66dcbbe7531", "check": "tofu" },
-    { "name": "bash-patch", "version": "012", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-012", "file": "bash53-012", "sha256": "d71379b39bebaedaf123414414e77fb458a0a43b9ad3116594c6df7ca6754573", "check": "tofu" },
-    { "name": "bash-patch", "version": "013", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-013", "file": "bash53-013", "sha256": "042f9cda967e24bf4211944697441e93d06ff42b4b998629a98a1b249279f200", "check": "tofu" },
-    { "name": "bash-patch", "version": "014", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-014", "file": "bash53-014", "sha256": "bd4360b401d38507e358783dcad8536a99c6789f0d3a5bd0cfb8c4a34144696c", "check": "tofu" },
-    { "name": "bash-patch", "version": "015", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-015", "file": "bash53-015", "sha256": "55b79ceee2fc27f6767eed697e939a7eb2fe2a28c01556bd75f18d581014f46e", "check": "tofu" },
-    { "name": "bash-patch", "version": "016", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-016", "file": "bash53-016", "sha256": "9ea29b266b7d24cb34d0ff3f1c4631e4d527bfe2d1ef15d17cdb924bf31ef767", "check": "tofu" },
-    { "name": "bash-patch", "version": "017", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-017", "file": "bash53-017", "sha256": "443b927b45c1558ca72052410f8b8f6e5152b617ed707061a2781d4375b0d1c3", "check": "tofu" },
-    { "name": "bash-patch", "version": "018", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-018", "file": "bash53-018", "sha256": "ae715d76c50341d7d7095e9a8d2eeed1ca9546152c2ac7289206f90cf30ac697", "check": "tofu" },
-    { "name": "bash-patch", "version": "019", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-019", "file": "bash53-019", "sha256": "a25c581e4d0057dea3833918438a930e2e86ee4c6dc17fe15267b7f04cbc4e3d", "check": "tofu" },
-    { "name": "bash-patch", "version": "020", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-020", "file": "bash53-020", "sha256": "df217ed3a9122aa2286d9b67bbe348661b6a9db262b580c29150dae55d532896", "check": "tofu" }
+    { "name": "bash-patch", "version": "001", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-001", "file": "bash53-001", "sha256": "1f608434364af86b9b45c8b0ea3fb3b165fb830d27697e6cdfc7ac17dee3287f", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "002", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-002", "file": "bash53-002", "sha256": "e385548a00130765ec7938a56fbdca52447ab41fabc95a25f19ade527e282001", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "003", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-003", "file": "bash53-003", "sha256": "f245d9c7dc3f5a20d84b53d249334747940936f09dc97e1dcb89fc3ab37d60ed", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "004", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-004", "file": "bash53-004", "sha256": "9591d245045529f32f0812f94180b9d9ce9023f5a765c039b852e5dfc99747d0", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "005", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-005", "file": "bash53-005", "sha256": "cca1ef52dbbf433bc98e33269b64b2c814028efe2538be1e2c9a377da90bc99d", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "006", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-006", "file": "bash53-006", "sha256": "29119addefed8eff91ae37fd51822c31780ee30d4a28376e96002706c995ff10", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "007", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-007", "file": "bash53-007", "sha256": "c0976bbfffa1453c7cfdd62058f206a318568ff2d690f5d4fa048793fa3eb299", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "008", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-008", "file": "bash53-008", "sha256": "097cd723cbfb8907674ac32214063a3fd85282657ec5b4e544d2c0f719653fb4", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "009", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-009", "file": "bash53-009", "sha256": "eee30fe78a4b0cb2fe20e010e00308899cfc613e0774ebb3c8557a1552f24f8c", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "010", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-010", "file": "bash53-010", "sha256": "cf76f1cce2ea300c18bff9f002d21f280cc931acd17c28518110b93fe6e72569", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "011", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-011", "file": "bash53-011", "sha256": "0298df8f5ea2a31d3be43ed7d269c5b3c7c342dd5b570bea7f64d66dcbbe7531", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "012", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-012", "file": "bash53-012", "sha256": "d71379b39bebaedaf123414414e77fb458a0a43b9ad3116594c6df7ca6754573", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "013", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-013", "file": "bash53-013", "sha256": "042f9cda967e24bf4211944697441e93d06ff42b4b998629a98a1b249279f200", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "014", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-014", "file": "bash53-014", "sha256": "bd4360b401d38507e358783dcad8536a99c6789f0d3a5bd0cfb8c4a34144696c", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "015", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-015", "file": "bash53-015", "sha256": "55b79ceee2fc27f6767eed697e939a7eb2fe2a28c01556bd75f18d581014f46e", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "016", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-016", "file": "bash53-016", "sha256": "9ea29b266b7d24cb34d0ff3f1c4631e4d527bfe2d1ef15d17cdb924bf31ef767", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "017", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-017", "file": "bash53-017", "sha256": "443b927b45c1558ca72052410f8b8f6e5152b617ed707061a2781d4375b0d1c3", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "018", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-018", "file": "bash53-018", "sha256": "ae715d76c50341d7d7095e9a8d2eeed1ca9546152c2ac7289206f90cf30ac697", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "019", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-019", "file": "bash53-019", "sha256": "a25c581e4d0057dea3833918438a930e2e86ee4c6dc17fe15267b7f04cbc4e3d", "check": "tofu", "mirror": true },
+    { "name": "bash-patch", "version": "020", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-020", "file": "bash53-020", "sha256": "df217ed3a9122aa2286d9b67bbe348661b6a9db262b580c29150dae55d532896", "check": "tofu", "mirror": true }
   ]
 }

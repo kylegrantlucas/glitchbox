@@ -92,7 +92,8 @@
         "-y",
         "{out}"
       ],
-      "name" : "filter"
+      "name" : "filter",
+      "native" : "block-glitch"
     }
   ],
   "summary" : "Random block shifting and color glitches (frei0r glitch0r). frei0r effect; random-driven effects differ between renders (the cache keeps the first)."

@@ -13,15 +13,15 @@
  * Log routing. av_log's callback is process-wide, but a run's log must hold
  * only that run's lines. Every thread carries a run tag (gb_thread_run): run_tool
  * tags its calling thread, and gb_pthread_create (gb_thread_tag.c; ffmpeg.sh
- * force-includes gb_thread_tag.h into the fftools, every libav* library, and
- * x264) gives each new thread its creator's tag. A run's scheduler, demux, decode,
- * filter, encode and mux threads, and the worker threads libavcodec,
- * libavfilter and x264 start from them, therefore log into the run; a thread
+ * force-includes gb_thread_tag.h into the fftools and every libav* library)
+ * gives each new thread its creator's tag. A run's scheduler, demux, decode,
+ * filter, encode and mux threads, and the worker threads libavcodec and
+ * libavfilter start from them, therefore log into the run; a thread
  * the host started (e.g. GBMedia decoding with libav directly) has tag 0 and
  * its lines go to stderr, filtered by the level the host had before the run
  * (the run's -loglevel changes the global level only for the run's own
- * lines). Threads started by system frameworks (VideoToolbox, libc++
- * std::async in frei0r's kaleid0sc0pe) are untagged: their rare av_log lines
+ * lines). Threads started by system frameworks (VideoToolbox) are untagged:
+ * their rare av_log lines
  * go to stderr, never into a run's log.
  *
  * A run waiting for another to finish (run_lock) polls its cancel atom and

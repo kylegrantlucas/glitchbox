@@ -91,22 +91,22 @@ chain INPUT SEED="42": _toolchain
 
     ffmpeg -hide_banner -nostdin -loglevel error -i "$b" \
       -fflags +bitexact -flags:v +bitexact -map_metadata -1 -map_chapters -1 \
-      -c:v libx264 -preset veryslow -crf 18 -pix_fmt yuv420p \
-      -y "$dir/out.mp4"
+      -c:v ffv1 -level 3 -g 1 -slices 4 -slicecrc 1 -pix_fmt yuv420p \
+      -y "$dir/out.mkv"
 
     jq -S -n \
       --arg chain_id "$cid" \
       --arg input "{{INPUT}}" \
       --arg input_sha256 "$(sha256sum "{{INPUT}}" | cut -d' ' -f1)" \
-      --arg output_sha256 "$(sha256sum "$dir/out.mp4" | cut -d' ' -f1)" \
+      --arg output_sha256 "$(sha256sum "$dir/out.mkv" | cut -d' ' -f1)" \
       --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
       --argjson stages "[$(cat "$(dirname "$a")/manifest.json"),$(cat "$(dirname "$b")/manifest.json")]" \
       '{schema:"1",chain_id:$chain_id,input:$input,input_sha256:$input_sha256,
-        output:"out.mp4",output_sha256:$output_sha256,
+        output:"out.mkv",output_sha256:$output_sha256,
         generated_at:$generated_at,stages:$stages}' > "$dir/manifest.json"
 
     echo "  chain-$cid -> ${dir#{{root}}/}" >&2
-    echo "$dir/out.mp4"
+    echo "$dir/out.mkv"
 
 # Run a chain twice into separate trees and assert byte-identical output.
 verify-repro INPUT SEED="42": _toolchain

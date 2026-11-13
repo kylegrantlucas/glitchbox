@@ -545,7 +545,6 @@ static const char *codec_name(int codec) {
     switch (codec) {
     case GBM_CODEC_FFV1: return "ffv1";
     case GBM_CODEC_FFVHUFF: return "ffvhuff";
-    case GBM_CODEC_LIBX264: return "libx264";
     }
     return NULL;
 }

@@ -85,7 +85,7 @@ extension InProcessTests {
     }
 
     @Test func cancelFFmpegStep() async throws {
-        try await cancelMidStep(plugin: "plasma-distort")
+        try await cancelMidStep(plugin: "pixel-smear")
     }
 
     /// An export (probe + encode) running beside a render completes, waiting its turn for the

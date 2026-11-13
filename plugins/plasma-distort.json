@@ -91,7 +91,8 @@
         "-y",
         "{out}"
       ],
-      "name" : "filter"
+      "name" : "filter",
+      "native" : "plasma-distort"
     }
   ],
   "summary" : "Wobble the image along a moving plasma field (frei0r distort0r)."

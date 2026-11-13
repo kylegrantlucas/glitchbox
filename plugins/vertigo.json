@@ -67,7 +67,8 @@
         "-y",
         "{out}"
       ],
-      "name" : "filter"
+      "name" : "filter",
+      "native" : "vertigo"
     }
   ],
   "summary" : "Feedback blend with a zoomed, rotating copy of the previous frame (frei0r vertigo)."

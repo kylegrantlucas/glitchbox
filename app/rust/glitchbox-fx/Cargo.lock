@@ -93,6 +93,7 @@ dependencies = [
  "ntsc-rs 0.1.2 (git+https://github.com/valadaptive/ntsc-rs?rev=add90f5bf1bf7e3c573e4e945a16f44a82941b51)",
  "rayon",
  "reactive-vcr",
+ "serde_json",
 ]
 
 [[package]]

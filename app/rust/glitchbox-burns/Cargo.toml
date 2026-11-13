@@ -15,9 +15,9 @@ name = "glitchbox_burns"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# burns-rs v0.1.0 (the same commit as the macOS `burns` helper; sources.json `burns-rs`).
-burns = { git = "https://github.com/kylegrantlucas/burns-rs", rev = "ed7c92efc9fd1ead902c0ff0e6912d5639c960db" }
-burns-depth = { git = "https://github.com/kylegrantlucas/burns-rs", rev = "ed7c92efc9fd1ead902c0ff0e6912d5639c960db", features = ["native"] }
+# burns-rs v0.2.0 (the same commit as the macOS `burns` helper; sources.json `burns-rs`).
+burns = { git = "https://github.com/kylegrantlucas/burns-rs", rev = "6d09b29b92cbf661b0325dd6b5b24c5d04be211e" }
+burns-depth = { git = "https://github.com/kylegrantlucas/burns-rs", rev = "6d09b29b92cbf661b0325dd6b5b24c5d04be211e", features = ["native"] }
 pollster = "0.4"
 # burns's own wgpu (exact pin), for the device request in gpu_context.
 wgpu = { version = "=30.0.1", default-features = false }

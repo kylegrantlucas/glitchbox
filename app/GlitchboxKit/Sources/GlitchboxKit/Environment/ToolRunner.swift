@@ -23,7 +23,8 @@ public protocol ToolRunner: Sendable {
     /// Cancelling the calling task stops the tool and returns (throwing `CancellationError`)
     /// only after it has stopped.
     func run(_ invocation: ToolInvocation) async throws -> Int32
-    /// The engine-provided implementation of a plugin step's `native` id, if this runner has one.
+    /// The engine-provided implementation of a plugin step's `native` id, if this runner has
+    /// one. When it does, the step runs natively even if the runner could spawn its argv/script.
     func native(_ id: String) -> (any NativeStep)?
 }
 

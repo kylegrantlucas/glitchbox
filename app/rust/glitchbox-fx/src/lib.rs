@@ -1,16 +1,18 @@
 //! C ABI over the media-free effect cores behind Glitchbox's analog-pass
 //! (ntsc-rs), bender (bender-rs), and reactive-vcr plugins, for hosts that
-//! cannot spawn the GStreamer CLIs (iOS). `include/glitchbox_fx.h` is the
-//! contract: every function there documents how a host must drive it to
-//! reproduce the macOS CLI's output.
+//! cannot spawn the GStreamer CLIs (iOS), plus original pixel effects
+//! (`pixel`) standing in for the five frei0r plugins there.
+//! `include/glitchbox_fx.h` is the contract: every function there documents
+//! how a host must drive it to reproduce the macOS CLI's output.
 //!
 //! Every entry point catches panics; errors come back as strings allocated
 //! here and released with `gbfx_string_free`. Handles are `Send + Sync`: an
-//! ntsc handle is immutable, and bender/reactive-vcr handles serialize their
-//! per-stream state behind a mutex.
+//! ntsc handle is immutable, and bender/reactive-vcr/pixel handles serialize
+//! their per-stream state behind a mutex.
 
 pub mod bend;
 pub mod ntsc;
+pub mod pixel;
 pub mod reactive;
 
 use std::ffi::{CStr, CString, c_char, c_int};
@@ -20,6 +22,7 @@ use std::sync::Mutex;
 
 pub use bend::Bender;
 pub use ntsc::Ntsc;
+pub use pixel::Pixel;
 pub use reactive::Reactive;
 
 /// Status codes returned by the frame functions.
@@ -452,6 +455,52 @@ pub unsafe extern "C" fn gbfx_reactive_apply(
             } else {
                 GBFX_DROPPED
             })
+        })
+    }
+}
+
+// pixel effects
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn gbfx_pixel_new(effect: *const c_char, params_json: *const c_char, error: *mut *mut c_char) -> *mut Pixel {
+    unsafe {
+        guard(error, std::ptr::null_mut(), || {
+            let effect = c_str(effect, "effect")?;
+            let params = opt_c_str(params_json, "params_json")?;
+            Pixel::new(effect, params).map(|p| Box::into_raw(Box::new(p)))
+        })
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn gbfx_pixel_free(pixel: *mut Pixel) {
+    if !pixel.is_null() {
+        let _ = catch_unwind(AssertUnwindSafe(|| drop(unsafe { Box::from_raw(pixel) })));
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn gbfx_pixel_apply(
+    pixel: *mut Pixel,
+    src: *const u8,
+    src_stride: usize,
+    dst: *mut u8,
+    dst_stride: usize,
+    width: u32,
+    height: u32,
+    frame_index: u64,
+    time_s: f64,
+    error: *mut *mut c_char,
+) -> c_int {
+    unsafe {
+        guard(error, GBFX_ERROR, || {
+            let pixel = handle(pixel.cast_const(), "pixel")?;
+            let (w, h) = (width as usize, height as usize);
+            let row = w.checked_mul(4).ok_or("width overflows")?;
+            let s = frame_slice(src, src_stride, row, h, "src")?;
+            let d = frame_slice_mut(dst, dst_stride, row, h, "dst")?;
+            pixel.apply_rgba8(s, src_stride, d, dst_stride, w, h, frame_index, time_s)?;
+            Ok(GBFX_OK)
         })
     }
 }

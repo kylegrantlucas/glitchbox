@@ -1,8 +1,8 @@
 #!/bin/bash
 # packaging/build.sh — no-Nix build of Glitchbox.app and its DMG.
 #
-#   packaging/build.sh [tools|app|dmg|all|verify]      (default: all)
-#   packaging/build.sh [ios-tools|ios-app|ios-install|stage NAME...]
+#   packaging/build.sh [tools|app|dmg|all|verify|notarize|sources]   (default: all)
+#   packaging/build.sh [ios-tools|ios-app|ios-install|ios-archive|stage NAME...]
 #
 #   tools   fetch + verify every input in packaging/sources.json, build the
 #           toolchain, assemble it into build/stage/Contents, verify it.
@@ -12,12 +12,20 @@
 #   dmg     build/dist/Glitchbox-<packaging/VERSION>.dmg from the app.
 #   all     tools, app, dmg.
 #   verify  re-run verification on build/Glitchbox.app (or the staging).
+#   notarize  notarize and staple build/Glitchbox.app, rebuild the DMG around
+#           it, notarize and staple that (needs a Developer ID identity and
+#           the GLITCHBOX_NOTARY_* key).
+#   sources build/dist/Glitchbox-<VERSION>-sources.tar: the release's complete
+#           corresponding source (git archive HEAD, every `mirror` input,
+#           vendored Rust crates). Needs a clean, committed checkout.
 #
 #   ios-tools    build the iOS toolchain stages (packaging/ios/*.sh) into
 #                build/ios/xcframeworks and app/GlitchboxInProcess/Artifacts.
 #   ios-app      ios-tools + build/ios/Toolchain + xcodegen (with app/ios.yml)
 #                + a signed Release device build: build/ios/Glitchbox.app.
 #   ios-install  install build/ios/Glitchbox.app on $GLITCHBOX_DEVICE.
+#   ios-archive  ios-tools + build/ios/Toolchain + an App Store archive,
+#                exported to build/ios/export/Glitchbox.ipa.
 #   stage NAME…  run the named stages only (e.g. ios_ffmpeg).
 #
 # Build machine: Xcode 27, cargo/rustc >= 1.97 (burns-rs needs 1.97), cmake,
@@ -29,6 +37,11 @@
 # Environment:
 #   GLITCHBOX_SIGN_IDENTITY  codesign identity (default "-", ad-hoc). A real
 #                            identity also enables the hardened runtime.
+#   GLITCHBOX_NOTARY_KEY_FILE, GLITCHBOX_NOTARY_KEY_ID, GLITCHBOX_NOTARY_ISSUER
+#                            App Store Connect API key (.p8 path, key ID,
+#                            issuer ID) for `notarize`.
+#   GLITCHBOX_BUILD_NUMBER   iOS build number for `ios-archive` (default: the
+#                            commit count).
 #   CARGO RUSTC CMAKE        override tool resolution.
 #
 # Stages stamp build/stamps/<stage> with a hash of their recipe, their pinned
@@ -59,7 +72,7 @@ VERSION=$(tr -d '[:space:]' < "$PKG/VERSION")
 BUILD=$ROOT/build
 DL=$BUILD/downloads
 WORK=$BUILD/work
-PREFIX=$BUILD/prefix          # x264/frei0r install prefix + finished binaries
+PREFIX=$BUILD/prefix          # frei0r install prefix + finished binaries
 STAMPS=$BUILD/stamps
 LOGS=$BUILD/logs
 TOOLBIN=$BUILD/toolbin
@@ -77,10 +90,10 @@ JOBS=$(sysctl -n hw.ncpu)
 # Traced with GST_DEBUG=GST_PLUGIN_LOADING:4 over ntsc-rs-cli (ffv1 and PNG
 # output), bender, and reactive-vcr (including --audio-mode mix) on
 # MKV/MP4/MOV/AVI inputs with FFV1, H.264, HEVC, ProRes, MPEG-4 and MJPEG video,
-# PNG/JPEG stills, and WAV/FLAC/AAC/MP3/Vorbis/Opus audio. x264 is the H.264
-# encoder behind `ntsc-rs-cli -c h264`, `bender --codec h264`, and reactive-vcr
-# .mp4 output (with isomp4's mp4mux and libav's avenc_aac); it is the one GPL
-# plugin. Added untraced, for the same input families: interlace (ntsc-rs
+# PNG/JPEG stills, and WAV/FLAC/AAC/MP3/Vorbis/Opus audio. No H.264 encoder
+# ships: x264 is gone, so the tools write FFV1/PNG (reactive-vcr .mp4 output,
+# ntsc-rs-cli -c h264, and bender --codec h264 are unavailable). Added
+# untraced, for the same input families: interlace (ntsc-rs
 # interlaced output), dav1d (AV1), mpegpsdemux/mpegtsdemux (.mpg/.ts), aiff,
 # apetag, jpeg. Decoding goes through gst-libav's LGPL FFmpeg. applemedia
 # (VideoToolbox) is left out: its vtdec fails on ProRes, and software decodes
@@ -90,7 +103,7 @@ GST_PLUGINS="coreelements playback typefindfunctions
   audioconvert audioresample audiomixer audiotestsrc volume
   libav dav1d matroska isomp4 avi mpegpsdemux mpegtsdemux ogg wavparse aiff flac
   audioparsers videoparsersbad id3demux apetag mpg123 opus vorbis
-  png jpeg jpegformat multifile x264"
+  png jpeg jpegformat multifile"
 
 log() { printf '==> %s\n' "$*" >&2; }
 die() { printf 'build.sh: %s\n' "$*" >&2; exit 1; }
@@ -140,9 +153,13 @@ lock_field() { # NAME FIELD -> value of the first lock entry with that name
 }
 src() { printf '%s/%s\n' "$DL" "$(lock_field "$1" file)"; }
 
-fetch() {
+# `fetch` gets every build input; `fetch all` also the mirrorOnly ones (the
+# source bundle's extra archives, never needed to build).
+fetch() { # [all]
   mkdir -p "$DL"
-  local file url sum got
+  local file url sum got all=false n
+  [ "${1:-}" != all ] || all=true
+  local filter='.sources[] | select($all or (.mirrorOnly != true))'
   while IFS=$'\t' read -r file url sum; do
     if [ -f "$DL/$file" ] && [ "$(sha256 "$DL/$file")" = "$sum" ]; then continue; fi
     log "fetch $file"
@@ -153,8 +170,9 @@ fetch() {
       die "sha256 mismatch for $file: got $got, want $sum"
     fi
     mv "$DL/$file.part" "$DL/$file"
-  done < <("$JQ" -r '.sources[] | [.file, .url, .sha256] | @tsv' "$LOCK")
-  log "fetch: $("$JQ" '.sources | length' "$LOCK") inputs verified"
+  done < <("$JQ" -r --argjson all "$all" "$filter | [.file, .url, .sha256] | @tsv" "$LOCK")
+  n=$("$JQ" --argjson all "$all" "[$filter] | length" "$LOCK")
+  log "fetch: $n inputs verified"
 }
 
 unpack() { # NAME DEST: extract a source tarball, stripping its top directory
@@ -168,8 +186,8 @@ stage_deps() {
   case $1 in
     gst) ;;
     gst_runtime) echo gst ;;
-    x264 | frei0r | sox | bash) echo gst ;; # gst provides pkg-config
-    ffmpeg) echo "gst x264 frei0r" ;;
+    frei0r | sox | bash) echo gst ;; # gst provides pkg-config
+    ffmpeg) echo "gst frei0r" ;;
     ntsc_rs | bender | burns) echo gst ;;
     licenses) echo gst ;; # GStreamer's share/licenses
   esac
@@ -182,7 +200,7 @@ stage_srcs() {
     bender) echo bender-rs ;;
     burns) echo burns-rs ;;
     bash) echo "bash bash-patch" ;;
-    licenses) echo "ffmpeg x264 frei0r sox bash ntsc-rs bender-rs burns-rs onnxruntime ffglitch ffglitch-scripts reactive-vcr" ;;
+    licenses) echo "ffmpeg frei0r sox bash ntsc-rs bender-rs burns-rs onnxruntime ffglitch ffglitch-src sdl2-src zlib-ng-src rtmidi-src zeromq-src ffglitch-scripts reactive-vcr" ;;
     ios_*) eval "printf '%s\n' \"\${${1}_srcs:-}\"" ;;
     *) echo "$1" ;;
   esac
@@ -368,17 +386,6 @@ build_gst_runtime() {
 }
 
 # --- Native helpers ----------------------------------------------------------
-build_x264() {
-  local s=$WORK/x264
-  unpack x264 "$s"
-  cd "$s"
-  menv ./configure --prefix="$PREFIX" --enable-static --enable-pic \
-    --disable-cli --disable-opencl
-  menv make -j"$JOBS"
-  menv make install
-  rm -rf "$s"
-}
-
 # Every plugin that builds without extra deps: OpenCV, Cairo, and gavl are
 # switched off, and CMake may not search /usr/local, Homebrew, or its own
 # (Nix) prefix. vf_frei0r looks for "<name>$SLIBSUF" — ".dylib" on darwin —
@@ -401,10 +408,11 @@ build_frei0r() {
   rm -rf "$s"
 }
 
-# Static GPL build: libx264 (static) + frei0r, Apple's VideoToolbox and
-# AudioToolbox, system zlib/bzip2/iconv only (--disable-autodetect). Every
-# native filter, encoder, and muxer is compiled in (ffv1, png, pcm_s16le,
-# libx264; matroska/mp4/avi; geq, lagfun, tblend, datascope, rgbashift, …).
+# Static GPL build (frei0r is GPL): frei0r, Apple's VideoToolbox and
+# AudioToolbox, system zlib/bzip2/iconv only (--disable-autodetect). No x264:
+# H.264/HEVC encoding is VideoToolbox's. Every native filter, encoder, and
+# muxer is compiled in (ffv1, png, pcm_s16le, h264_videotoolbox;
+# matroska/mp4/avi; geq, lagfun, tblend, datascope, rgbashift, …).
 # --prefix only seeds the data-dir string; nothing is installed there. With
 # --disable-autodetect configure takes iconv to be libc's: its probe links,
 # ffmpeg_g does not, so libiconv (/usr/lib) is named explicitly.
@@ -416,7 +424,7 @@ build_ffmpeg() {
     --prefix=/var/empty --cc=/usr/bin/clang --cxx=/usr/bin/clang++ \
     --pkg-config=pkg-config --pkg-config-flags=--static \
     --disable-autodetect --enable-static --disable-shared \
-    --enable-gpl --enable-libx264 --enable-frei0r \
+    --enable-gpl --enable-frei0r \
     --enable-videotoolbox --enable-audiotoolbox \
     --enable-zlib --enable-bzlib --enable-iconv --extra-libs=-liconv \
     --disable-ffplay --disable-doc --disable-debug
@@ -569,8 +577,9 @@ build_licenses() {
   [ -n "$CARGO_ABOUT" ] || die "licenses: cargo-about not found (cargo install cargo-about --locked --version 0.9.2)"
   rm -rf "$LIC"
   lic_copy ffmpeg ffmpeg COPYING.GPLv2 COPYING.GPLv3 COPYING.LGPLv2.1 COPYING.LGPLv3 LICENSE.md
-  lic_copy x264 x264 COPYING
   lic_copy frei0r frei0r COPYING
+  # kaleid0sc0pe and vertigo are GPL-3.0-or-later; frei0r ships no GPLv3 text.
+  lic_copy ffmpeg frei0r COPYING.GPLv3
   lic_copy sox sox COPYING LICENSE.GPL LICENSE.LGPL
   lic_copy bash bash COPYING
   lic_copy ntsc-rs ntsc-rs LICENSE-MIT LICENSE-APACHE-2.0 LICENSE-ISC
@@ -579,10 +588,23 @@ build_licenses() {
   lic_copy onnxruntime onnxruntime LICENSE ThirdPartyNotices.txt
   lic_copy ffglitch-scripts ffglitch-scripts LICENSE
   lic_copy reactive-vcr reactive-vcr LICENSE THIRD_PARTY_LICENSES.html GSTREAMER-NOTICE.txt
-  mkdir -p "$LIC/ffglitch" "$LIC/jq"
+  # The prebuilt FFglitch is configured --enable-gpl; its own files are
+  # LGPL-2.1-or-later or MIT. readme.txt lists what it links statically
+  # (SDL2, zlib-ng, RtMidi, ZeroMQ), whose licences sit beside it.
+  lic_copy ffglitch-src ffglitch COPYING.LGPLv2.1 COPYING.GPLv2 LICENSE.md
+  mkdir -p "$LIC/ffglitch/quickjs" "$LIC/jq" "$WORK/lic-qjs"
   unzip -p "$(src ffglitch)" '*/readme.txt' > "$LIC/ffglitch/readme.txt"
+  tar -xf "$(src ffglitch-src)" -C "$WORK/lic-qjs" --strip-components 1 '*/libavutil/quickjs/LICENSE'
+  cp "$WORK/lic-qjs/libavutil/quickjs/LICENSE" "$LIC/ffglitch/quickjs/LICENSE"
+  rm -rf "$WORK/lic-qjs"
+  lic_copy sdl2-src ffglitch/sdl2 LICENSE.txt
+  lic_copy zlib-ng-src ffglitch/zlib-ng LICENSE.md
+  lic_copy rtmidi-src ffglitch/rtmidi LICENSE
+  lic_copy zeromq-src ffglitch/zeromq COPYING COPYING.LESSER
   cp "$PKG/licenses/jq/COPYING" "$LIC/jq/COPYING"
   cp -R "$GST_SDK/$GST_V/share/licenses" "$LIC/gstreamer"
+  # The x264 plugin is not in GST_PLUGINS, so its licence does not apply.
+  rm -rf "$LIC/gstreamer/x264"
   crate_licenses ntsc-rs crates/gui/Cargo.toml "$LIC/ntsc-rs/crates.html"
   crate_licenses bender-rs crates/bender-cli/Cargo.toml "$LIC/bender-rs/crates.html"
   crate_licenses burns-rs crates/burns-cli/Cargo.toml "$LIC/burns-rs/crates.html"
@@ -591,28 +613,33 @@ build_licenses() {
 # Credits.html rows: sources.json name|shown name|licence|role|source (empty:
 # its pinned URL)|licenses/ dir. Versions come from sources.json.
 CREDITS='ffmpeg|FFmpeg|GPL-2.0-or-later (built with --enable-gpl)|decoding, encoding, and the ffmpeg filters||ffmpeg
-x264|x264|GPL-2.0-or-later|H.264 encoding, linked into FFmpeg||x264
-frei0r|frei0r|GPL-2.0-or-later|the frei0r effect plugins||frei0r
-gstreamer-runtime|GStreamer|LGPL-2.1-or-later; plugins under their own licences (x264enc is GPL)|media framework for ntsc-rs, bender, and reactive-vcr|https://gstreamer.freedesktop.org/src/|gstreamer
+frei0r|frei0r|GPL-2.0-or-later; kaleid0sc0pe and vertigo GPL-3.0-or-later|the frei0r effect plugins||frei0r
+gstreamer-runtime|GStreamer|LGPL-2.1-or-later; plugins under their own licences|media framework for ntsc-rs, bender, and reactive-vcr|https://gstreamer.freedesktop.org/src/|gstreamer
 ntsc-rs|ntsc-rs|GPL-3.0 (ntsc-rs-cli); core MIT, ISC, or Apache-2.0|NTSC and VHS emulation||ntsc-rs
 bender-rs|bender-rs|MIT or Apache-2.0|circuit-bent video hardware||bender-rs
 burns-rs|burns|MIT or Apache-2.0|still-image camera motion (Still Motion)||burns-rs
 onnxruntime|ONNX Runtime|MIT|on-device depth estimation for burns|https://github.com/microsoft/onnxruntime|onnxruntime
 reactive-vcr|reactive-vcr|MIT|audio-reactive VCR artifacts|https://github.com/kylegrantlucas/reactive-vcr|reactive-vcr
-ffglitch|FFglitch|GPL-2.0-or-later; includes QuickJS (MIT)|bitstream editing: ffgac, ffedit, fflive, qjs|https://ffglitch.org/pub/src/ffglitch-{v}.tar.xz|ffglitch
+ffglitch|FFglitch|GPL-2.0-or-later; includes QuickJS (MIT); statically includes SDL2 (Zlib), zlib-ng (Zlib), RtMidi (MIT), ZeroMQ 4.3.1 (LGPL-3.0-or-later with static-linking exception)|bitstream editing: ffgac, ffedit, fflive, qjs|https://ffglitch.org/pub/src/ffglitch-{v}.tar.xz|ffglitch
 ffglitch-scripts|ffglitch-scripts|Unlicense|the DD-GlitchAssist scripts behind MV Script||ffglitch-scripts
 sox|SoX|GPL-2.0-or-later|audio in the pipelines||sox
 bash|GNU Bash|GPL-3.0-or-later|runs the pipeline and plugin scripts||bash
 jq|jq|MIT|JSON in the pipelines|https://github.com/jqlang/jq|jq'
 
-# Shared by both apps: TABLE (default $CREDITS) and WHERE, the sentence saying
-# where the licence texts are.
-write_credits() { # OUT [TABLE [WHERE]]
+# Where the complete corresponding source of a build is: the release's
+# Glitchbox-<VERSION>-sources.tar (packaging/build.sh sources).
+RELEASE_URL=https://github.com/kylegrantlucas/glitchbox/releases/tag/v$VERSION
+SOURCE_OFFER="The complete corresponding source of this build, including every bundled tool, is attached to its release: <a href=\"$RELEASE_URL\">${RELEASE_URL#https://}</a>."
+
+# Shared by both apps: TABLE (default $CREDITS), WHERE, the sentence saying
+# where the licence texts are, and OFFER, where the source is.
+write_credits() { # OUT [TABLE [WHERE [OFFER]]]
   local name shown lic role url dir ver table=${2:-$CREDITS}
   local where=${3:-'Their full licence texts are in Help &gt; Third-Party Licenses (Glitchbox.app/Contents/Resources/licenses).'}
+  local offer=${4:-$SOURCE_OFFER}
   {
     printf '%s\n' '<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font:11px -apple-system,sans-serif}td{vertical-align:top;padding:2px 6px 2px 0}</style></head><body>'
-    printf '<p>Glitchbox is MIT licensed: <a href="https://github.com/kylegrantlucas/glitchbox">github.com/kylegrantlucas/glitchbox</a>. It runs these tools, each under its own licence. %s</p>\n<table>\n' "$where"
+    printf '<p>Glitchbox is MIT licensed: <a href="https://github.com/kylegrantlucas/glitchbox">github.com/kylegrantlucas/glitchbox</a>. It runs these tools, each under its own licence. %s %s</p>\n<table>\n' "$where" "$offer"
     while IFS='|' read -r name shown lic role url dir; do
       ver=$(lock_field "$name" version)
       [ -n "$url" ] || url=$(lock_field "$name" url)
@@ -623,7 +650,7 @@ write_credits() { # OUT [TABLE [WHERE]]
   } > "$1"
 }
 
-TOOL_STAGES="gst gst_runtime x264 frei0r ffmpeg sox bash ntsc_rs bender burns licenses"
+TOOL_STAGES="gst gst_runtime frei0r ffmpeg sox bash ntsc_rs bender burns licenses"
 
 # --- iOS toolchain -------------------------------------------------------------
 # The iOS app cannot spawn processes, so its tools are libraries. Each
@@ -685,16 +712,17 @@ ios_tools_build() {
 }
 
 # Credits.html rows for the iOS app (same format as CREDITS).
-CREDITS_IOS='ffmpeg|FFmpeg|GPL-2.0-or-later (built with --enable-gpl)|decoding, encoding, and the ffmpeg filters, linked in-process||ffmpeg
-x264|x264|GPL-2.0-or-later|H.264 encoding, linked into FFmpeg||x264
-frei0r|frei0r|GPL-2.0-or-later|the frei0r effects, linked statically into FFmpeg||frei0r
-ffglitch-src|FFglitch|GPL-2.0-or-later; includes QuickJS (MIT)|bitstream editing: ffgac and ffedit, built from source and linked in-process|https://ffglitch.org/pub/src/ffglitch-{v}.tar.xz|ffglitch
+CREDITS_IOS='ffmpeg|FFmpeg|LGPL-2.1-or-later; modified for in-process use (see its MODIFICATIONS.txt)|decoding, encoding, and the ffmpeg filters, linked in-process||ffmpeg
+ffglitch-src|FFglitch|LGPL-2.1-or-later, its own additions LGPL-2.1-or-later or MIT; includes QuickJS (MIT); modified for in-process use|bitstream editing: ffgac and ffedit, built from source and linked in-process|https://ffglitch.org/pub/src/ffglitch-{v}.tar.xz|ffglitch
 ffglitch-scripts|ffglitch-scripts|Unlicense|the DD-GlitchAssist scripts behind MV Script||ffglitch-scripts
 ntsc-rs|ntsc-rs|core MIT, ISC, or Apache-2.0|NTSC and VHS emulation (its core library)||ntsc-rs
 bender-rs|bender-rs|MIT or Apache-2.0|circuit-bent video hardware||bender-rs
 reactive-vcr|reactive-vcr|MIT|audio-reactive VCR artifacts|https://github.com/kylegrantlucas/reactive-vcr|reactive-vcr
 burns-rs|burns|MIT or Apache-2.0|still-image camera motion (Still Motion)||burns-rs
 onnxruntime-c-pod|ONNX Runtime|MIT|on-device depth estimation for Still Motion|https://github.com/microsoft/onnxruntime|onnxruntime'
+
+# The iOS app's written offer, on top of the release link (LGPL-2.1 §6).
+SOURCE_OFFER_IOS="$SOURCE_OFFER For at least three years after this build, kyle@klr.dev will also send the complete corresponding source of FFmpeg and FFglitch as built into this app, including Glitchbox's modifications, on request, for no more than the cost of distribution."
 
 # The iOS toolchain's identity: the pins, this script, every iOS stage's stamp
 # (which already hash each recipe, its patches, and its crates), and
@@ -725,7 +753,7 @@ write_ios_toolchain_json() { # OUT
       tools: {
         ffmpeg: v("ffmpeg"), ffglitch: v("ffglitch-src"), "ntsc-rs": v("ntsc-rs"),
         bender: v("bender-rs"), "reactive-vcr": v("reactive-vcr"), burns: v("burns-rs"),
-        onnxruntime: v("onnxruntime-c-pod"), frei0r: v("frei0r"), x264: v("x264")
+        onnxruntime: v("onnxruntime-c-pod")
       },
       path: [],
       environment: {
@@ -750,7 +778,7 @@ assemble_ios() {
   tar -xf "$(src bender-rs)" -C "$x" --strip-components 1
   cp -R "$x/presets" "$t/bender-presets"
   cp -R "$IOS/licenses" "$t/licenses"
-  write_credits "$t/Credits.html" "$CREDITS_IOS" 'Their full licence texts are under Licenses in the app.'
+  write_credits "$t/Credits.html" "$CREDITS_IOS" 'Their full licence texts are under Licenses in the app.' "$SOURCE_OFFER_IOS"
   write_ios_toolchain_json "$t/toolchain.json"
   rm -rf "$x"
 }
@@ -799,6 +827,33 @@ install_ios_app() {
   xcrun devicectl device install app --device "$GLITCHBOX_DEVICE" "$IOS_APP"
 }
 
+# App Store build: a Release archive of the iOS scheme, exported for App Store
+# Connect with packaging/ios/ExportOptions.plist (automatic signing for the
+# team). The build number is GLITCHBOX_BUILD_NUMBER, else the commit count.
+archive_ios_app() {
+  local xg=$WORK/xcodegen build_number
+  build_number=${GLITCHBOX_BUILD_NUMBER:-$(git -C "$ROOT" rev-list --count HEAD)}
+  rm -rf "$xg" "$IOS/Glitchbox.xcarchive" "$IOS/export"
+  mkdir -p "$xg"
+  unzip -q "$(src xcodegen)" -d "$xg"
+  (cd "$ROOT/$APP_DIR" && menv_swift GLITCHBOX_IOS=YES "$xg/xcodegen/bin/xcodegen" generate)
+  menv_swift xcodebuild archive -project "$ROOT/$APP_DIR/$APP_PROJECT" -scheme "$IOS_SCHEME" \
+    -configuration Release -destination generic/platform=iOS -derivedDataPath "$WORK/xcode-ios-archive" \
+    -archivePath "$IOS/Glitchbox.xcarchive" -allowProvisioningUpdates \
+    MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$build_number"
+  menv_swift xcodebuild -exportArchive -archivePath "$IOS/Glitchbox.xcarchive" \
+    -exportOptionsPlist "$PKG/ios/ExportOptions.plist" -exportPath "$IOS/export" -allowProvisioningUpdates
+}
+
+build_ios_archive() {
+  ios_tools_build
+  assemble_ios
+  log "ios-archive: xcodebuild archive + export (log: build/logs/ios-archive.log)"
+  logged ios-archive archive_ios_app
+  [ -f "$IOS/export/Glitchbox.ipa" ] || die "ios-archive: no build/ios/export/Glitchbox.ipa"
+  log "ios-archive: build/ios/export/Glitchbox.ipa ($(du -h "$IOS/export/Glitchbox.ipa" | cut -f1))"
+}
+
 # --- Staging -------------------------------------------------------------------
 digest() { cat "$LOCK" "$PKG/build.sh" | shasum -a 256 | cut -d' ' -f1; }
 
@@ -830,7 +885,7 @@ write_toolchain_json() { # OUT
         ffmpeg: v("ffmpeg"), ffglitch: v("ffglitch"), "ntsc-rs-cli": v("ntsc-rs"),
         bender: v("bender-rs"), "reactive-vcr": v("reactive-vcr"),
         burns: v("burns-rs"), onnxruntime: v("onnxruntime"),
-        gstreamer: v("gstreamer-runtime"), frei0r: v("frei0r"), x264: v("x264"),
+        gstreamer: v("gstreamer-runtime"), frei0r: v("frei0r"),
         jq: v("jq"), sox: v("sox"), bash: $bash
       },
       path: ["@contents/Helpers"],
@@ -1009,10 +1064,19 @@ smoke_gst() { # CONTENTS CACHE DIR: ntsc-rs-cli, bender, reactive-vcr renders th
     > "$d/rvcr.log" 2>&1 || { tail -20 "$d/rvcr.log"; die "verify: reactive-vcr failed"; }
   # Inputs outside the FFV1 path, so the GST_PLUGINS allowlist is exercised:
   # H.264/AAC in MP4 and a PNG still into ntsc-rs, AAC (M4A) audio driving
-  # reactive-vcr while it mixes in the MP4's own audio.
-  [ -f "$d/in.mp4" ] || tenv "$c" "$k" ffmpeg -hide_banner -loglevel error -y \
-    -f lavfi -i testsrc2=size=320x240:rate=30:duration=1 -f lavfi -i sine=frequency=330:duration=1 \
-    -c:v libx264 -pix_fmt yuv420p -c:a aac "$d/in.mp4"
+  # reactive-vcr while it mixes in the MP4's own audio. H.264 comes from
+  # VideoToolbox; without it (some CI runners) the MP4 is MPEG-4 Part 2.
+  if [ ! -f "$d/in.mp4" ]; then
+    tenv "$c" "$k" ffmpeg -hide_banner -loglevel error -y \
+      -f lavfi -i testsrc2=size=320x240:rate=30:duration=1 -f lavfi -i sine=frequency=330:duration=1 \
+      -c:v h264_videotoolbox -b:v 2M -pix_fmt yuv420p -c:a aac_at "$d/in.mp4" ||
+      {
+        tenv "$c" "$k" ffmpeg -hide_banner -loglevel error -y \
+          -f lavfi -i testsrc2=size=320x240:rate=30:duration=1 -f lavfi -i sine=frequency=330:duration=1 \
+          -c:v mpeg4 -q:v 3 -c:a aac "$d/in.mp4"
+        log "verify: VideoToolbox unavailable; in.mp4 is MPEG-4 Part 2"
+      }
+  fi
   [ -f "$d/in.png" ] || tenv "$c" "$k" ffmpeg -hide_banner -loglevel error -y \
     -f lavfi -i testsrc2=size=320x240 -frames:v 1 "$d/in.png"
   [ -f "$d/in.m4a" ] || tenv "$c" "$k" ffmpeg -hide_banner -loglevel error -y \
@@ -1027,18 +1091,6 @@ smoke_gst() { # CONTENTS CACHE DIR: ntsc-rs-cli, bender, reactive-vcr renders th
     reactive-vcr render --video "$d/in.mp4" --audio "$d/in.m4a" \
     --map "$c/Resources/library/presets/reactive-vcr.toml" --audio-mode mix -o "$d/rvcr-mp4.mkv" \
     > "$d/rvcr-mp4.log" 2>&1 || { tail -20 "$d/rvcr-mp4.log"; die "verify: reactive-vcr on MP4 + M4A failed"; }
-  # H.264 output (x264enc + mp4mux) from each tool.
-  tenv "$c" "$k" env GST_DEBUG=GST_PLUGIN_LOADING:2,GST_REGISTRY:2 \
-    ntsc-rs-cli -i "$d/in.mkv" -o "$d/ntsc-h264.mp4" -c h264 -y -j "$(cat "$vhs")" \
-    > "$d/ntsc-h264.log" 2>&1 || { tail -20 "$d/ntsc-h264.log"; die "verify: ntsc-rs-cli H.264 output failed"; }
-  tenv "$c" "$k" env GST_DEBUG=GST_PLUGIN_LOADING:2,GST_REGISTRY:2 \
-    bender -i "$d/in.mkv" -o "$d/bender-h264.mp4" --codec h264 --scanlines 0 \
-    --preset "$c/Resources/bender-presets/meltdown.json" --overwrite \
-    > "$d/bender-h264.log" 2>&1 || { tail -20 "$d/bender-h264.log"; die "verify: bender H.264 output failed"; }
-  tenv "$c" "$k" env GST_DEBUG=GST_PLUGIN_LOADING:2,GST_REGISTRY:2 \
-    reactive-vcr render --video "$d/in.mp4" --audio "$d/in.wav" \
-    --map "$c/Resources/library/presets/reactive-vcr.toml" --audio-mode mix -o "$d/rvcr-h264.mp4" \
-    > "$d/rvcr-h264.log" 2>&1 || { tail -20 "$d/rvcr-h264.log"; die "verify: reactive-vcr .mp4 output failed"; }
   if grep -h 'Failed to load plugin\|WARN.*GST_PLUGIN_LOADING' "$d/"*.log; then
     die "verify: GStreamer plugins failed to load (above)"
   fi
@@ -1048,12 +1100,6 @@ smoke_gst() { # CONTENTS CACHE DIR: ntsc-rs-cli, bender, reactive-vcr renders th
     fr=$(tenv "$c" "$k" ffprobe -v error -count_frames -select_streams v:0 \
       -show_entries stream=codec_name,nb_read_frames -of csv=p=0 "$d/$o.mkv")
     case $fr in ffv1,2[89] | ffv1,3[01]) ;; *) die "verify: $o output is '$fr', want ffv1,~30 frames" ;; esac
-    log "verify: $o render from $c: $fr frames"
-  done
-  for o in ntsc-h264 bender-h264 rvcr-h264; do
-    fr=$(tenv "$c" "$k" ffprobe -v error -count_frames -select_streams v:0 \
-      -show_entries stream=codec_name,nb_read_frames -of csv=p=0 "$d/$o.mp4")
-    case $fr in h264,2[89] | h264,3[01]) ;; *) die "verify: $o output is '$fr', want h264,~30 frames" ;; esac
     log "verify: $o render from $c: $fr frames"
   done
   fr=$(tenv "$c" "$k" ffprobe -v error -count_frames -select_streams v:0 \
@@ -1071,17 +1117,17 @@ smoke_burns() { # CONTENTS CACHE DIR: burns 2D render, and a depth render throug
   # A pre-seeded model cache: burns verifies it by hash and never touches the network.
   mkdir -p "$h/Library/Caches/burns/models"
   cp -c "$model" "$h/Library/Caches/burns/models/$(lock_field depth-anything-v2-small sha256).onnx"
-  tenv "$c" "$k" env HOME="$h" burns render -i "$d/in.png" -o "$d/burns.mp4" --preset kenburns \
-    --width 320 --height 240 --fps 30 --duration 1 --crf 0 --overwrite \
+  tenv "$c" "$k" env HOME="$h" burns render -i "$d/in.png" -o "$d/burns.mkv" --preset kenburns \
+    --width 320 --height 240 --fps 30 --duration 1 --codec ffv1 --overwrite \
     > "$d/burns.log" 2>&1 || { tail -20 "$d/burns.log"; die "verify: burns render failed"; }
-  tenv "$c" "$k" env HOME="$h" burns render -i "$d/in.png" -o "$d/burns-depth.mp4" --preset dolly-out \
-    --auto-depth --width 320 --height 240 --fps 30 --duration 1 --crf 0 --overwrite \
+  tenv "$c" "$k" env HOME="$h" burns render -i "$d/in.png" -o "$d/burns-depth.mkv" --preset dolly-out \
+    --auto-depth --width 320 --height 240 --fps 30 --duration 1 --codec ffv1 --overwrite \
     > "$d/burns-depth.log" 2>&1 || { tail -20 "$d/burns-depth.log"; die "verify: burns --auto-depth render failed"; }
   ! grep -q 'downloading model' "$d/burns-depth.log" || die "verify: burns downloaded the depth model"
   for o in burns burns-depth; do
     fr=$(tenv "$c" "$k" ffprobe -v error -count_frames -select_streams v:0 \
-      -show_entries stream=codec_name,nb_read_frames -of csv=p=0 "$d/$o.mp4")
-    case $fr in h264,30) ;; *) die "verify: $o output is '$fr', want h264,30 frames" ;; esac
+      -show_entries stream=codec_name,nb_read_frames -of csv=p=0 "$d/$o.mkv")
+    case $fr in ffv1,30) ;; *) die "verify: $o output is '$fr', want ffv1,30 frames" ;; esac
     log "verify: $o render from $c: $fr frames"
   done
 }
@@ -1099,13 +1145,11 @@ smoke_all() { # CONTENTS
   mkdir -p "$k"
   tenv "$c" "$k" ffmpeg -hide_banner -filters | grep frei0r
   for f in vertigo glitch0r; do
-    for out in mkv:ffv1 mp4:libx264; do
-      tenv "$c" "$k" ffmpeg -hide_banner -loglevel error -y \
-        -f lavfi -i testsrc2=size=320x240:rate=30:duration=1 \
-        -vf "frei0r=filter_name=$f,format=yuv420p" -c:v "${out#*:}" "$d/$f.${out%%:*}"
-      log "verify: ffmpeg frei0r $f -> ${out#*:}/${out%%:*}: $(tenv "$c" "$k" ffprobe -v error \
-        -count_frames -show_entries stream=nb_read_frames -of csv=p=0 "$d/$f.${out%%:*}") frames"
-    done
+    tenv "$c" "$k" ffmpeg -hide_banner -loglevel error -y \
+      -f lavfi -i testsrc2=size=320x240:rate=30:duration=1 \
+      -vf "frei0r=filter_name=$f,format=yuv420p" -c:v ffv1 "$d/$f.mkv"
+    log "verify: ffmpeg frei0r $f -> ffv1/mkv: $(tenv "$c" "$k" ffprobe -v error \
+      -count_frames -show_entries stream=nb_read_frames -of csv=p=0 "$d/$f.mkv") frames"
   done
   for f in ffgac ffedit; do first_line tenv "$c" "$k" "$f" -version; done
   tenv "$c" "$k" reactive-vcr --version
@@ -1264,6 +1308,103 @@ build_dmg() {
   log "dmg: $out ($(du -h "$out" | cut -f1)); mounted copy passes codesign --verify --deep --strict"
 }
 
+# --- Notarization --------------------------------------------------------------
+# notarytool with an App Store Connect API key (GLITCHBOX_NOTARY_KEY_FILE, a .p8;
+# GLITCHBOX_NOTARY_KEY_ID; GLITCHBOX_NOTARY_ISSUER). The app is submitted and
+# stapled first, then the DMG is rebuilt around the stapled app, signed,
+# submitted, and stapled.
+notary_submit() { # FILE NAME: submit and wait; dies unless Accepted
+  local f=$1 n=$2 status id
+  local -a key=(--key "$GLITCHBOX_NOTARY_KEY_FILE" --key-id "$GLITCHBOX_NOTARY_KEY_ID"
+    --issuer "$GLITCHBOX_NOTARY_ISSUER")
+  log "notarize: submitting $(basename "$f") (log: build/logs/notary-$n.json)"
+  xcrun notarytool submit "$f" "${key[@]}" --wait --timeout 2h --output-format json \
+    > "$LOGS/notary-$n.json" || true
+  status=$("$JQ" -r '.status // empty' "$LOGS/notary-$n.json" 2>/dev/null || true)
+  if [ "$status" != Accepted ]; then
+    id=$("$JQ" -r '.id // empty' "$LOGS/notary-$n.json" 2>/dev/null || true)
+    [ -z "$id" ] || xcrun notarytool log "$id" "${key[@]}" > "$LOGS/notary-$n-log.json" || true
+    die "notarize: $(basename "$f") was not accepted (status '${status:-none}'; build/logs/notary-$n.json, notary-$n-log.json)"
+  fi
+}
+
+build_notarize() {
+  local v zip=$WORK/Glitchbox-notarize.zip dmg=$DIST/Glitchbox-$VERSION.dmg
+  [ "$SIGN_IDENTITY" != - ] || die "notarize: set GLITCHBOX_SIGN_IDENTITY to a Developer ID Application identity"
+  for v in GLITCHBOX_NOTARY_KEY_FILE GLITCHBOX_NOTARY_KEY_ID GLITCHBOX_NOTARY_ISSUER; do
+    [ -n "${!v:-}" ] || die "notarize: $v is not set"
+  done
+  [ -d "$APP" ] || die "notarize: build/Glitchbox.app missing; run build.sh app"
+  mkdir -p "$LOGS" "$WORK"
+  rm -f "$zip"
+  ditto -c -k --keepParent "$APP" "$zip"
+  notary_submit "$zip" app
+  rm -f "$zip"
+  xcrun stapler staple "$APP"
+  xcrun stapler validate "$APP"
+  build_dmg
+  notary_submit "$dmg" dmg
+  xcrun stapler staple "$dmg"
+  xcrun stapler validate "$dmg"
+  spctl -a -vv -t exec "$APP" 2>&1 | grep -q 'source=Notarized Developer ID' ||
+    die "notarize: Gatekeeper does not accept build/Glitchbox.app as notarized"
+  spctl -a -vv -t open --context context:primary-signature "$dmg" 2>&1 |
+    grep -q 'source=Notarized Developer ID' || die "notarize: Gatekeeper does not accept $dmg as notarized"
+  log "notarize: app and DMG notarized and stapled"
+}
+
+# --- Source bundle -------------------------------------------------------------
+# build/dist/Glitchbox-<VERSION>-sources.tar (+ .sha256): the complete
+# corresponding source of a release. The repository at HEAD, every `mirror`
+# input from sources.json under its pinned file name, and the vendored Rust
+# crates of ntsc-rs (ntsc-rs-cli is GPL-3.0) and of the two iOS libraries.
+# Unpacked, third-party/ goes into build/downloads and the usual build runs.
+vendor_crates() { # SRC-DIR NAME: $t/NAME-crates.tar.gz with vendor/ and config.toml
+  local dir=$1 name=$2
+  local v=$t/$name-crates
+  rm -rf "$v"
+  mkdir -p "$v"
+  (cd "$dir" && menv CARGO_HOME="$DL/cargo-home" cargo vendor --locked --versioned-dirs "$v/vendor") \
+    > "$v/config.toml"
+  tar -czf "$out/third-party/$name-crates.tar.gz" -C "$t" "$name-crates"
+  rm -rf "$v"
+}
+
+build_sources() {
+  local out=$DIST/Glitchbox-$VERSION-sources t=$WORK/sources rev file
+  [ -z "$(git -C "$ROOT" status --porcelain)" ] || die "sources: commit first (the source bundle is git archive HEAD)"
+  setup_toolbin
+  fetch all
+  rm -rf "$out" "$t" "$out.tar" "$out.tar.sha256"
+  mkdir -p "$out/third-party" "$t"
+  log "sources: git archive HEAD ($(git -C "$ROOT" rev-parse --short HEAD))"
+  git -C "$ROOT" archive --format=tar.gz --prefix="glitchbox-$VERSION/" -o "$out/glitchbox-$VERSION.tar.gz" HEAD
+  while IFS= read -r file; do
+    cp -c "$DL/$file" "$out/third-party/$file"
+  done < <("$JQ" -r '.sources[] | select(.mirror == true) | .file' "$LOCK")
+  log "sources: cargo vendor (ntsc-rs, glitchbox-fx, glitchbox-burns)"
+  rev=$(lock_field ntsc-rs rev)
+  unpack ntsc-rs "$t/ntsc-rs"
+  vendor_crates "$t/ntsc-rs" "ntsc-rs-$rev"
+  vendor_crates "$ROOT/app/rust/glitchbox-fx" glitchbox-fx
+  vendor_crates "$ROOT/app/rust/glitchbox-burns" glitchbox-burns
+  {
+    printf '# Glitchbox %s: complete corresponding source\n\n' "$VERSION"
+    printf 'Unpack glitchbox-%s.tar.gz, copy third-party/* into its build/downloads/, then run packaging/build.sh all (macOS) or packaging/build.sh ios-app (iOS); fetch verifies every file by sha256. The crates tarballs are the Rust dependencies of ntsc-rs-cli (GPL-3.0) and of the iOS libraries.\n\n' "$VERSION"
+    printf '| File | Name | Version | Upstream | sha256 |\n|---|---|---|---|---|\n'
+    "$JQ" -r '.sources[] | select(.mirror == true)
+      | "| third-party/\(.file) | \(.name) | \(.version) | \(.url) | \(.sha256) |"' "$LOCK"
+    for file in "$out/third-party/"*-crates.tar.gz; do
+      printf '| third-party/%s | Rust crates | | crates.io / git (cargo vendor --locked) | %s |\n' \
+        "$(basename "$file")" "$(sha256 "$file")"
+    done
+  } > "$out/SOURCES.md"
+  tar -cf "$out.tar" -C "$DIST" "$(basename "$out")"
+  (cd "$DIST" && shasum -a 256 "$(basename "$out").tar" > "$(basename "$out").tar.sha256")
+  rm -rf "$out" "$t"
+  log "sources: $out.tar ($(du -h "$out.tar" | cut -f1))"
+}
+
 # --- Entry points ------------------------------------------------------------------
 tools_build() {
   local s
@@ -1276,9 +1417,9 @@ tools_build() {
 main() {
   local cmd=${1:-all} s
   case $cmd in
-    tools | app | dmg | all | verify | ios-tools | ios-app | ios-install) ;;
+    tools | app | dmg | all | verify | notarize | sources | ios-tools | ios-app | ios-install | ios-archive) ;;
     stage) [ $# -gt 1 ] || die "usage: packaging/build.sh stage NAME..." ;;
-    *) die "usage: packaging/build.sh [tools|app|dmg|all|verify|ios-tools|ios-app|ios-install|stage NAME...]" ;;
+    *) die "usage: packaging/build.sh [tools|app|dmg|all|verify|notarize|sources|ios-tools|ios-app|ios-install|ios-archive|stage NAME...]" ;;
   esac
   # build/ ignores itself, so VCS snapshots never pick up gigabytes of output
   # even before the repository's .gitignore lists it.
@@ -1307,9 +1448,12 @@ main() {
       mkdir -p "$BUILD/tmp" "$WORK"
       if [ -d "$APP" ]; then verify_app; else verify_contents "$BUILD/stage"; fi
       ;;
+    notarize) build_notarize ;;
+    sources) build_sources ;;
     ios-tools) ios_tools_build ;;
     ios-app) build_ios_app ;;
     ios-install) install_ios_app ;;
+    ios-archive) build_ios_archive ;;
     stage)
       shift
       setup_toolbin

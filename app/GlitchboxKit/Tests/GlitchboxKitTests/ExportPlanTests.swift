@@ -52,15 +52,6 @@ struct ExportPlanTests {
         #expect(value("-progress", a) == progress.path)
     }
 
-    @Test func h264X264UsesCRFAndPreset() {
-        let a = args(ExportSettings(format: .h264, quality: .max, h264Encoder: .x264, x264Preset: "slow"))
-        #expect(value("-c:v", a) == "libx264")
-        #expect(value("-crf", a) == "14")
-        #expect(value("-preset", a) == "slow")
-        let advanced = args(ExportSettings(format: .h264, h264Encoder: .x264, x264CRF: 20))
-        #expect(value("-crf", advanced) == "20")
-    }
-
     @Test func hevcTagsHvc1AndHonoursContainer() {
         let mp4 = args(ExportSettings(format: .hevc, quality: .good))
         #expect(value("-c:v", mp4) == "hevc_videotoolbox")

@@ -36,6 +36,9 @@ targets:
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
         NSPhotoLibraryAddUsageDescription: Glitchbox saves exported movies and frames to your photo library when you ask it to.
+        # Export compliance: the only crypto is the OS's (URLSession/Security.framework TLS for
+        # the depth-model download; burns-depth uses native-tls on Apple targets, no rustls/ring).
+        ITSAppUsesNonExemptEncryption: false
         # Long user-started renders and exports continue in the background (BGContinuedProcessingTask).
         BGTaskSchedulerPermittedIdentifiers: [com.kylegrantlucas.glitchbox.work.*]
         # MKV export and import need a declared type (UTType.matroska is `importedAs:`).

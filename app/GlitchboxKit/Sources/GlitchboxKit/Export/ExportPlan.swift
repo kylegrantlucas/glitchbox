@@ -250,13 +250,7 @@ public enum ExportPlan {
         }
         switch settings.format {
         case .h264:
-            switch settings.h264Encoder {
-            case .videoToolbox:
-                return ["-c:v", "h264_videotoolbox"] + videoToolboxRate(hevc: false) + ["-profile:v", "high"]
-            case .x264:
-                return ["-c:v", "libx264", "-preset", settings.x264Preset, "-crf", String(settings.effectiveX264CRF),
-                        "-profile:v", "high"]
-            }
+            return ["-c:v", "h264_videotoolbox"] + videoToolboxRate(hevc: false) + ["-profile:v", "high"]
         case .hevc:
             return ["-c:v", "hevc_videotoolbox"] + videoToolboxRate(hevc: true) + ["-profile:v", "main", "-tag:v", "hvc1"]
         case .prores:

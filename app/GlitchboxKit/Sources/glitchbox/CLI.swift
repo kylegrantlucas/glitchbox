@@ -21,7 +21,7 @@ enum CLI {
     EXPORT
       --format h264|hevc|prores|ffv1|gif|png   (default h264; png writes a folder of frames)
       --settings FILE              start from an export.json; later flags override it
-      --quality good|high|max      --encoder vt|x264   --crf N   --x264-preset P   --vt-quality 1-100
+      --quality good|high|max      --vt-quality 1-100
       --prores lt|422|hq|4444      --container mp4|mov (HEVC; default from OUT's extension)
       --size native|H|WxH          H is the short side; WxH uses --fit fit|fill|stretch (default fit)
       --no-upscale (default)       --upscale

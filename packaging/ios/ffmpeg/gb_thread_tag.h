@@ -1,6 +1,6 @@
 /*
  * Force-included into every C file of the in-process FFmpeg build — the libav*
- * libraries, x264, and (through gb_fftools_prefix.h) the fftools — by
+ * libraries and (through gb_fftools_prefix.h) the fftools — by
  * packaging/ios/ffmpeg.sh. A thread created by any of them inherits its
  * creator's run tag (gb_thread_tag.c), so gb_ffmpeg.c can send log lines from
  * a run's own threads, its decoder/encoder/filter worker threads included, to

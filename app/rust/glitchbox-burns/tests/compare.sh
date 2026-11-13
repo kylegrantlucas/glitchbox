@@ -2,12 +2,12 @@
 # Pixel parity of GlitchboxBurns (macOS slice) with the burns CLI at the same burns-rs commit.
 #   tests/compare.sh BURNS FFMPEG ORT-DYLIB [WORKDIR]
 # BURNS is a `burns` binary (e.g. Glitchbox.app/Contents/Helpers/burns), FFMPEG one with
-# libx264, ORT-DYLIB the libonnxruntime.dylib burns uses (ORT_DYLIB_PATH). Renders the
+# ffv1, ORT-DYLIB the libonnxruntime.dylib burns uses (ORT_DYLIB_PATH). Renders the
 # still-motion plugin's default (Ken Burns) project and its depth-parallax variant at
 # 320x180, 30 fps, 1 s from a testsrc2 PNG, then compares every frame:
 #   RGBA: GlitchboxBurns frames vs `burns frame` PNGs (burns's exact RGBA output);
 #   YUV:  GlitchboxBurns frames through burns's encoder colour conversion vs the decoded
-#         `burns render --crf 0` (lossless H.264) clip.
+#         `burns render --codec ffv1` (lossless FFV1) clip.
 # The depth project uses --auto-depth (model pre-seeded from build/downloads), and
 # GlitchboxBurns's own estimation loads the ONNX Runtime beside it in the xcframework.
 set -euo pipefail
@@ -42,9 +42,9 @@ for m in transform depth; do
   d=() o=()
   if [ $m = depth ]; then d=(--auto-depth); o=(auto "$W/our"); fi
   env HOME="$W/ref" ORT_DYLIB_PATH="$ORT" PATH="$(dirname "$FFMPEG"):/usr/bin:/bin" \
-    "$BURNS" render -i in.png -o "ref-$m.mp4" --config "proj-$m.json" "${flags[@]}" --crf 0 \
+    "$BURNS" render -i in.png -o "ref-$m.mkv" --config "proj-$m.json" "${flags[@]}" --codec ffv1 \
     --overwrite ${d[@]+"${d[@]}"} 2> "ref-$m.log"
-  "$FFMPEG" -hide_banner -loglevel error -y -i "ref-$m.mp4" -f rawvideo -pix_fmt yuv420p "ref-$m.yuv"
+  "$FFMPEG" -hide_banner -loglevel error -y -i "ref-$m.mkv" -f rawvideo -pix_fmt yuv420p "ref-$m.yuv"
   : > "ref-$m.rgba"
   for i in $(seq 0 29); do
     env HOME="$W/ref" ORT_DYLIB_PATH="$ORT" "$BURNS" frame -i in.png -o f.png --frame "$i" \

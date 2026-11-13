@@ -17,13 +17,4 @@ public enum ExportQuality: String, Codable, CaseIterable, Sendable {
         case .max: 85
         }
     }
-
-    /// libx264 `-crf`.
-    public var x264CRF: Int {
-        switch self {
-        case .good: 23
-        case .high: 18
-        case .max: 14
-        }
-    }
 }

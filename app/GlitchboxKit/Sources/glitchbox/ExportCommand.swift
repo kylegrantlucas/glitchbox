@@ -45,9 +45,6 @@ extension CLI {
                 s.format = try choice(a, try p.value(), ["h264": .h264, "hevc": .hevc, "prores": .prores, "ffv1": .ffv1,
                                                         "gif": .gif, "png": .pngSequence])
             case "--quality": s.quality = try choice(a, try p.value(), ["good": .good, "high": .high, "max": .max])
-            case "--encoder": s.h264Encoder = try choice(a, try p.value(), ["vt": .videoToolbox, "x264": .x264])
-            case "--crf": s.x264CRF = try p.integer(a, in: 0...51)
-            case "--x264-preset": s.x264Preset = try choice(a, try p.value(), Dictionary(uniqueKeysWithValues: H264Encoder.x264Presets.map { ($0, $0) }))
             case "--vt-quality": s.videoToolboxQuality = try p.integer(a, in: 1...100)
             case "--prores":
                 s.proresProfile = try choice(a, try p.value(), ["lt": .lt, "422": .standard, "standard": .standard, "hq": .hq, "4444": .p4444])

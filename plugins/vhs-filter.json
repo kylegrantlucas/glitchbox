@@ -228,7 +228,7 @@
         "-i",
         "{in}",
         "-vf",
-        "format=yuv444p,curves=all='0/{p.black} 0.5/0.5 1/{p.white}',rgbashift=rh=-{p.shift}:rv={p.shift_v}:bh={p.shift}:bv=-{p.shift_v}:edge={p.edge},chromashift=cbh={p.chroma}:crh=-{p.chroma}:cbv={p.chroma_v}:crv=-{p.chroma_v}:edge={p.edge},noise=c0s={p.noise}:c0f={p.noise_mode}:c1s={p.chroma_noise}:c1f={p.noise_mode}:c2s={p.chroma_noise}:c2f={p.noise_mode},gblur=sigma={p.blur},deband=range={p.deband}:direction=1.5708:blur=false,eq=contrast={p.contrast}:brightness={p.brightness}:saturation={p.saturation}:gamma={p.gamma},vignette=angle={p.vignette},format=yuv420p",
+        "format=yuv444p,curves=all='0/{p.black} 0.5/0.5 1/{p.white}',rgbashift=rh=-{p.shift}:rv={p.shift_v}:bh={p.shift}:bv=-{p.shift_v}:edge={p.edge},chromashift=cbh={p.chroma}:crh=-{p.chroma}:cbv={p.chroma_v}:crv=-{p.chroma_v}:edge={p.edge},noise=c0s={p.noise}:c0f={p.noise_mode}:c1s={p.chroma_noise}:c1f={p.noise_mode}:c2s={p.chroma_noise}:c2f={p.noise_mode},gblur=sigma={p.blur},deband=range={p.deband}:direction=1.5708:blur=false,lutyuv=y='255*pow(clip(({p.contrast})*(val/255-0.5)+0.5+({p.brightness}),0,1),1/({p.gamma}))':u='clip(128+({p.saturation})*(val-128),0,255)':v='clip(128+({p.saturation})*(val-128),0,255)',vignette=angle={p.vignette},format=yuv420p",
         "-fflags",
         "+bitexact",
         "-flags:v",
