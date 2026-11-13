@@ -169,6 +169,11 @@ public enum ExportPlan {
 
     // MARK: Arguments
 
+    /// Decoder threads for a lossless layer (input option). Four keep up with the encoders,
+    /// while ncpu frame threads each hold frames: a 4K proxy peaked at 700 MB, 373 MB with four,
+    /// at the same wall time. Decoded frames don't depend on it.
+    public static let layerDecodeThreads = "4"
+
     static func common(progress: URL) -> [String] {
         ["-hide_banner", "-nostdin", "-loglevel", "error", "-nostats", "-stats_period", "0.5",
          "-progress", progress.path, "-y"]
@@ -182,7 +187,7 @@ public enum ExportPlan {
                                  support: EncoderSupport = .current) -> [String] {
         let geometry = geometry(video: video, settings: settings)
         let pre = inputFilters(video, sourceTags: sourceTags)
-        var args = common(progress: progress) + ["-i", input.path]
+        var args = common(progress: progress) + ["-threads", layerDecodeThreads, "-i", input.path]
         let audio = settings.format.hasAudio ? audio : nil
         if let audio { args += ["-i", audio.url.path] }
 

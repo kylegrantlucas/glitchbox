@@ -23,7 +23,8 @@ public enum ProxyMaker {
             if i > 0 { LayerRunner.append(log, "== \(encoders[i - 1].name) failed (exit \(code)); falling back to \(encoder.name) ==\n") }
             code = try await env.runner.run(ToolInvocation(
                 command: "ffmpeg",
-                arguments: ["-hide_banner", "-nostdin", "-loglevel", "error", "-i", out.output.path, "-an",
+                arguments: ["-hide_banner", "-nostdin", "-loglevel", "error",
+                            "-threads", ExportPlan.layerDecodeThreads, "-i", out.output.path, "-an",
                             "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2"] + encoder.arguments
                     + ["-pix_fmt", "yuv420p", "-movflags", "+faststart", "-y", partial.path],
                 environment: env.variables, cwd: out.dir, log: log))
