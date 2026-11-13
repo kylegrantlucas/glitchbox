@@ -26,7 +26,9 @@ struct LogPanel: View {
         .background(.background.secondary)
         .task(id: Watch(url: model.logURL, live: live)) {
             repeat {
-                text = Self.tail(model.logURL, lines: 200)
+                // Unchanged text would still re-lay out the selectable Text every poll.
+                let tail = Self.tail(model.logURL, lines: 200)
+                if tail != text { text = tail }
                 guard live else { return }
                 try? await Task.sleep(for: .milliseconds(500))
             } while !Task.isCancelled
