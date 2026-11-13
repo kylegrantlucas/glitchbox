@@ -23,7 +23,7 @@ struct PixelEffectStep: NativeStep {
     }
 
     static func render(_ c: NativeStepContext, id: String, params: String, flag: CancelFlag) throws {
-        let decoder = try MediaDecoder(url: c.input, pixelFormat: "rgba")
+        let decoder = try MediaDecoder(url: c.input, pixelFormat: "rgba", threads: Effect.decodeThreads)
         let handle = try Effect.fx("\(id) rejected the settings", { gbfx_pixel_new(id, params, $0) },
                                    failed: { $0 == nil })
         guard let pixel = handle else { throw EffectError("\(id) rejected the settings") }
@@ -45,25 +45,40 @@ struct PixelEffectStep: NativeStep {
             rate: Effect.nominalRate(output.frameRate), sar: info.sar, space: info.color_space,
             primaries: info.color_primaries, transfer: info.color_trc, chromaLocation: info.chroma_location)
         config.color_range = Int32(info.color_range)
+        // ffvhuff frame threading keeps a frame and packet per core (~290 MB at 1080p on 12
+        // cores) for no gain here: encoding already has its own pipeline thread. Same bytes.
+        config.threads = 1
         let encoder = try MediaEncoder(url: c.output, config: config)
 
-        var dst = [UInt8](repeating: 0, count: w * 4 * h)
+        // Decode (and copy into a pool buffer) and convert + encode run on their own threads.
+        let rowBytes = w * 4
         var count = 0
-        while let frame = try decoder.next() {
+        try FramePipeline.run(inBytes: rowBytes * h, outBytes: rowBytes * h, name: id, produce: { b in
             try Effect.check(flag)
+            guard let frame = try decoder.next() else { return false }
             guard frame.width == w, frame.height == h, let src = frame.data.0 else {
                 throw EffectError("\(c.input.lastPathComponent): frame \(frame.index) is not \(w)x\(h) RGBA")
             }
-            try dst.withUnsafeMutableBufferPointer { d in
-                _ = try Effect.fx("\(id) frame \(frame.index)", {
-                    gbfx_pixel_apply(pixel, src, Int(frame.linesize.0), d.baseAddress, w * 4, UInt32(w), UInt32(h),
-                                     UInt64(max(frame.index, 0)), frame.time, $0)
+            let stride = Int(frame.linesize.0)
+            for y in 0..<h { (b.base + y * rowBytes).copyMemory(from: src + y * stride, byteCount: rowBytes) }
+            b.index = frame.index
+            b.seconds = frame.time
+            return true
+        }, transform: { src, emit in
+            try emit { d in
+                _ = try Effect.fx("\(id) frame \(src.index)", {
+                    gbfx_pixel_apply(pixel, src.base.assumingMemoryBound(to: UInt8.self), rowBytes,
+                                     d.base.assumingMemoryBound(to: UInt8.self), rowBytes, UInt32(w), UInt32(h),
+                                     UInt64(max(src.index, 0)), src.seconds, $0)
                 }, failed: { $0 != GBFX_OK })
+                d.index = src.index
             }
-            let yuv = try dst.withUnsafeBytes { try converter.run(packed: $0.baseAddress!, stride: w * 4) }
-            try encoder.write(yuv, index: frame.index)
             count += 1
-        }
+            return src
+        }, consume: { d in
+            let yuv = try converter.run(packed: d.base, stride: rowBytes)
+            try encoder.write(yuv, index: d.index)
+        })
         guard count > 0 else { throw EffectError("\(c.input.lastPathComponent) has no video frames") }
         try encoder.finish()
     }

@@ -115,6 +115,11 @@ enum Effect {
         return code
     }
 
+    /// Decoder threads for native steps. FramePipeline already overlaps decoding with the
+    /// effect, and libavcodec's default (one frame thread per core + 1) holds a frame and
+    /// context per thread: at 1080p, 2 threads keep the speed and save ~70 MB peak on 12 cores.
+    static let decodeThreads = 2
+
     static func check(_ flag: CancelFlag) throws {
         if flag.isSet { throw EffectCancelled() }
     }

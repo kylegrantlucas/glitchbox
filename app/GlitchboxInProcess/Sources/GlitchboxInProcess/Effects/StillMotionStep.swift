@@ -218,20 +218,33 @@ public struct StillMotionStep: NativeStep {
                                          chromaLocation: AVColor.chromaUnspecified),
             codecOptions: "level=3:g=1:slices=4:slicecrc=1")
 
+        // burns renders here (the thread that created it) while conversion + encoding of the
+        // previous frame runs on its own thread; the "input" side only counts frames.
         let stride = w * 4
-        var rgba = [UInt8](repeating: 0, count: stride * h)
-        for i in 0..<frames {
+        var next: UInt32 = 0
+        try FramePipeline.run(inBytes: 1, outBytes: stride * h, name: "still-motion", produce: { b in
+            guard next < frames else { return false }
+            b.index = Int64(next)
+            next += 1
+            return true
+        }, transform: { tick, emit in
             try Effect.check(flag)
-            var frameErr: UnsafeMutablePointer<CChar>?
-            let rc = rgba.withUnsafeMutableBufferPointer { gb_burns_render_frame(renderer, i, $0.baseAddress, stride, &frameErr) }
-            if rc != 0 {
-                let message = frameErr.map { String(cString: $0) } ?? "render failed"
-                gb_burns_string_free(frameErr)
-                throw EffectError("frame \(i): \(message)")
+            let i = UInt32(tick.index)
+            try emit { d in
+                var frameErr: UnsafeMutablePointer<CChar>?
+                let rc = gb_burns_render_frame(renderer, i, d.base.assumingMemoryBound(to: UInt8.self), stride, &frameErr)
+                if rc != 0 {
+                    let message = frameErr.map { String(cString: $0) } ?? "render failed"
+                    gb_burns_string_free(frameErr)
+                    throw EffectError("frame \(i): \(message)")
+                }
+                d.index = tick.index
             }
-            let yuv = try rgba.withUnsafeBytes { try converter.run(packed: $0.baseAddress!, stride: stride) }
-            try encoder.write(yuv, index: Int64(i))
-        }
+            return tick
+        }, consume: { d in
+            let yuv = try converter.run(packed: d.base, stride: stride)
+            try encoder.write(yuv, index: d.index)
+        })
         try encoder.finish()
     }
 }

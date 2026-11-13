@@ -70,7 +70,7 @@ public struct BenderStep: NativeStep {
         guard let bender = handle else { throw EffectError("bender rejected the settings") }
         defer { gbfx_bender_free(bender) }
 
-        let probe = try MediaDecoder(url: c.input, pixelFormat: "rgba")
+        let probe = try MediaDecoder(url: c.input, pixelFormat: "rgba", threads: Effect.decodeThreads)
         var sw: UInt32 = 0, sh: UInt32 = 0
         guard gbfx_bender_scaled_size(UInt32(probe.info.width), UInt32(probe.info.height), UInt32(max(scanlines, 0)),
                                       &sw, &sh) == GBFX_OK
@@ -86,27 +86,35 @@ public struct BenderStep: NativeStep {
             codec: Int32(GBM_CODEC_FFV1.rawValue), width: w, height: h, pixelFormat: "yuv420p", rate: rate,
             sar: gbm_rational(num: 1, den: 1), space: colour.space, chromaLocation: colour.chromaLocation))
 
-        var dst = [UInt8](repeating: 0, count: w * 4 * h)
+        // Decode + RGB conversion and yuv420p conversion + encode run on their own threads.
+        let rowBytes = w * 4
         var count: Int64 = 0
-        while try source.next({ (pixels, time) throws -> Bool in
+        try FramePipeline.run(inBytes: rowBytes * h, outBytes: rowBytes * h, name: "bender", produce: { b in
             try Effect.check(flag)
+            guard let time = try source.next(into: b.base) else { return false }
+            b.time = time
+            return true
+        }, transform: { src, emit in
             let index: Int64
-            if let ns = time, ns >= 0 {
+            if let ns = src.time, ns >= 0 {
                 index = gbfx_pts_frame_index(UInt64(ns), rate.num, rate.den)
             } else {
                 index = count
             }
-            try dst.withUnsafeMutableBufferPointer { d in
+            try emit { d in
                 _ = try Effect.fx("bender frame \(count)", {
-                    gbfx_bender_apply(bender, pixels.assumingMemoryBound(to: UInt8.self), w * 4, d.baseAddress, w * 4,
+                    gbfx_bender_apply(bender, src.base.assumingMemoryBound(to: UInt8.self), rowBytes,
+                                      d.base.assumingMemoryBound(to: UInt8.self), rowBytes,
                                       UInt32(w), UInt32(h), UInt64(max(index, 0)), $0)
                 }, failed: { $0 != GBFX_OK })
+                d.index = count
             }
-            let yuv = try dst.withUnsafeBytes { try converter.run(packed: $0.baseAddress!, stride: w * 4) }
-            try encoder.write(yuv, index: count)
             count += 1
-            return true
-        }) != nil {}
+            return src
+        }, consume: { d in
+            let yuv = try converter.run(packed: d.base, stride: rowBytes)
+            try encoder.write(yuv, index: d.index)
+        })
         guard count > 0 else { throw EffectError("\(c.input.lastPathComponent) has no video frames") }
         try encoder.finish()
     }
