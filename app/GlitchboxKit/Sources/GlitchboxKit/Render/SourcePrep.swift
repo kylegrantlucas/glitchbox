@@ -104,7 +104,9 @@ public enum SourcePrep {
         if duration >= 0 { argv += ["-t", "{p.duration}"] }
         // Two encoder threads keep up with decoding (even VideoToolbox 4K) and write the same
         // bytes as ncpu, while each extra frame thread holds ~100 MB at 4K (2.0 → 0.95 GB peak).
-        argv += ["-i", "{in}", "-an", "-vf", filters.joined(separator: ","),
+        // An output -threads also caps the -vf graph's slice threads unless -filter_threads is
+        // given; 0 keeps the graph at ncpu.
+        argv += ["-i", "{in}", "-an", "-vf", filters.joined(separator: ","), "-filter_threads", "0",
                  "-fflags", "+bitexact", "-flags:v", "+bitexact", "-map_metadata", "-1", "-map_chapters", "-1",
                  "-colorspace", tags.space, "-color_range", "tv",
                  "-c:v", "ffvhuff", "-threads:v", "2", "-y", "{out}"]
