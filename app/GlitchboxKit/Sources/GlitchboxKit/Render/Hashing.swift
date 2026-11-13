@@ -18,9 +18,14 @@ public enum Hashing {
         let fh = try FileHandle(forReadingFrom: url)
         defer { try? fh.close() }
         var hasher = SHA256()
-        while let chunk = try fh.read(upToCount: 1 << 20), !chunk.isEmpty {
+        // FileHandle's chunks are autoreleased, and a background thread has no pool that drains
+        // during the loop: without one per chunk the whole file stays resident (a 153 MB layer
+        // took phys_footprint from 11 to 157 MB; a 4K layer would be GBs, jetsam on iOS).
+        while try autoreleasepool(invoking: {
+            guard let chunk = try fh.read(upToCount: 1 << 20), !chunk.isEmpty else { return false }
             hasher.update(data: chunk)
-        }
+            return true
+        }) {}
         let digest = hex(hasher.finalize())
         // A write during the read moves ctime: keep only digests of contents that held still.
         if (try? FileIdentity(url)) == identity { digests[identity] = digest }
