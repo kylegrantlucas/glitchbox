@@ -48,6 +48,7 @@ done
 gb_require_cmd ffgac
 gb_require_cmd ffedit
 gb_require_cmd ffmpeg
+gb_require_cmd ffprobe
 [ -n "$CHECK" ] && exit 0
 
 [ -n "$INPUT" ] || usage 1
@@ -71,23 +72,26 @@ TOOLS=$(jq -cS -n \
 gb_begin mv-mangle "$INPUT" "$PARAMS" "$TOOLS"
 OUTPUT=${OUTPUT:-$GB_RUN_DIR/out.mkv}
 
-ENC="$GB_RUN_DIR/stage1-mpeg4.avi"
-GLITCHED="$GB_RUN_DIR/stage2-glitched.avi"
+# The three stages stream through pipes (no temp files; ffedit and the decode
+# overlap the encode). ffedit only pipes raw bitstreams, so the MPEG-4 goes as
+# raw m4v and the decoder is given the input's frame rate (AVI used to carry
+# it) as input `-r`: `-framerate` keeps the bitstream's timestamps, which drop
+# all but 2 frames at 30000/1001. out.mkv is byte-identical to the old
+# AVI-file version (25/30/60 and both NTSC rates checked).
+RATE=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate \
+  -of default=nw=1:nk=1 "$INPUT")
+[ -n "$RATE" ] || gb_die "no video stream: $INPUT"
 
-gb_log "ffgac: mpeg4 q=$QSCALE gop=$GOP +forcemv+nopimb"
+gb_log "ffgac: mpeg4 q=$QSCALE gop=$GOP +forcemv+nopimb | ffedit: mv script seed=$SEED amount=$AMOUNT | ffmpeg: lossless re-encode"
+# -t is ffedit's bitexact/test mode.
 ffgac -hide_banner -nostdin -loglevel "${GB_LOGLEVEL:-error}" \
   -i "$INPUT" -an \
   -flags +bitexact -fflags +bitexact \
   -mpv_flags +forcemv+nopimb -qscale:v "$QSCALE" -g "$GOP" \
-  -vcodec mpeg4 -f avi -y "$ENC"
-
-gb_log "ffedit: mv script seed=$SEED amount=$AMOUNT"
-# -t is ffedit's bitexact/test mode.
-ffedit -t -i "$ENC" -f mv -s "$SCRIPT" \
+  -vcodec mpeg4 -f m4v - \
+| ffedit -t -i - -f mv -s "$SCRIPT" \
   -sp "$(jq -cn --argjson seed "$SEED" --argjson amount "$AMOUNT" '{seed:$seed,amount:$amount}')" \
-  -o "$GLITCHED" 2>/dev/null
-
-gb_log "ffmpeg: lossless re-encode"
-gb_ffmpeg -i "$GLITCHED" -- -c:v ffvhuff -y "$OUTPUT"
+  -o - 2>/dev/null \
+| gb_ffmpeg -f m4v -r "$RATE" -i - -- -c:v ffvhuff -y "$OUTPUT"
 
 gb_finish "$OUTPUT"

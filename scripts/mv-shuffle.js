@@ -20,14 +20,10 @@
 let rng_state;
 let amount;
 
-function xorshift32() {
-  rng_state ^= (rng_state << 13); rng_state >>>= 0;
-  rng_state ^= (rng_state >>> 17);
-  rng_state ^= (rng_state << 5);  rng_state >>>= 0;
-  return rng_state / 4294967296;
-}
-
-function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+// xorshift32, inlined in the loop below (QuickJS doesn't inline calls, and the
+// per-MV function calls were ~30% of ffedit's time): s ^= s << 13; s ^= s >>> 17;
+// s ^= s << 5, giving (s >>> 0) / 2^32 in [0, 1). The int32 intermediates have
+// the same bits as the old uint32 ones, so every draw is unchanged.
 
 export function setup(args) {
   args.features = [ "mv" ];
@@ -50,14 +46,22 @@ export function glitch_frame(frame, stream) {
   const min_val = -bound;
   const max_val = bound - 1;
 
-  for ( let i = 0; i < fwd.length; i++ ) {
+  const round = Math.round;
+  const amt = amount;
+  let s = rng_state, v;
+  for ( let i = 0, n = fwd.length; i < n; i++ ) {
     const row = fwd[i];
     if ( !row ) continue;
-    for ( let j = 0; j < row.length; j++ ) {
+    for ( let j = 0, m = row.length; j < m; j++ ) {
       const mv = row[j];
       if ( !mv ) continue;
-      mv[0] = clamp(mv[0] + Math.round((xorshift32() * 2 - 1) * amount), min_val, max_val);
-      mv[1] = clamp(mv[1] + Math.round((xorshift32() * 2 - 1) * amount), min_val, max_val);
+      s ^= s << 13; s ^= s >>> 17; s ^= s << 5;
+      v = mv[0] + round(((s >>> 0) / 4294967296 * 2 - 1) * amt);
+      mv[0] = v < min_val ? min_val : (v > max_val ? max_val : v);
+      s ^= s << 13; s ^= s >>> 17; s ^= s << 5;
+      v = mv[1] + round(((s >>> 0) / 4294967296 * 2 - 1) * amt);
+      mv[1] = v < min_val ? min_val : (v > max_val ? max_val : v);
     }
   }
+  rng_state = s >>> 0;
 }
