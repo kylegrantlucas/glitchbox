@@ -92,6 +92,6 @@ ffgac -hide_banner -nostdin -loglevel "${GB_LOGLEVEL:-error}" \
 | ffedit -t -i - -f mv -s "$SCRIPT" \
   -sp "$(jq -cn --argjson seed "$SEED" --argjson amount "$AMOUNT" '{seed:$seed,amount:$amount}')" \
   -o - 2>/dev/null \
-| gb_ffmpeg -f m4v -r "$RATE" -i - -- -c:v ffvhuff -y "$OUTPUT"
+| gb_ffmpeg -f m4v -r "$RATE" -i - -- -c:v ffvhuff -threads:v 2 -y "$OUTPUT"
 
 gb_finish "$OUTPUT"
