@@ -33,9 +33,9 @@ struct StepEditor: View {
             steps.append(EditableStep(.init(name: "step\(steps.count + 1)", argv: ["ffmpeg"])))
         }
         VStack(alignment: .leading, spacing: 4) {
-            Text("Argv placeholders: {in} {out} {work} {root} {layer} {params} {source_audio} {p.<key>} — write {{ and }} for literal braces.")
-            Text("Script variables: $GB_IN $GB_OUT $GB_WORK $GB_ROOT $GB_PARAMS $GB_SOURCE_AUDIO $GB_OUT_DIR $GB_P_<KEY> (scripts are not template-expanded).")
-            Text("{params} / $GB_PARAMS is a JSON file of the resolved params; {source_audio} is the source's trimmed audio, or empty.")
+            Text("Argv placeholders: {in} {out} {work} {root} {layer} {params} {source_audio} {fps} {p.<key>} — write {{ and }} for literal braces.")
+            Text("Script variables: $GB_IN $GB_OUT $GB_WORK $GB_ROOT $GB_PARAMS $GB_SOURCE_AUDIO $GB_FPS $GB_OUT_DIR $GB_P_<KEY> (scripts are not template-expanded).")
+            Text("{params} / $GB_PARAMS is a JSON file of the resolved params; {source_audio} is the source's trimmed audio, or empty; {fps} is the render's exact frame rate (30, 30000/1001).")
         }
         .font(.caption)
         .foregroundStyle(.secondary)

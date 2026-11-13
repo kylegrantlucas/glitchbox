@@ -16,9 +16,11 @@ public struct LayerRunner: Sendable {
     /// `params` must already be resolved (see `Workspace.resolveParams`).
     /// `sourceAudio` is the source layer's trimmed audio track, when it has one.
     /// `still` is set for still-input layers: the clip to render, keyed and passed as `GB_FPS`,
-    /// `GB_DURATION`, `GB_WIDTH`, and `GB_HEIGHT`.
+    /// `GB_DURATION`, `GB_WIDTH`, and `GB_HEIGHT`. `fps` is the render's exact rate (`{fps}`,
+    /// `GB_FPS`); it is not keyed, so it must follow from `parentKey` (or `still`), as the
+    /// render's rate does.
     public func run(manifest: PluginManifest, params: [String: ParamValue], input: URL, parentKey: String,
-                    sourceAudio: URL? = nil, still: StillTarget? = nil,
+                    sourceAudio: URL? = nil, still: StillTarget? = nil, fps: String? = nil,
                     onStep: @Sendable (_ step: Int, _ of: Int, _ name: String, _ log: URL) -> Void) async throws -> LayerOutput {
         let fm = FileManager.default
         let modes = try Self.modes(for: manifest, runner: env.runner)
@@ -87,8 +89,11 @@ public struct LayerRunner: Sendable {
         stepEnv["GB_PARAMS"] = paramsFile.path
         stepEnv["GB_SOURCE_AUDIO"] = audioPath
         stepEnv["GB_OUT_DIR"] = work.appending(path: "gb").path
+        if let fps = still?.fps ?? fps {
+            values["fps"] = fps
+            stepEnv["GB_FPS"] = fps
+        }
         if let still {
-            stepEnv["GB_FPS"] = still.fps
             stepEnv["GB_DURATION"] = String(still.duration)
             stepEnv["GB_WIDTH"] = String(still.width)
             stepEnv["GB_HEIGHT"] = String(still.height)
