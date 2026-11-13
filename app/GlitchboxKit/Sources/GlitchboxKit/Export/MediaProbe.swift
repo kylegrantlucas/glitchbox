@@ -18,15 +18,18 @@ public struct MediaProbe: Hashable, Sendable {
         public var colorSpace: String?
         /// `tv` or `pc`; nil when unknown.
         public var colorRange: String?
+        /// ffprobe codec name (`h264`, `hevc`, `prores`, ...); empty when unknown.
+        public var codec: String
 
         public init(width: Int, height: Int, sarNumerator: Int = 1, sarDenominator: Int = 1, rotation: Int = 0,
                     pixelFormat: String = "yuv420p", frameRate: Double? = nil, colorPrimaries: String? = nil,
-                    colorTransfer: String? = nil, colorSpace: String? = nil, colorRange: String? = nil) {
+                    colorTransfer: String? = nil, colorSpace: String? = nil, colorRange: String? = nil,
+                    codec: String = "") {
             self.width = width; self.height = height
             self.sarNumerator = sarNumerator; self.sarDenominator = sarDenominator
             self.rotation = rotation; self.pixelFormat = pixelFormat; self.frameRate = frameRate
             self.colorPrimaries = colorPrimaries; self.colorTransfer = colorTransfer
-            self.colorSpace = colorSpace; self.colorRange = colorRange
+            self.colorSpace = colorSpace; self.colorRange = colorRange; self.codec = codec
         }
 
         public var sar: Double { Double(sarNumerator) / Double(sarDenominator) }
@@ -127,7 +130,8 @@ public struct MediaProbe: Hashable, Sendable {
                                 rotation: rotation, pixelFormat: v.pix_fmt ?? "",
                                 frameRate: fps,
                                 colorPrimaries: known(v.color_primaries), colorTransfer: known(v.color_transfer),
-                                colorSpace: known(v.color_space), colorRange: known(v.color_range))
+                                colorSpace: known(v.color_space), colorRange: known(v.color_range),
+                                codec: v.codec_name ?? "")
         }
         if let a = streams.first(where: { $0.codec_type == "audio" }) {
             let raw = a.bits_per_raw_sample.flatMap { Int($0) } ?? 0

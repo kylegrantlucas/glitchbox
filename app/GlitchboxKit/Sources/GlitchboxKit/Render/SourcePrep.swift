@@ -16,6 +16,26 @@ public enum SourcePrep {
         stillExtensions.contains(url.pathExtension.lowercased())
     }
 
+    /// Whether source prep decodes `video` with VideoToolbox: 8-bit 4:2:0 (`yuv420p`) H.264 and
+    /// HEVC whose stream tags its matrix and limited range, as phone and camera footage does.
+    /// Their decoding is bit-exact by spec and prep then converts nothing, so frames match
+    /// FFmpeg's software decoders (framemd5: native, scaled, rotated, 4K), while a 4K HEVC source
+    /// costs about 1% of the CPU. Everything else stays in software, because the frames differ:
+    /// VideoToolbox guesses a matrix for untagged streams (BT.2020 at UHD), so prep's relabel
+    /// becomes a conversion; its 10-bit frames arrive as `p010le`, which converts to `yuv420p`
+    /// with different rounding; its ProRes decoder differs from FFmpeg's. ffmpeg decodes in
+    /// software when a session can't open. iOS stays in software until hardware sessions are
+    /// proven inside a backgrounded `BGContinuedProcessingTask`.
+    public static func decodesInHardware(_ video: MediaProbe.Video) -> Bool {
+        #if os(macOS)
+        ["h264", "hevc"].contains(video.codec) && video.pixelFormat == "yuv420p"
+            && video.colorSpace != nil && ColorTags.resolve(video).space == video.colorSpace
+            && video.colorRange == "tv"
+        #else
+        false
+        #endif
+    }
+
     /// File name of the trimmed source audio inside the source layer's directory.
     public static let audioFileName = "audio.wav"
 
@@ -73,6 +93,7 @@ public enum SourcePrep {
 
         var argv = ["ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error"]
         if still { argv += ["-loop", "1", "-framerate", "{p.fps}"] }
+        else if decodesInHardware(video) { argv += ["-hwaccel", "videotoolbox"] }
         if settings.start > 0 { argv += ["-ss", "{p.start}"] }
         if duration >= 0 { argv += ["-t", "{p.duration}"] }
         argv += ["-i", "{in}", "-an", "-vf", filters.joined(separator: ","),
