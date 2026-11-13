@@ -52,6 +52,7 @@ enum AVColor {
     static let smpte170m: Int32 = 6
     static let rangeUnspecified: Int32 = 0
     static let rangeLimited: Int32 = 1   // AVCOL_RANGE_MPEG
+    static let chromaUnspecified: Int32 = 0 // AVCHROMA_LOC_UNSPECIFIED
     static let chromaLeft: Int32 = 1     // AVCHROMA_LOC_LEFT
     static let chromaCenter: Int32 = 2   // AVCHROMA_LOC_CENTER
 }

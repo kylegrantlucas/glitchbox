@@ -1,5 +1,7 @@
 # Build, test, and package Glitchbox.app on GitHub's Xcode 27 (Apple silicon)
-# image; draft a GitHub Release for v* tags.
+# image; draft a GitHub Release for v* tags. Release runs (v* tags, or a manual
+# run with release-dry-run) sign with the Developer ID, notarize, and build the
+# source bundle; other runs stay ad-hoc signed.
 #
 # packaging/build.sh skips any toolchain stage whose stamp (a hash of its
 # recipe, pinned inputs, and dependencies' stamps) matches, so the stamped
@@ -12,6 +14,11 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release-dry-run:
+        description: Sign, notarize, and build the source bundle as a release would (no release is drafted)
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -44,10 +51,13 @@ jobs:
 
       - name: Read packaging/VERSION
         id: version
+        env:
+          RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.release-dry-run == true }}
         run: |
           version=$(tr -d '[:space:]' < packaging/VERSION)
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "artifact=Glitchbox-$version-${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
+          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
 
       # Before any build minutes are spent: a release tag must name the version
       # the DMG is built with.
@@ -100,8 +110,8 @@ jobs:
           key: downloads-v1-${{ hashFiles('packaging/sources.json') }}
 
       # Stamped stage outputs: build/stamps plus everything the stages write
-      # that later stages and assembly read (build/prefix: x264, frei0r, and
-      # the finished binaries; build/gst: full, sdk, runtime). Each stage
+      # that later stages and assembly read (build/prefix: frei0r and the
+      # finished binaries; build/gst: full, sdk, runtime). Each stage
       # rebuilds whenever its stamp doesn't match, and gst/gst_runtime/frei0r
       # delete their output first, so restoring an older entry (restore-keys)
       # or one saved by a failed run is safe: it can only skip stages whose
@@ -127,6 +137,46 @@ jobs:
       - name: Discard incomplete stage restore
         if: steps.stages.outputs.cache-matched-key == ''
         run: rm -rf build/stamps build/prefix build/gst
+
+      # Release runs only: a throwaway keychain holding the Developer ID
+      # Application certificate, and the App Store Connect API key notarytool
+      # uses. Removed again by "Remove signing material".
+      - name: Import signing certificate
+        if: steps.version.outputs.release == 'true'
+        env:
+          P12: ${{ secrets.MACOS_DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          NOTARY_KEY: ${{ secrets.NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          missing=
+          for v in P12 P12_PASSWORD IDENTITY NOTARY_KEY NOTARY_KEY_ID NOTARY_ISSUER; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::release signing secrets are empty:$missing (MACOS_DEVELOPER_ID_P12, MACOS_DEVELOPER_ID_P12_PASSWORD, MACOS_SIGN_IDENTITY, NOTARY_KEY_P8, NOTARY_KEY_ID, NOTARY_ISSUER_ID)"
+            exit 1
+          fi
+          kc=$RUNNER_TEMP/signing.keychain-db
+          kc_password=$(openssl rand -base64 32)
+          security create-keychain -p "$kc_password" "$kc"
+          security set-keychain-settings -lut 21600 "$kc"
+          security unlock-keychain -p "$kc_password" "$kc"
+          printf '%s' "$P12" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
+          security import "$RUNNER_TEMP/developer-id.p12" -k "$kc" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$kc_password" "$kc" > /dev/null
+          security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/developer-id.p12"
+          printf '%s' "$NOTARY_KEY" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          chmod 600 "$RUNNER_TEMP/notary.p8"
+          {
+            echo "GLITCHBOX_SIGN_IDENTITY=$IDENTITY"
+            echo "GLITCHBOX_NOTARY_KEY_FILE=$RUNNER_TEMP/notary.p8"
+            echo "GLITCHBOX_NOTARY_KEY_ID=$NOTARY_KEY_ID"
+            echo "GLITCHBOX_NOTARY_ISSUER=$NOTARY_ISSUER"
+          } >> "$GITHUB_ENV"
 
       - name: packaging/build.sh all
         id: build
@@ -155,6 +205,11 @@ jobs:
             build/gst
           key: ${{ steps.stamps.outputs.key }}
 
+      # Stapling rewrites the app and the DMG, so this runs before the checksum.
+      - name: Notarize
+        if: steps.version.outputs.release == 'true'
+        run: packaging/build.sh notarize
+
       - name: Checksum DMG
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -175,6 +230,22 @@ jobs:
           compression-level: 0 # UDZO is already compressed
           retention-days: 14
 
+      - name: Source bundle
+        if: steps.version.outputs.release == 'true'
+        run: packaging/build.sh sources
+
+      - name: Upload source bundle
+        if: steps.version.outputs.release == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.version.outputs.artifact }}-sources
+          path: |
+            build/dist/Glitchbox-${{ steps.version.outputs.version }}-sources.tar
+            build/dist/Glitchbox-${{ steps.version.outputs.version }}-sources.tar.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
       - name: Upload build logs
         if: failure()
         uses: actions/upload-artifact@v7
@@ -190,6 +261,12 @@ jobs:
           df -h "$GITHUB_WORKSPACE"
           du -sh build/* build/gst/* 2>/dev/null || true
 
+      - name: Remove signing material
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/notary.p8" "$RUNNER_TEMP/developer-id.p12"
+
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
@@ -203,6 +280,11 @@ jobs:
           name: ${{ needs.build.outputs.artifact }}
           path: dist
 
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.artifact }}-sources
+          path: dist
+
       - name: Create draft release
         working-directory: dist
         env:
@@ -212,24 +294,26 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           dmg=Glitchbox-$VERSION.dmg
+          src=Glitchbox-$VERSION-sources.tar
           shasum -a 256 -c "$dmg.sha256"
+          shasum -a 256 -c "$src.sha256"
           sum=$(cut -d' ' -f1 "$dmg.sha256")
           cat > notes.md <<EOF
           Glitchbox $VERSION, built from \`$TAG\` ($GITHUB_SHA).
 
           Apple silicon Macs, macOS 26 or later. Open \`$dmg\` and drag Glitchbox to
-          Applications. The app is ad-hoc signed and not notarized, so Gatekeeper blocks
-          the first launch: allow it in System Settings → Privacy & Security → Open
-          Anyway, or run \`xattr -dr com.apple.quarantine /Applications/Glitchbox.app\`.
+          Applications. Signed with a Developer ID and notarized by Apple.
+
+          Complete corresponding source: \`$src\`.
 
           SHA-256 (\`$dmg\`): \`$sum\`
           EOF
           # A rerun updates the existing draft instead of adding a second one.
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" "$dmg" "$dmg.sha256" --clobber
+            gh release upload "$TAG" "$dmg" "$dmg.sha256" "$src" "$src.sha256" --clobber
             gh release edit "$TAG" --notes-file notes.md
           else
-            gh release create "$TAG" "$dmg" "$dmg.sha256" --draft --verify-tag \
+            gh release create "$TAG" "$dmg" "$dmg.sha256" "$src" "$src.sha256" --draft --verify-tag \
               --title "Glitchbox $VERSION" --notes-file notes.md
           fi
           gh release view "$TAG" --json isDraft,tagName,assets \

@@ -4,8 +4,8 @@ import Testing
 @testable import GlitchboxInProcess
 
 /// The Rust-backed native steps against the macOS CLIs they replace, run through the plugin
-/// scripts' and pipelines' exact flags: ntsc-rs-cli, bender, and reactive-vcr from the prebuilt
-/// Glitchbox.app, and burns from the reference build at /tmp/w14 (see EffectsFixture).
+/// scripts' and pipelines' exact flags: ntsc-rs-cli, bender, reactive-vcr, and burns from this
+/// checkout's build/Glitchbox.app (see EffectsFixture).
 /// Outputs are compared decoded (frame count, size, pix_fmt, colour tags, PSNR).
 @Suite(.serialized)
 struct EffectsTests {
@@ -152,11 +152,11 @@ struct EffectComparison {
 struct EffectsFixture: Sendable {
     static let repo = URL(filePath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-    static let mac = URL(filePath: "/Users/kyle/Development/glitchbox/build/Glitchbox.app/Contents", directoryHint: .isDirectory)
+    /// This checkout's `packaging/build.sh all` output.
+    static let mac = repo.appending(path: "build/Glitchbox.app/Contents", directoryHint: .isDirectory)
     static let helpers = mac.appending(path: "Helpers", directoryHint: .isDirectory)
-    /// burns built by the glitchbox-burns worker at the GlitchboxBurns commit (Glitchbox.app predates burns).
-    static let burns = URL(filePath: "/tmp/w14/burns-target/release/burns")
-    static let ort = URL(filePath: "/tmp/w14/ort/lib/libonnxruntime.dylib")
+    static let burns = helpers.appending(path: "burns")
+    static let ort = mac.appending(path: "Frameworks/libonnxruntime.dylib")
     static let model = repo.appending(path: "build/downloads/depth-anything-v2-small-4472b736.onnx")
     static let modelSHA = "afb6a5c28f3b6bf1618c6e43f02073ef9dfdc70e937502d51603e57b0a1df10c"
 
@@ -340,12 +340,12 @@ struct EffectsFixture: Sendable {
         case "still-motion":
             let project = ref.appending(path: "project.json")
             try JSONSerialization.data(withJSONObject: jqStillMotionProject(c.params)).write(to: project)
-            var args = ["render", "-i", c.input.path, "-o", ref.appending(path: "motion.mp4").path, "--config", project.path,
-                        "--fps", "30", "--duration", "1", "--width", "320", "--height", "180", "--crf", "0"]
+            var args = ["render", "-i", c.input.path, "-o", ref.appending(path: "motion.mkv").path, "--config", project.path,
+                        "--fps", "30", "--duration", "1", "--width", "320", "--height", "180", "--codec", "ffv1"]
             if c.params.rendered("motion") == "depth" { args.append("--auto-depth") }
             try Self.run(Self.burns, args, environment: ["HOME": burnsHome.path, "ORT_DYLIB_PATH": Self.ort.path,
                                                           "PATH": "\(Self.helpers.path):/usr/bin:/bin"])
-            try Self.remux(ref.appending(path: "motion.mp4"), out, ["-map", "0:v:0", "-c", "copy"])
+            try Self.remux(ref.appending(path: "motion.mkv"), out, ["-map", "0:v:0", "-c", "copy"])
         default:
             Issue.record("no reference for \(c.plugin)")
         }

@@ -125,7 +125,8 @@ order.
 
 RGB Split, Pixel Smear (pixel-sort-style streaks), Pixelate, Bitcrush, Dither,
 Trails, Frame Blend, Echo, Mirror, and Datascope come from ffmpeg. Block Glitch,
-Row Shift, Plasma Distort, Kaleidoscope, and Vertigo come from frei0r.
+Row Shift, Plasma Distort, Kaleidoscope, and Vertigo come from frei0r on the Mac;
+on iPhone and iPad they are Glitchbox's own versions and look different.
 
 ### Screens, film, and colour
 
@@ -155,22 +156,18 @@ Download `Glitchbox-<version>.dmg` from
 and drag Glitchbox to Applications. It needs a Mac with Apple silicon and macOS
 26 or later, and takes about 250 MB on disk.
 
-Glitchbox isn't notarized yet, so macOS blocks the first launch. Open System
-Settings → Privacy & Security and click Open Anyway, or clear the quarantine flag
-in Terminal:
-
-```sh
-xattr -dr com.apple.quarantine /Applications/Glitchbox.app
-```
+Glitchbox is signed with a Developer ID and notarized by Apple, so it opens like
+any other downloaded app.
 
 ### iPhone and iPad
 
 The same app runs on iPhone and iPad (iOS and iPadOS 26 or later) with every
 effect, rendering on the device. Bring footage in from Photos or Files, and send
-exports to Photos, Files, or the share sheet. It isn't on the App Store, because
-several of the tools it links are GPL, so you build and install it yourself from
-a clone of this repository, with Xcode 27 signed into an Apple developer account
-and the device connected:
+exports to Photos, Files, or the share sheet. The iPhone and iPad build links
+only LGPL and permissively licensed code (FFmpeg and FFglitch built without
+their GPL parts). To build and install it yourself from a clone of this
+repository, use Xcode 27 signed into an Apple developer account with the device
+connected:
 
 ```sh
 just ios <device-udid>   # packaging/build.sh ios-app, then ios-install
@@ -187,7 +184,6 @@ Glitchbox runs these projects, all of which ship inside the app:
 [ONNX Runtime](https://onnxruntime.ai),
 [reactive-vcr](https://github.com/kylegrantlucas/reactive-vcr),
 [FFmpeg](https://ffmpeg.org),
-[x264](https://www.videolan.org/developers/x264.html),
 [frei0r](https://frei0r.dyne.org),
 [GStreamer](https://gstreamer.freedesktop.org),
 [SoX](https://sourceforge.net/projects/sox/),
@@ -197,6 +193,8 @@ Glitchbox runs these projects, all of which ship inside the app:
 ## License
 
 Glitchbox is released under the [MIT License](LICENSE). The tools it bundles keep
-their own licences; FFmpeg, x264, FFglitch, frei0r, SoX, and bash are GPL. The
-About window lists each one with a link to its source, and Help → Third-Party
-Licenses opens the full texts.
+their own licences; on the Mac, FFmpeg, FFglitch, frei0r, SoX, and bash are GPL.
+The About window lists each one with a link to its source, and Help → Third-Party
+Licenses opens the full texts. Each release carries
+`Glitchbox-<version>-sources.tar`, the complete corresponding source of every
+bundled tool.

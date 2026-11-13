@@ -4,10 +4,9 @@ import GlitchboxBurns
 import GlitchboxKit
 
 /// plugins/still-motion.json: `burns render -i STILL --config PROJECT --fps $GB_FPS --duration
-/// $GB_DURATION --width $GB_WIDTH --height $GB_HEIGHT --crf 0 [--auto-depth | --depth FILE]`,
-/// then a remux of its lossless H.264 into Matroska. In-process: GlitchboxBurns renders the
-/// RGBA frames and libx264 (GBMedia) encodes them with burns's encoder settings straight into
-/// the MKV layer.
+/// $GB_DURATION --width $GB_WIDTH --height $GB_HEIGHT --codec ffv1 [--auto-depth | --depth FILE]`,
+/// then a remux of its FFV1 Matroska. In-process: GlitchboxBurns renders the RGBA frames and
+/// FFV1 (GBMedia) encodes them with burns's encoder settings straight into the MKV layer.
 ///
 /// Auto-depth keeps burns's cache layout (`models/`, `depth/`) under `$BURNS_CACHE`
 /// (toolchain.json: `"BURNS_CACHE": "@cache/burns"`, the Workspace cache dir); a depth render
@@ -205,18 +204,19 @@ public struct StillMotionStep: NativeStep {
         ToolCall.append(c.log, "burns: \(frames) frames at \(w)x\(h) @ \(num)/\(den)\n")
 
         // burns's encoder: `-vf scale=in_range=full:out_range=tv:out_color_matrix=bt709,format=yuv420p,
-        // setparams=…` → libx264 -preset medium -crf 0 -pix_fmt yuv420p, all tags BT.709, limited.
+        // setparams=…` → ffv1 -level 3 -g 1 -slices 4 -slicecrc 1 -pix_fmt yuv420p in Matroska: all
+        // tags BT.709, limited, chroma location unspecified (nothing in its chain sets one).
         let converter = try MediaConverter(
             width: w, height: h, pixelFormat: "rgba",
             filters: "scale=in_range=full:out_range=tv:out_color_matrix=bt709,format=yuv420p,"
                 + "setparams=color_primaries=bt709:color_trc=bt709")
         let encoder = try MediaEncoder(
             url: c.output,
-            config: Effect.encoderConfig(codec: Int32(GBM_CODEC_LIBX264.rawValue), width: w, height: h,
+            config: Effect.encoderConfig(codec: Int32(GBM_CODEC_FFV1.rawValue), width: w, height: h,
                                          pixelFormat: "yuv420p", rate: rate, space: AVColor.bt709,
                                          primaries: AVColor.bt709, transfer: AVColor.bt709,
-                                         chromaLocation: AVColor.chromaLeft),
-            codecOptions: "preset=medium:crf=0")
+                                         chromaLocation: AVColor.chromaUnspecified),
+            codecOptions: "level=3:g=1:slices=4:slicecrc=1")
 
         let stride = w * 4
         var rgba = [UInt8](repeating: 0, count: stride * h)

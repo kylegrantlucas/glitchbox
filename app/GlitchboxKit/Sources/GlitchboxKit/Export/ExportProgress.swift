@@ -3,7 +3,7 @@ import Foundation
 /// State read from an ffmpeg `-progress` file: `key=value` blocks, each ending in
 /// `progress=continue` or `progress=end`.
 public struct ExportProgress: Equatable, Sendable {
-    /// Seconds of output written; nil until ffmpeg reports a time (x264 lookahead and GIF's
+    /// Seconds of output written; nil until ffmpeg reports a time (encoder lookahead and GIF's
     /// palette pass report `N/A` at first).
     public var outTime: Double?
     public var ended: Bool

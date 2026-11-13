@@ -9,7 +9,10 @@ extension InProcessTests {
         let r = InProcessRunner()
         for tool in ["ffmpeg", "ffprobe", "ffgac", "ffedit"] { #expect(r.has(tool)) }
         for tool in ["bash", "jq", "sox", "mv-mangle", "ntsc-rs-cli", "/usr/bin/ffmpeg"] { #expect(!r.has(tool)) }
-        for id in ["mpeg2-mosh", "mv-script", "mv-mangle"] { #expect(r.native(id) != nil) }
+        for id in ["mpeg2-mosh", "mv-script", "mv-mangle",
+                   "block-glitch", "row-shift", "plasma-distort", "kaleidoscope", "vertigo"] {
+            #expect(r.native(id) != nil)
+        }
     }
 
     @Test func sourcePrepAndAudioMatchMacOS() async throws {
@@ -33,8 +36,9 @@ extension InProcessTests {
         #expect(mine == theirs, "\(plugin): \(mine.count) bytes in-process vs \(theirs.count) on macOS")
     }
 
-    /// MPEG-2 decode diverges between runs past ~frame 17 even on macOS, and frei0r glitch0r
-    /// draws from an unseeded PRNG (two macOS runs differ), so these are compared by shape.
+    /// MPEG-2 decode diverges between runs past ~frame 17 even on macOS, and block-glitch is
+    /// GlitchboxFX's own effect in-process but frei0r glitch0r on macOS, so these are compared
+    /// by shape.
     @Test(arguments: [("mpeg2-mosh", [String: ParamValue]()),
                       ("mv-script", ["script": .string("dd_gravity.js"), "amount": .int(3)]),
                       ("block-glitch", [:])])

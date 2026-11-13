@@ -109,7 +109,8 @@
         "-y",
         "{out}"
       ],
-      "name" : "filter"
+      "name" : "filter",
+      "native" : "kaleidoscope"
     }
   ],
   "summary" : "Mirror segments around a point (frei0r kaleid0sc0pe)."

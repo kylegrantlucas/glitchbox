@@ -40,15 +40,15 @@ final class ProxyMakerTests {
         let url = try await ProxyMaker.proxy(for: layer, env: env(noVT: false))
         let argv = try String(contentsOf: url, encoding: .utf8)
         #expect(argv.contains("h264_videotoolbox"))
-        #expect(!argv.contains("libx264"))
+        #expect(!argv.contains("mpeg4"))
     }
 
-    @Test func fallsBackToLibx264WhenVideoToolboxFails() async throws {
+    @Test func fallsBackToMPEG4WhenVideoToolboxFails() async throws {
         let url = try await ProxyMaker.proxy(for: layer, env: env(noVT: true))
         #expect(url == layer.dir.appending(path: "proxy.mp4"))
-        #expect(try String(contentsOf: url, encoding: .utf8).contains("libx264"))
+        #expect(try String(contentsOf: url, encoding: .utf8).contains("-c:v mpeg4"))
         let log = try String(contentsOf: layer.dir.appending(path: "proxy.log"), encoding: .utf8)
-        #expect(log.contains("falling back to libx264"))
+        #expect(log.contains("falling back to mpeg4"))
         let leftovers = try FileManager.default.contentsOfDirectory(atPath: layer.dir.path).filter { $0.hasPrefix("proxy.partial") }
         #expect(leftovers.isEmpty)
     }

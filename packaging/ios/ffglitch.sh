@@ -26,9 +26,12 @@
 #    entry points, its writable data renamed to __DATA,__<tool>_data/_bss;
 #    the runtime restores those sections before every run (fresh globals),
 #    and the two tools share no fftools state, so they run concurrently.
-#  - Configure matches the macOS prebuilt (GPL, every codec, zlib) minus
+#  - Configure matches the macOS prebuilt (every codec, zlib) minus --enable-gpl
+#    (so no libpostproc and no GPL filters; the App Store build must hold no
+#    GPL code, and config.h is checked to be the LGPL configuration) and minus
 #    libzmq/rtmidi/SDL2/AVFoundation (no avdevice, no autodetected system
-#    frameworks), so ffgac/ffedit produce the same bitstreams.
+#    frameworks). ffgac's MPEG-2/MPEG-4 encoders are LGPL, so ffgac/ffedit
+#    produce the same bitstreams.
 #
 # Output: build/ios/xcframeworks/FFglitch.xcframework.
 # Host tests: packaging/ios/ffglitch/test (not part of the stage).
@@ -36,7 +39,7 @@
 ios_ffglitch_srcs="ffglitch-src"
 ios_ffglitch_inputs="packaging/ios/ffglitch/inprocess.patch packaging/ios/ffglitch/ffg_hooks.h packaging/ios/ffglitch/ffg_tool_hooks.h packaging/ios/ffglitch/ffglitch_runtime.c packaging/ios/ffglitch/ffglitch.h packaging/ios/ffglitch/module.modulemap"
 ios_ffglitch_slices="ios-arm64 ios-arm64-simulator macos-arm64"
-ios_ffglitch_libs="libavfilter libavformat libavcodec libpostproc libswresample libswscale libavutil"
+ios_ffglitch_libs="libavfilter libavformat libavcodec libswresample libswscale libavutil"
 ios_ffglitch_exports="_ffglitch_ffgac_run _ffglitch_ffedit_run"
 # What the framework must never reference: process spawning, dlopen, signal
 # handlers, terminal control.
@@ -158,10 +161,12 @@ ios_ffglitch_slice() { # SLICE
     --cc=/usr/bin/clang --cxx=/usr/bin/clang++ \
     --extra-cflags="$cflags -fvisibility=hidden -fno-common" --extra-cxxflags="$cflags -fvisibility=hidden -fno-common" \
     --extra-ldflags="$cflags" \
-    --disable-autodetect --enable-static --disable-shared --enable-gpl \
+    --disable-autodetect --enable-static --disable-shared \
     --disable-iconv --enable-zlib \
     --disable-libzmq --disable-rtmidi --disable-sdl2 --disable-avdevice \
     --disable-ffplay --disable-doc --disable-debug
+  grep -q '^#define CONFIG_GPL 0' config.h && grep -q 'FFMPEG_LICENSE "LGPL version 2.1 or later"' config.h ||
+    die "ios_ffglitch: not an LGPL-2.1 configuration"
   for f in $ios_ffglitch_libs; do
     ios_ffglitch_env make -j"$JOBS" ECFLAGS="-include $PKG/ios/ffglitch/ffg_hooks.h" "$f/$f.a"
   done
@@ -172,7 +177,7 @@ ios_ffglitch_slice() { # SLICE
     -c "$PKG/ios/ffglitch/ffglitch_runtime.c" -o "$w/ffglitch_runtime.o"
 
   extralibs=$(ios_ffglitch_print "$s" \
-    EXTRALIBS-avfilter EXTRALIBS-avformat EXTRALIBS-avcodec EXTRALIBS-postproc \
+    EXTRALIBS-avfilter EXTRALIBS-avformat EXTRALIBS-avcodec \
     EXTRALIBS-swresample EXTRALIBS-swscale EXTRALIBS-avutil | tr '\n' ' ')
   log "ios_ffglitch: extra libs: $extralibs"
   for f in $ios_ffglitch_exports; do echo "$f"; done > "$w/exports"

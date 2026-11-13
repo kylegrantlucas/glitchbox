@@ -42,12 +42,12 @@ judder:
     mkdir -p {{work}} {{out}}
     ffmpeg -y -loop 1 -framerate {{fps}} -t {{loop_s}} -i "{{source}}" \
       -filter_script:v {{filters}}/judder.filter \
-      -c:v libx264 -crf 14 -preset veryfast \
-      {{work}}/judder.mp4
+      -c:v ffvhuff -pix_fmt yuv420p \
+      {{work}}/judder.mkv
 
 # Encode judder to MPEG-2 with forced motion vectors, single GOP
 mpeg2:
-    {{ffgac}} -y -i {{work}}/judder.mp4 -an \
+    {{ffgac}} -y -i {{work}}/judder.mkv -an \
       -mpv_flags +nopimb+forcemv -qscale:v 0 -g max -bf 0 -sc_threshold max \
       -vcodec mpeg2video -f rawvideo \
       {{work}}/judder.mpg
@@ -59,13 +59,12 @@ mosh:
       -s {{scripts}}/mv_average_timed.js \
       -o {{work}}/mosh.mpg
 
-# VHS filter chain + final H.264 encode
+# VHS filter chain + final H.264 encode (VideoToolbox)
 vhs:
     ffmpeg -y -i {{work}}/mosh.mpg \
       -filter_script:v {{filters}}/vhs2.filter \
       -r {{fps}} \
-      -c:v libx264 -crf 20 -preset slow -tune grain \
-      -pix_fmt yuv420p -profile:v high -level 4.1 \
+      -c:v h264_videotoolbox -b:v 20M -profile:v high -pix_fmt yuv420p -tag:v avc1 \
       -movflags +faststart -an \
       {{out}}/loop_mosh.mp4
 
@@ -90,8 +89,8 @@ combine video start len out_name:
     # extract external segment, FILL-CROP to 1920x1080 (no pillarbox), grayscale
     ffmpeg -y -ss {{start}} -t {{len}} -i "{{video}}" \
       -vf "scale={{w}}:{{h}}:force_original_aspect_ratio=increase:flags=lanczos,crop={{w}}:{{h}},setsar=1,fps={{fps}},lutyuv=y=val:u=128:v=128,format=yuv420p" \
-      -an -c:v libx264 -crf 14 -preset veryfast \
-      {{work}}/segment.mp4
+      -an -c:v ffvhuff -pix_fmt yuv420p \
+      {{work}}/segment.mkv
     # Composite pipeline (three inputs consumed by filter_complex):
     #  [0:v] loop_mosh (full 112s)
     #  [1:v] religions segment (67s)
@@ -100,12 +99,12 @@ combine video start len out_name:
     #    (b) an overlay signal that bleeds in on top of the torn base
     #  Ramp both effects in over ~20s so we get: 45s clean loop_mosh -> 45-65s religions
     #  tears in and bleeds through the tears -> 65s+ mosh (mv_layer_mosh) collapses everything.
-    ffmpeg -y -i {{out}}/loop_mosh.mp4 -i {{work}}/segment.mp4 \
+    ffmpeg -y -i {{out}}/loop_mosh.mp4 -i {{work}}/segment.mkv \
       -filter_complex "[0:v]setpts=PTS,lutyuv=y=val:u=128:v=128,format=yuv420p[bg];[1:v]tpad=start_duration=${offset}:color=gray,fps={{fps}},setpts=PTS,lutyuv=y=val:u=128:v=128,format=yuv420p[fg];[fg]split=3[fg2][xmap_raw][ymap_raw];[xmap_raw]lutyuv=y='128+(val-128)*0.42':u=128:v=128,format=yuv420p[xdisp];[ymap_raw]lutyuv=y='128+(val-128)*0.42':u=128:v=128,format=yuv420p[ydisp];[bg][xdisp][ydisp]displace=edge=mirror[torn];[bg][torn]blend=all_expr='A*(1-min(1\,max(0\,(T-${offset})/20)))+B*min(1\,max(0\,(T-${offset})/20))'[base];[base][fg2]blend=all_expr='A*(1-min(0.75\,max(0\,(T-${offset})/20*0.65)))+B*min(0.75\,max(0\,(T-${offset})/20*0.65))'" \
-      -t {{loop_s}} -an -c:v libx264 -crf 14 -preset veryfast \
-      {{work}}/layered.mp4
+      -t {{loop_s}} -an -c:v ffvhuff -pix_fmt yuv420p \
+      {{work}}/layered.mkv
     # MPEG-2 single-GOP with forced MVs
-    {{ffgac}} -y -i {{work}}/layered.mp4 -an \
+    {{ffgac}} -y -i {{work}}/layered.mkv -an \
       -mpv_flags +nopimb+forcemv -qscale:v 0 -g max -bf 0 -sc_threshold max \
       -vcodec mpeg2video -f rawvideo \
       {{work}}/layered.mpg
@@ -116,8 +115,7 @@ combine video start len out_name:
     # final encode + belt-and-braces chroma flatten
     ffmpeg -y -i {{work}}/layered_mosh.mpg -r {{fps}} \
       -vf "lutyuv=y=val:u=128:v=128,format=yuv420p" \
-      -c:v libx264 -crf 20 -preset slow -tune grain \
-      -pix_fmt yuv420p -profile:v high -level 4.1 \
+      -c:v h264_videotoolbox -b:v 20M -profile:v high -pix_fmt yuv420p -tag:v avc1 \
       -movflags +faststart -an \
       {{out}}/{{out_name}}
 

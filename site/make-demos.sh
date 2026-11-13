@@ -72,8 +72,15 @@ render() { # CHAIN SOURCE -> prints the rendered out.mkv
 while read -r name source poster; do
   echo "demo $name ($source)" >&2
   mkv=$(render "$site/demos/$name.json" "$s/$source.mkv")
-  ff -i "$mkv" -an -c:v libx264 -preset slow -crf 26 -maxrate 1500k -bufsize 3000k \
-     -profile:v high -pix_fmt yuv420p -map_metadata -1 -movflags +faststart "$out/$name.mp4"
+  # VideoToolbox ignores -maxrate and overshoots on noisy chains (bend-life lands near
+  # 2.3 Mbit/s at 1200k), so a clip over 1 MiB is re-encoded at constant bit rate, the one
+  # rate control it honours, stepping down until it fits.
+  for rc in 1200k:0 1200k:1 800k:1 600k:1; do
+    ff -i "$mkv" -an -c:v h264_videotoolbox -b:v "${rc%:*}" -constant_bit_rate "${rc#*:}" \
+       -profile:v high -pix_fmt yuv420p -map_metadata -1 -movflags +faststart "$out/$name.mp4"
+    [ "$(wc -c < "$out/$name.mp4")" -gt 1048576 ] || break
+  done
+  [ "$(wc -c < "$out/$name.mp4")" -le 1048576 ] || { echo "make-demos: $name.mp4 is over 1 MiB" >&2; exit 1; }
   ff -ss "$poster" -i "$mkv" -frames:v 1 -q:v 3 "$out/$name.jpg"
 done <<'EOF'
 vhs-bars bars 1.5

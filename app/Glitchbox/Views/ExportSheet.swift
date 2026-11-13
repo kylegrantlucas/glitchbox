@@ -29,7 +29,6 @@ struct ExportSheet: View {
     @State private var audioChoice: ExportAudioChoice
     @State private var audioFile: URL?
     @State private var choosingAudio = false
-    @State private var crf: Int
     @State private var vtQuality: Int
     /// The codec Video last used, restored when coming back from GIF or Frames.
     @State private var videoFormat: ExportFormat
@@ -55,7 +54,6 @@ struct ExportSheet: View {
             _audioChoice = State(initialValue: .file)
             _audioFile = State(initialValue: URL(filePath: path))
         }
-        _crf = State(initialValue: settings.effectiveX264CRF)
         _vtQuality = State(initialValue: settings.effectiveVideoToolboxQuality)
         _videoFormat = State(initialValue: Self.videoFormats.contains(settings.format) ? settings.format : .h264)
     }
@@ -122,12 +120,9 @@ struct ExportSheet: View {
         }
         .onChange(of: settings.preferredContainer) { normalizeAudioCodec() }
         .onChange(of: settings.quality) {
-            settings.x264CRF = nil
             settings.videoToolboxQuality = nil
-            crf = settings.effectiveX264CRF
             vtQuality = settings.effectiveVideoToolboxQuality
         }
-        .onChange(of: crf) { settings.x264CRF = crf == settings.quality.x264CRF ? nil : crf }
         .onChange(of: vtQuality) {
             settings.videoToolboxQuality = vtQuality == settings.quality.videoToolboxQuality ? nil : vtQuality
         }
@@ -346,23 +341,10 @@ struct ExportSheet: View {
         let format = settings.format
         if format == .h264 || format == .hevc {
             Section("Encoder") {
-                if format == .h264 {
-                    Picker("Encoder", selection: $settings.h264Encoder) {
-                        ForEach(H264Encoder.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }
+                LabeledContent("Quality \(vtQuality)") {
+                    Slider(value: vtQualityValue, in: 1...100, step: 1)
                 }
-                if format == .h264 && settings.h264Encoder == .x264 {
-                    Picker("Preset", selection: $settings.x264Preset) {
-                        ForEach(H264Encoder.x264Presets, id: \.self) { Text($0).tag($0) }
-                    }
-                    Stepper("CRF \(crf)", value: $crf, in: 0...51)
-                        .help("Lower is better quality and larger files")
-                } else {
-                    LabeledContent("Quality \(vtQuality)") {
-                        Slider(value: vtQualityValue, in: 1...100, step: 1)
-                    }
-                    .help("VideoToolbox quality from 1 to 100")
-                }
+                .help("VideoToolbox quality from 1 to 100")
             }
         }
     }

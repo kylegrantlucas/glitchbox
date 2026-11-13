@@ -1,6 +1,6 @@
 [package]
 name = "glitchbox-fx"
-description = "C ABI over the media-free cores of ntsc-rs, bender-rs, and reactive-vcr for Glitchbox iOS"
+description = "C ABI over the media-free cores of ntsc-rs, bender-rs, and reactive-vcr, plus original pixel effects, for Glitchbox iOS"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.97"
@@ -20,6 +20,7 @@ bender = { git = "https://github.com/kylegrantlucas/bender-rs", rev = "1ddcf66e0
 # reactive-vcr core at tag v0.4.1; it keeps its own pinned ntsc-rs and bender revisions.
 reactive-vcr = { git = "https://github.com/kylegrantlucas/reactive-vcr", rev = "6e28ae047419380383b6980f0b8357f601231563" }
 rayon = "1.12"
+serde_json = "1"
 
 [profile.release]
 lto = true

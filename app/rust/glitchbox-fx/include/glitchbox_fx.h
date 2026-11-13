@@ -1,19 +1,24 @@
 /*
  * glitchbox_fx.h — C API of GlitchboxFX (app/rust/glitchbox-fx): the
  * media-free effect cores behind three Glitchbox plugins, for hosts that
- * cannot spawn the macOS CLIs (iOS). The host decodes, scales, converts,
- * and encodes with libav; this library only transforms frames.
+ * cannot spawn the macOS CLIs (iOS), plus original pixel effects standing
+ * in for the five frei0r plugins. The host decodes, scales, converts, and
+ * encodes with libav; this library only transforms frames.
  *
  *   ntsc    ntsc-rs core @add90f5 (what ntsc-rs-cli 0.9.4 runs)  analog-pass
  *   bender  bender-rs core @1ddcf66 (bender 0.2.1)                bender
  *   reactive reactive-vcr core v0.4.1 (with its own ntsc-rs @88f2df9
  *            and bender @e5b754c)                                 reactive-vcr
+ *   pixel   original MIT code (src/pixel.rs)  block-glitch, row-shift,
+ *            plasma-distort, kaleidoscope, vertigo
  *
- * Each section says what the host must do around the call to reproduce the
- * CLI the macOS pipeline runs (pipelines/analog-pass, pipelines/bend,
- * pipelines/reactive-vcr). Measured against the real CLIs by
+ * Each of the first three sections says what the host must do around the
+ * call to reproduce the CLI the macOS pipeline runs (pipelines/analog-pass,
+ * pipelines/bend, pipelines/reactive-vcr). Measured against the real CLIs by
  * tests/oracle.rs; remaining differences come from libav's scaling and
  * RGB<->YUV conversion standing in for GStreamer's videoscale/videoconvert.
+ * The pixel effects reproduce nothing: they look different from the macOS
+ * frei0r renders of the same plugins.
  *
  * Conventions
  * - Errors: functions taking `char **error` set *error to NULL on success and
@@ -24,13 +29,14 @@
  * - Strides are in bytes; each frame buffer is at least stride * height bytes;
  *   src and dst must not overlap.
  * - Handles are thread-safe: an ntsc handle may run several frames
- *   concurrently; bender and reactive handles serialize frames internally
- *   (they carry per-stream state, so feed one stream's frames in order).
- *   Freeing a handle while another thread uses it is undefined.
+ *   concurrently; bender, reactive, and pixel handles serialize frames
+ *   internally (they carry per-stream state, so feed one stream's frames in
+ *   order). Freeing a handle while another thread uses it is undefined.
  * - Threads: bender and reactive handles each own a rayon pool (`threads`,
  *   0 = rayon's default: RAYON_NUM_THREADS or the logical core count). The
  *   ntsc-rs stages (ntsc handles and reactive's ntsc stage) run on ntsc-rs's
- *   own process-wide pool, sized once: see gbfx_ntsc_set_threads.
+ *   own process-wide pool, sized once: see gbfx_ntsc_set_threads. Pixel
+ *   effects split rows over rayon's global pool.
  */
 #ifndef GLITCHBOX_FX_H
 #define GLITCHBOX_FX_H
@@ -49,6 +55,7 @@ extern "C" {
 typedef struct Ntsc GbfxNtsc;
 typedef struct Bender GbfxBender;
 typedef struct Reactive GbfxReactive;
+typedef struct Pixel GbfxPixel;
 
 /* Frees a string returned by this library. NULL is ignored. */
 void gbfx_string_free(char *s);
@@ -258,6 +265,43 @@ int gbfx_reactive_apply(const GbfxReactive *reactive,
                         uint8_t *dst, size_t dst_stride,
                         uint32_t width, uint32_t height,
                         uint64_t frame_index, char **error);
+
+/* ---------------------------------------------------------------------------
+ * pixel effects (block-glitch, row-shift, plasma-distort, kaleidoscope,
+ * vertigo on iOS)
+ *
+ * Original implementations for Glitchbox (MIT). Not derived from frei0r.
+ *
+ * Host pipeline: decode to RGBA8 at the source size, gbfx_pixel_apply each
+ * frame in decode order on one handle, convert back to yuv420p with the
+ * source's matrix and range, and encode ffvhuff with the source's colour
+ * tags (GlitchboxInProcess PixelEffectStep).
+ *
+ * The random effects (block-glitch, row-shift) draw from SplitMix64 seeded
+ * 0x5EED000000000000 ^ frame_index, so a frame renders the same every time.
+ * Sampling is bilinear, clamped to the frame; "shift a row by dx" means
+ * dst[x] = src[(x - dx) mod width].
+ * ------------------------------------------------------------------------- */
+
+/* effect is a plugin id: "block-glitch", "row-shift", "plasma-distort",
+ * "kaleidoscope", or "vertigo" (anything else: "unknown pixel effect <id>").
+ * params_json is the layer's {params} object (NULL = all defaults). Values
+ * may be JSON numbers or strings parsed as numbers, except reflect and
+ * time_based, which take "y"/"n"; missing keys take the defaults of
+ * plugins/<id>.json and unknown keys are ignored. NULL on error (bad JSON,
+ * a value that isn't a number, naming its key). */
+GbfxPixel *gbfx_pixel_new(const char *effect, const char *params_json, char **error);
+void gbfx_pixel_free(GbfxPixel *pixel);
+
+/* Applies the effect to one RGBA8 frame (bytes R, G, B, A); alpha is copied
+ * from src. frame_index seeds the random effects and drives velocity-mode
+ * plasma-distort; time_s (seconds) drives its time-based mode. vertigo feeds
+ * its previous output back: feed one stream's frames in order; index 0 (or
+ * a fresh handle) restarts it, and a size change mid-stream is an error.
+ * Frames are serialized per handle. Returns GBFX_OK or GBFX_ERROR. */
+int gbfx_pixel_apply(GbfxPixel *pixel, const uint8_t *src, size_t src_stride,
+                     uint8_t *dst, size_t dst_stride, uint32_t width, uint32_t height,
+                     uint64_t frame_index, double time_s, char **error);
 
 #ifdef __cplusplus
 }

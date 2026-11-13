@@ -33,7 +33,7 @@ extension InProcessTests {
         let clip = dir.appending(path: "clip.mp4")
         let code = try await PipeChain.run([PipeChain.Stage(tool: .ffmpeg, argv: { _, _ in
             ["ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-f", "lavfi",
-             "-i", "testsrc2=size=1280x720:rate=30:duration=3", "-c:v", "libx264", "-preset", "ultrafast",
+             "-i", "testsrc2=size=1280x720:rate=30:duration=3", "-c:v", "mpeg4", "-q:v", "3",
              "-pix_fmt", "yuv420p", "-y", clip.path]
         }, log: dir.appending(path: "clip.log"))], log: dir.appending(path: "clip.log"))
         try #require(code == 0)

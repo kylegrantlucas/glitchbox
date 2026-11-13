@@ -7,12 +7,11 @@
  *   LIBS="-lz -lbz2 -liconv -lc++ -framework AudioToolbox -framework CoreAudio
  *         -framework CoreFoundation -framework CoreMedia -framework CoreServices
  *         -framework CoreVideo -framework VideoToolbox"
- *   # macOS slice (compares frei0r outputs with the macOS app's bundled ffmpeg):
+ *   # macOS slice (compares a native filter's output with the macOS app's bundled ffmpeg):
  *   clang -O1 -target arm64-apple-macos26.0 -I$X/macos-arm64/Headers \
  *     packaging/ios/ffmpeg/test/test_gb_ffmpeg.c $X/macos-arm64/libGlitchFFmpeg.a $LIBS -o /tmp/gbff-test
- *   /tmp/gbff-test /tmp/gbff-work [REF_FFMPEG REF_FREI0R_PATH]
+ *   /tmp/gbff-test /tmp/gbff-work [REF_FFMPEG]
  *     e.g. REF_FFMPEG=/path/Glitchbox.app/Contents/Helpers/ffmpeg
- *          REF_FREI0R_PATH=/path/Glitchbox.app/Contents/PlugIns/frei0r-1
  *   # simulator slice:
  *   clang -O1 -target arm64-apple-ios26.0-simulator -isysroot $(xcrun --sdk iphonesimulator --show-sdk-path) \
  *     -I$X/ios-arm64-simulator/Headers packaging/ios/ffmpeg/test/test_gb_ffmpeg.c \
@@ -152,37 +151,11 @@ static int encode_testsrc(const char *out, const char *log)
     return ff(argv, ARGC(argv), log, NULL);
 }
 
-typedef struct Frei0rCase {
-    const char *plugin, *name, *params;
-} Frei0rCase;
-
-/* Defaults from plugins/<name>.json, formatted as the engine substitutes them. */
-static const Frei0rCase frei0r_cases[] = {
-    { "block-glitch",   "glitch0r",     "0.5|0.5|0.5|0.3" },
-    { "kaleidoscope",   "kaleid0sc0pe", "0.5|0.5|0.125|n|0|1.0|y" },
-    { "plasma-distort", "distort0r",    "1.0|0.005|n|0.5" },
-    { "row-shift",      "pixs0r",       "0.1|0.0|0.0083|0.1" },
-    { "vertigo",        "vertigo",      "0.02|0.202" },
-};
-
-static void frei0r_argv(const Frei0rCase *c, const char *in, const char *out, char *vf,
-                        size_t vfsize, const char **argv)
-{
-    /* plugins/<id>.json: -vf frei0r=filter_name=N:filter_params=P,format=yuv420p ... */
-    snprintf(vf, vfsize, "frei0r=filter_name=%s:filter_params=%s,format=yuv420p", c->name, c->params);
-    const char *a[] = { "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-i", in,
-        "-vf", vf, "-fflags", "+bitexact", "-flags:v", "+bitexact", "-map_metadata", "-1",
-        "-map_chapters", "-1", "-c:v", "ffvhuff", "-y", out, NULL };
-    memcpy(argv, a, sizeof(a));
-}
-
-static int spawn_wait(const char *const *argv, const char *frei0r_path)
+static int spawn_wait(const char *const *argv)
 {
     pid_t pid;
     int status;
-    char env_frei0r[2048];
-    char *envp[] = { env_frei0r, NULL };
-    snprintf(env_frei0r, sizeof(env_frei0r), "FREI0R_PATH=%s", frei0r_path);
+    char *envp[] = { NULL };
 #if TARGET_OS_OSX
     if (posix_spawn(&pid, argv[0], NULL, NULL, (char *const *)argv, envp))
         return -1;
@@ -206,7 +179,7 @@ static void *cancel_run(void *opaque)
     CancelArgs *a = opaque;
     const char *argv[] = { "ffmpeg", "-hide_banner", "-nostdin",
         "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30:duration=600",
-        "-c:v", "libx264", "-preset", "medium", "-f", "null", "-" };
+        "-vf", "showinfo", "-c:v", "mpeg4", "-f", "null", "-" };
     a->ret = ff(argv, ARGC(argv), path("cancel.log"), a->cancel);
     a->end = now();
     return NULL;
@@ -309,22 +282,6 @@ static void *queued_run(void *opaque)
     return NULL;
 }
 
-/* Runs Q on a thread; waits up to LIMIT seconds. Returns 0 if it finished. */
-static int run_with_limit(QueuedArgs *q, double limit)
-{
-    pthread_t th;
-    double t0 = now();
-    pthread_create(&th, NULL, queued_run, q);
-    while (!atomic_load(&q->done) && now() - t0 < limit)
-        usleep(10 * 1000);
-    if (!atomic_load(&q->done)) {
-        pthread_detach(th);
-        return -1;
-    }
-    pthread_join(th, NULL);
-    return 0;
-}
-
 static atomic_int foreign_stop;
 
 /* A host thread using libav while runs are active. */
@@ -356,14 +313,13 @@ static int file_has(const char *p, const char *needle)
 
 int main(int argc, char **argv)
 {
-    const char *ref_ffmpeg = argc > 3 ? argv[2] : NULL;
-    const char *ref_frei0r = argc > 3 ? argv[3] : NULL;
+    const char *ref_ffmpeg = argc > 2 ? argv[2] : NULL;
     char errlog[1024];
     int ret;
     static unsigned char fds_start[1024], fds_mid[1024];
 
     if (argc < 2) {
-        fprintf(stderr, "usage: %s WORKDIR [REF_FFMPEG REF_FREI0R_PATH]\n", argv[0]);
+        fprintf(stderr, "usage: %s WORKDIR [REF_FFMPEG]\n", argv[0]);
         return 2;
     }
     work = argv[1];
@@ -388,30 +344,7 @@ int main(int argc, char **argv)
         check(ret == 0 && same_file(path(name), path("ref.mkv")), "repeat %d identical to first run (ret %d)", i + 1, ret);
     }
 
-    /* 2. the five frei0r filters as plugins/<id>.json run them */
-    for (int i = 0; i < ARGC(frei0r_cases); i++) {
-        const Frei0rCase *c = &frei0r_cases[i];
-        char out[64], vf[256];
-        const char *fargv[22];
-        snprintf(out, sizeof(out), "frei0r-%s.mkv", c->name);
-        char outp[1024];
-        snprintf(outp, sizeof(outp), "%s", path(out));
-        frei0r_argv(c, path("ref.mkv"), outp, vf, sizeof(vf), fargv);
-        ret = ff(fargv, 21, path("frei0r.log"), NULL);
-        check(ret == 0 && file_size(outp) > 0, "frei0r %s (%s) ret %d, %ld bytes", c->name, c->plugin, ret, file_size(outp));
-        if (ref_ffmpeg) {
-            char refout[1024];
-            snprintf(out, sizeof(out), "frei0r-%s.macos.mkv", c->name);
-            snprintf(refout, sizeof(refout), "%s", path(out));
-            frei0r_argv(c, path("ref.mkv"), refout, vf, sizeof(vf), fargv);
-            fargv[0] = ref_ffmpeg;
-            int rret = spawn_wait(fargv, ref_frei0r);
-            int same = rret == 0 && same_file(outp, refout);
-            printf("%s frei0r %s byte-identical to macOS bundled ffmpeg: %s (ref ret %d)\n",
-                   same ? "INFO" : "DIFF", c->name, same ? "yes" : "no", rret);
-        }
-    }
-    /* a filter output compare that does not involve frei0r */
+    /* 2. a native filter's output against the macOS app's bundled ffmpeg */
     if (ref_ffmpeg) {
         const char *a[] = { "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error",
             "-i", path("ref.mkv"), "-vf", "rgbashift=rh=4:bv=-3,lagfun=decay=0.9,format=yuv420p",
@@ -420,21 +353,17 @@ int main(int argc, char **argv)
         ret = ff(a, ARGC(a) - 1, path("native.log"), NULL);
         a[0] = ref_ffmpeg;
         a[18] = path("native-filters.macos.mkv");
-        int rret = spawn_wait(a, ref_frei0r);
+        int rret = spawn_wait(a);
         int same = ret == 0 && rret == 0 && same_file(path("native-filters.mkv"), path("native-filters.macos.mkv"));
         printf("%s rgbashift+lagfun byte-identical to macOS bundled ffmpeg: %s (ret %d, ref ret %d)\n",
                same ? "INFO" : "DIFF", same ? "yes" : "no", ret, rret);
     }
 
-    /* 3. libx264 and h264_videotoolbox */
+    /* 3. h264_videotoolbox */
     {
         const char *a[] = { "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error",
             "-f", "lavfi", "-i", "testsrc=size=320x240:rate=25:duration=2",
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", path("x264.mp4") };
-        ret = ff(a, ARGC(a), path("x264.log"), NULL);
-        check(ret == 0 && file_size(path("x264.mp4")) > 0, "libx264 encode (ret %d, %ld bytes)", ret, file_size(path("x264.mp4")));
-        a[10] = "h264_videotoolbox";
-        a[14] = path("vt.mp4");
+            "-c:v", "h264_videotoolbox", "-pix_fmt", "yuv420p", "-y", path("vt.mp4") };
         ret = ff(a, ARGC(a), path("vt.log"), NULL);
         check(ret == 0 && file_size(path("vt.mp4")) > 0, "h264_videotoolbox encode (ret %d, %ld bytes)", ret, file_size(path("vt.mp4")));
     }
@@ -442,7 +371,7 @@ int main(int argc, char **argv)
     /* 4. ffprobe JSON via -o */
     {
         const char *a[] = { "ffprobe", "-v", "error", "-print_format", "json",
-            "-show_format", "-show_streams", "-o", path("probe.json"), path("x264.mp4") };
+            "-show_format", "-show_streams", "-o", path("probe.json"), path("vt.mp4") };
         ret = gb_ffprobe_run(ARGC(a), a, path("probe.log"), NULL);
         size_t n = 0;
         char *json = (char *)slurp(path("probe.json"), &n);
@@ -532,35 +461,7 @@ int main(int argc, char **argv)
         free(r.buf);
     }
 
-    /* 9. pixs0r with a 0 block height and sub-row min/max heights (row-shift's
-     * ranges allow it) used to loop forever; it must finish with output */
-    {
-        const char *a[] = { "ffmpeg", "-hide_banner", "-nostdin", "-f", "lavfi",
-            "-i", "testsrc=size=320x240:rate=25:duration=2",
-            "-vf", "frei0r=filter_name=pixs0r:filter_params=0.1|0|0|0,format=yuv420p", "-f", "null", "-" };
-        QueuedArgs q = { a, ARGC(a), path("pixs0r.log"), NULL, 0, -1, 0 };
-        double t0 = now();
-        int finished = run_with_limit(&q, 30) == 0;
-        check(finished && q.ret == 0, "pixs0r 0.1|0|0|0 -f null returns (ret %d) after %.3f s", q.ret, now() - t0);
-        if (!finished) {
-            printf("FAILED: pixs0r run did not return; aborting\n");
-            _exit(1);
-        }
-        const char *b[] = { "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-f", "lavfi",
-            "-i", "testsrc=size=320x240:rate=25:duration=2",
-            "-vf", "frei0r=filter_name=pixs0r:filter_params=0.1|0|0|0,format=yuv420p",
-            "-f", "framemd5", "-y", path("pixs0r.framemd5") };
-        QueuedArgs r = { b, ARGC(b), path("pixs0r.log"), NULL, 0, -1, 0 };
-        finished = run_with_limit(&r, 30) == 0;
-        check(finished && r.ret == 0 && file_has(path("pixs0r.framemd5"), "\n0,         49,"),
-              "pixs0r 0.1|0|0|0 writes all 50 frames (ret %d)", r.ret);
-        if (!finished) {
-            printf("FAILED: pixs0r run did not return; aborting\n");
-            _exit(1);
-        }
-    }
-
-    /* 10. a run queued behind a long run returns 255 promptly when cancelled */
+    /* 9. a run queued behind a long run returns 255 promptly when cancelled */
     {
         atomic_int cancel_long = 0, cancel_queued = 0;
         CancelArgs ca = { &cancel_long, -1, 0 };
@@ -588,7 +489,7 @@ int main(int argc, char **argv)
         check(ca.ret == 255, "long run then cancelled (%d)", ca.ret);
     }
 
-    /* 11. log routing: lines from a host thread never land in a run's log
+    /* 10. log routing: lines from a host thread never land in a run's log
      * (they go to stderr at the host's level); the run's own lines do */
     {
         char foreign[1024];
@@ -620,9 +521,9 @@ int main(int argc, char **argv)
         close(run_stderr);
 
         check(ca.ret == 255 && file_has(path("cancel.log"), "Output #0") &&
-              file_has(path("cancel.log"), "[libx264 @") &&
+              file_has(path("cancel.log"), "[Parsed_showinfo_0 @") &&
               !file_has(path("cancel.log"), "GBTEST-FOREIGN"),
-              "run log has the run's main and encoder-thread lines and no host-thread lines");
+              "run log has the run's main and filter-thread lines and no host-thread lines");
         check(ret != 0 && file_has(path("routing-error.log"), "does-not-exist.mkv") &&
               !file_has(path("routing-error.log"), "GBTEST-FOREIGN"),
               "a run's own error reaches its log while a host thread logs (ret %d)", ret);

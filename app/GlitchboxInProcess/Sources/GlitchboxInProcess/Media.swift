@@ -57,7 +57,7 @@ public final class MediaDecoder {
     }
 }
 
-/// Writes lossless (or x264) video into Matroska with bit-exact flags (see `gbm_encoder_open`).
+/// Writes lossless (FFV1 or ffvhuff) video into Matroska with bit-exact flags (see `gbm_encoder_open`).
 public final class MediaEncoder {
     let raw: OpaquePointer
 

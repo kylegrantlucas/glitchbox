@@ -67,7 +67,6 @@ void gbm_samples_free(float *samples);
 enum gbm_codec {
     GBM_CODEC_FFV1 = 0,
     GBM_CODEC_FFVHUFF = 1,
-    GBM_CODEC_LIBX264 = 2,
 };
 
 typedef struct gbm_encoder_config {

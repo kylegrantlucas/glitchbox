@@ -1,0 +1,26 @@
+# cargo-about config for the iOS app's Rust libraries (glitchbox-fx,
+# glitchbox-burns): packaging/about.toml without GPL-3.0, so a GPL crate fails
+# the iOS build. The App Store's terms conflict with the GPL; the iOS app must
+# hold no GPL code.
+accepted = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "ISC",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "OFL-1.1",
+    "LicenseRef-UFL-1.0",
+    "CDDL-1.0",
+    "Zlib",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "MPL-2.0",
+    "Ubuntu-font-1.0",
+    "CDLA-Permissive-2.0",
+]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+# Only the crates that build into the shipped iOS device binary.
+targets = ["aarch64-apple-ios"]

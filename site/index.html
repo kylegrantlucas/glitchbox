@@ -49,7 +49,7 @@
     <p class="cta">
       <a class="button" href="https://github.com/kylegrantlucas/glitchbox/releases/latest">Download for macOS</a>
     </p>
-    <p class="cta-note">For Apple silicon Macs on macOS 26 or later. The app isn’t notarized, so read the <a href="#install">install notes</a> before the first launch.</p>
+    <p class="cta-note">For Apple silicon Macs on macOS 26 or later. Signed with a Developer ID and notarized by Apple.</p>
   </div>
 
   <figure class="hero-reel">
@@ -297,9 +297,7 @@ just verify-repro input.mkv 42</code></pre>
   <h2 id="install-h">Install</h2>
   <div class="install">
     <p>You need an Apple silicon Mac with macOS 26 or later. Intel Macs and Linux aren’t built. Open <code>Glitchbox-&lt;version&gt;.dmg</code> and drag Glitchbox to Applications. The app takes about 250 MB on disk.</p>
-    <p>Builds are ad-hoc signed and not notarized, so Gatekeeper blocks the first launch of a downloaded copy. Allow it in System Settings → Privacy &amp; Security → Open Anyway, or clear the quarantine flag:</p>
-<pre><code>xattr -dr com.apple.quarantine \
-  /Applications/Glitchbox.app</code></pre>
+    <p>Builds are signed with a Developer ID and notarized by Apple, so Gatekeeper opens them like any other downloaded app. Each release also carries <code>Glitchbox-&lt;version&gt;-sources.tar</code>, the complete corresponding source of every bundled tool.</p>
     <p class="cta"><a class="button" href="https://github.com/kylegrantlucas/glitchbox/releases/latest">Download for macOS</a></p>
   </div>
 </section>
@@ -312,11 +310,10 @@ just verify-repro input.mkv 42</code></pre>
     <li><a href="https://github.com/ramiropolla/ffglitch-scripts">ffglitch-scripts</a><span class="role">the DD-GlitchAssist scripts behind MV Script</span></li>
     <li><a href="https://github.com/valadaptive/ntsc-rs">ntsc-rs</a> <span class="ver">0.9.4</span><span class="role">NTSC and VHS emulation</span></li>
     <li><a href="https://github.com/kylegrantlucas/bender-rs">bender-rs</a> <span class="ver">0.2.1</span><span class="role">circuit-bent video hardware</span></li>
-    <li><a href="https://github.com/kylegrantlucas/burns-rs">burns</a> <span class="ver">0.1.0</span><span class="role">still-image camera motion</span></li>
+    <li><a href="https://github.com/kylegrantlucas/burns-rs">burns</a> <span class="ver">0.2.0</span><span class="role">still-image camera motion</span></li>
     <li><a href="https://github.com/microsoft/onnxruntime">ONNX Runtime</a> <span class="ver">1.27.1</span><span class="role">on-device depth estimation for burns</span></li>
     <li><a href="https://github.com/kylegrantlucas/reactive-vcr">reactive-vcr</a> <span class="ver">0.4.1</span><span class="role">audio-reactive VCR artifacts</span></li>
     <li><a href="https://ffmpeg.org/">FFmpeg</a> <span class="ver">8.1.2</span><span class="role">decoding, encoding, and the ffmpeg filters</span></li>
-    <li><a href="https://www.videolan.org/developers/x264.html">x264</a><span class="role">H.264 encoding, linked into ffmpeg</span></li>
     <li><a href="https://github.com/dyne/frei0r">frei0r</a> <span class="ver">2.5.1</span><span class="role">the frei0r effect plugins</span></li>
     <li><a href="https://gstreamer.freedesktop.org/">GStreamer</a> <span class="ver">1.28.8</span><span class="role">the media runtime under ntsc-rs, bender, and reactive-vcr</span></li>
     <li><a href="https://sourceforge.net/projects/sox/">SoX</a> <span class="ver">14.4.2</span><span class="role">audio processing for the pipelines</span></li>

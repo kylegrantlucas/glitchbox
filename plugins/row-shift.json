@@ -86,7 +86,8 @@
         "-y",
         "{out}"
       ],
-      "name" : "filter"
+      "name" : "filter",
+      "native" : "row-shift"
     }
   ],
   "summary" : "Shift bands of rows to and fro (frei0r pixs0r). frei0r effect; random-driven effects differ between renders (the cache keeps the first)."

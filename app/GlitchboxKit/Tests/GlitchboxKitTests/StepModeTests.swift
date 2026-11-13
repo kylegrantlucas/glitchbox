@@ -72,17 +72,18 @@ final class StepModeTests {
         return try JSONDecoder().decode([PluginStep].self, from: steps)
     }
 
-    @Test func argvRunsWhenTheRunnerHasTheTool() async throws {
-        let runner = FakeRunner(tools: ["tool"], natives: ["demo": EchoNative { _ in }])
-        let out = try await render(manifest(PluginStep(name: "copy", argv: ["tool", "{in}", "{out}"], native: "demo")), on: runner)
-        #expect(runner.ran == ["tool"])
-        #expect(try String(contentsOf: out.output, encoding: .utf8) == "source")
+    @Test func nativeRunsBeforeArgvAndScript() async throws {
+        let runner = FakeRunner(tools: ["tool", "bash"], natives: ["demo": EchoNative { _ in }])
+        let step = PluginStep(name: "go", argv: ["tool", "{in}", "{out}"], script: "true", native: "demo")
+        let out = try await render(manifest(step), on: runner)
+        #expect(runner.ran.isEmpty)
+        #expect(try String(contentsOf: out.output, encoding: .utf8) == "demo:7")
     }
 
-    @Test func scriptRunsUnderBashBeforeNative() async throws {
-        let runner = FakeRunner(tools: ["tool", "bash"], natives: ["demo": EchoNative { _ in }])
-        _ = try await render(manifest(PluginStep(name: "go", script: "true", native: "demo")), on: runner)
-        #expect(runner.ran == ["bash"])
+    @Test func argvRunsWhenTheRunnerLacksTheNative() async throws {
+        let runner = FakeRunner(tools: ["tool"])
+        _ = try await render(manifest(PluginStep(name: "copy", argv: ["tool", "{in}", "{out}"], native: "demo")), on: runner)
+        #expect(runner.ran == ["tool"])
     }
 
     @Test func nativeRunsWithoutToolsAndSkipsRequires() async throws {

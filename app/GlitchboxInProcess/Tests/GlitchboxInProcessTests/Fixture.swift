@@ -10,15 +10,15 @@ struct Fixture: Sendable {
     static let repo = URL(filePath: #filePath).deletingLastPathComponent()  // GlitchboxInProcessTests
         .deletingLastPathComponent().deletingLastPathComponent()           // Tests, GlitchboxInProcess
         .deletingLastPathComponent().deletingLastPathComponent()           // app, repo
-    /// The prebuilt macOS toolchain used as the reference oracle (read-only).
-    static let macToolchain = URL(filePath: "/Users/kyle/Development/glitchbox/build/Glitchbox.app/Contents",
-                                  directoryHint: .isDirectory)
+    /// The prebuilt macOS toolchain used as the reference oracle (read-only): this checkout's
+    /// `packaging/build.sh all` output.
+    static let macToolchain = repo.appending(path: "build/Glitchbox.app/Contents", directoryHint: .isDirectory)
     static let cli = repo.appending(path: "app/GlitchboxKit/.build/debug/glitchbox")
 
     let dir: URL
     let env: ToolEnvironment
     let workspace: Workspace
-    /// 2 s, 320×240 @ 30 fps, H.264 + AAC stereo.
+    /// 2 s, 320×240 @ 30 fps, MPEG-4 Part 2 + AAC stereo.
     let clip: URL
     /// 20 s, 1280×720 @ 30 fps, for cancellation and concurrency.
     let longClip: URL
@@ -62,7 +62,7 @@ struct Fixture: Sendable {
                 "-hide_banner", "-nostdin", "-loglevel", "error",
                 "-f", "lavfi", "-i", "testsrc2=size=\(size):rate=30:duration=\(seconds)",
                 "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=\(seconds)",
-                "-ac", "2", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+                "-ac", "2", "-c:v", "mpeg4", "-q:v", "3", "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "128k", "-shortest", "-y", url.path,
             ], environment: [:], cwd: dir, log: dir.appending(path: "fixture.log")))
             try #require(code == 0, "fixture ffmpeg failed: \(log(dir.appending(path: "fixture.log")))")

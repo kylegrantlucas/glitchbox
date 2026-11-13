@@ -19,6 +19,11 @@ public struct InProcessRunner: ToolRunner {
         "bender": BenderStep(),
         "reactive-vcr": ReactiveVCRStep(),
         "still-motion": StillMotionStep(),
+        "block-glitch": PixelEffectStep(id: "block-glitch"),
+        "row-shift": PixelEffectStep(id: "row-shift"),
+        "plasma-distort": PixelEffectStep(id: "plasma-distort"),
+        "kaleidoscope": PixelEffectStep(id: "kaleidoscope"),
+        "vertigo": PixelEffectStep(id: "vertigo"),
     ]
 
     public init() { Self.prepare() }
