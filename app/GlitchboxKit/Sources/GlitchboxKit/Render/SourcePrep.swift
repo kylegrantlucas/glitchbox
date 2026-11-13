@@ -89,17 +89,25 @@ public enum SourcePrep {
         // ffmpeg converts the matrix and range to match -colorspace/-color_range (it only
         // relabels untagged input); primaries and transfer take effect only via setparams.
         filters.append("format=yuv420p")
-        filters.append("setparams=color_primaries=\(tags.primaries):color_trc=\(tags.transfer)")
+        // VideoToolbox frames lose the stream's chroma location, which software decoding keeps
+        // unless a scale resets it; restating it keeps the hardware path's out.mkv byte-identical,
+        // not only its pixels.
+        let hardware = !still && decodesInHardware(video)
+        let scales = filters.contains { $0.hasPrefix("scale=") }
+        let chroma = hardware && !scales ? video.chromaLocation.map { ":chroma_location=\($0)" } ?? "" : ""
+        filters.append("setparams=color_primaries=\(tags.primaries):color_trc=\(tags.transfer)\(chroma)")
 
         var argv = ["ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error"]
         if still { argv += ["-loop", "1", "-framerate", "{p.fps}"] }
-        else if decodesInHardware(video) { argv += ["-hwaccel", "videotoolbox"] }
+        else if hardware { argv += ["-hwaccel", "videotoolbox"] }
         if settings.start > 0 { argv += ["-ss", "{p.start}"] }
         if duration >= 0 { argv += ["-t", "{p.duration}"] }
+        // Two encoder threads keep up with decoding (even VideoToolbox 4K) and write the same
+        // bytes as ncpu, while each extra frame thread holds ~100 MB at 4K (2.0 → 0.95 GB peak).
         argv += ["-i", "{in}", "-an", "-vf", filters.joined(separator: ","),
                  "-fflags", "+bitexact", "-flags:v", "+bitexact", "-map_metadata", "-1", "-map_chapters", "-1",
                  "-colorspace", tags.space, "-color_range", "tv",
-                 "-c:v", "ffvhuff", "-y", "{out}"]
+                 "-c:v", "ffvhuff", "-threads:v", "2", "-y", "{out}"]
         var steps = [PluginStep(name: "prepare", argv: argv)]
         if let audio, !still {
             steps.append(PluginStep(name: "audio", argv: audioArgv(settings: settings, duration: duration, audio: audio)))
