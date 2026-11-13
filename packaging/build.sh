@@ -16,8 +16,8 @@
 #           it, notarize and staple that (needs a Developer ID identity and
 #           the GLITCHBOX_NOTARY_* key).
 #   sources build/dist/Glitchbox-<VERSION>-sources.tar: the release's complete
-#           corresponding source (git archive HEAD, every `mirror` input,
-#           vendored Rust crates). Needs a clean, committed checkout.
+#           corresponding source (git archive HEAD, every `mirror` input, the
+#           Rust crates as a CARGO_HOME). Needs a clean, committed checkout.
 #
 #   ios-tools    build the iOS toolchain stages (packaging/ios/*.sh) into
 #                build/ios/xcframeworks and app/GlitchboxInProcess/Artifacts.
@@ -1356,22 +1356,27 @@ build_notarize() {
 # --- Source bundle -------------------------------------------------------------
 # build/dist/Glitchbox-<VERSION>-sources.tar (+ .sha256): the complete
 # corresponding source of a release. The repository at HEAD, every `mirror`
-# input from sources.json under its pinned file name, and the vendored Rust
-# crates of ntsc-rs (ntsc-rs-cli is GPL-3.0) and of the two iOS libraries.
-# Unpacked, third-party/ goes into build/downloads and the usual build runs.
-vendor_crates() { # SRC-DIR NAME: $t/NAME-crates.tar.gz with vendor/ and config.toml
-  local dir=$1 name=$2
-  local v=$t/$name-crates
-  rm -rf "$v"
-  mkdir -p "$v"
-  (cd "$dir" && menv CARGO_HOME="$DL/cargo-home" cargo vendor --locked --versioned-dirs "$v/vendor") \
-    > "$v/config.toml"
-  tar -czf "$out/third-party/$name-crates.tar.gz" -C "$t" "$name-crates"
-  rm -rf "$v"
+# input from sources.json under its pinned file name, and cargo-home.tar.gz: a
+# fresh CARGO_HOME holding every crate the lockfiles of ntsc-rs (ntsc-rs-cli is
+# GPL-3.0) and the two iOS libraries name (registry index and .crate files, git
+# dependencies' bare repos). Not `cargo vendor`: glitchbox-fx pulls ntsc-rs
+# 0.1.2 from two git sources, which one vendor directory cannot hold. Unpacked,
+# third-party/ goes into build/downloads (cargo-home.tar.gz extracted there
+# becomes the build's CARGO_HOME) and the usual build runs.
+cargo_sources() { # DIR...: $out/third-party/cargo-home.tar.gz for the DIRs' Cargo.lock files
+  local h=$t/cargo-home d
+  rm -rf "$h"
+  mkdir -p "$h"
+  for d in "$@"; do
+    (cd "$d" && menv CARGO_HOME="$h" CARGO_TERM_COLOR=never cargo fetch --locked)
+  done
+  tar -czf "$out/third-party/cargo-home.tar.gz" -C "$t" \
+    cargo-home/registry/index cargo-home/registry/cache cargo-home/git/db
+  rm -rf "$h"
 }
 
 build_sources() {
-  local out=$DIST/Glitchbox-$VERSION-sources t=$WORK/sources rev file
+  local out=$DIST/Glitchbox-$VERSION-sources t=$WORK/sources file
   [ -z "$(git -C "$ROOT" status --porcelain)" ] || die "sources: commit first (the source bundle is git archive HEAD)"
   setup_toolbin
   fetch all
@@ -1382,22 +1387,17 @@ build_sources() {
   while IFS= read -r file; do
     cp -c "$DL/$file" "$out/third-party/$file"
   done < <("$JQ" -r '.sources[] | select(.mirror == true) | .file' "$LOCK")
-  log "sources: cargo vendor (ntsc-rs, glitchbox-fx, glitchbox-burns)"
-  rev=$(lock_field ntsc-rs rev)
+  log "sources: cargo fetch (ntsc-rs, glitchbox-fx, glitchbox-burns)"
   unpack ntsc-rs "$t/ntsc-rs"
-  vendor_crates "$t/ntsc-rs" "ntsc-rs-$rev"
-  vendor_crates "$ROOT/app/rust/glitchbox-fx" glitchbox-fx
-  vendor_crates "$ROOT/app/rust/glitchbox-burns" glitchbox-burns
+  cargo_sources "$t/ntsc-rs" "$ROOT/app/rust/glitchbox-fx" "$ROOT/app/rust/glitchbox-burns"
   {
     printf '# Glitchbox %s: complete corresponding source\n\n' "$VERSION"
-    printf 'Unpack glitchbox-%s.tar.gz, copy third-party/* into its build/downloads/, then run packaging/build.sh all (macOS) or packaging/build.sh ios-app (iOS); fetch verifies every file by sha256. The crates tarballs are the Rust dependencies of ntsc-rs-cli (GPL-3.0) and of the iOS libraries.\n\n' "$VERSION"
+    printf 'Unpack glitchbox-%s.tar.gz, copy third-party/* into its build/downloads/ and extract cargo-home.tar.gz there (it becomes build/downloads/cargo-home, the build'"'"'s CARGO_HOME), then run packaging/build.sh all (macOS) or packaging/build.sh ios-app (iOS); fetch verifies every file by sha256. cargo-home.tar.gz holds every Rust crate of ntsc-rs-cli (GPL-3.0) and of the iOS libraries.\n\n' "$VERSION"
     printf '| File | Name | Version | Upstream | sha256 |\n|---|---|---|---|---|\n'
     "$JQ" -r '.sources[] | select(.mirror == true)
       | "| third-party/\(.file) | \(.name) | \(.version) | \(.url) | \(.sha256) |"' "$LOCK"
-    for file in "$out/third-party/"*-crates.tar.gz; do
-      printf '| third-party/%s | Rust crates | | crates.io / git (cargo vendor --locked) | %s |\n' \
-        "$(basename "$file")" "$(sha256 "$file")"
-    done
+    printf '| third-party/cargo-home.tar.gz | Rust crates | | crates.io / git (cargo fetch --locked) | %s |\n' \
+      "$(sha256 "$out/third-party/cargo-home.tar.gz")"
   } > "$out/SOURCES.md"
   tar -cf "$out.tar" -C "$DIST" "$(basename "$out")"
   (cd "$DIST" && shasum -a 256 "$(basename "$out").tar" > "$(basename "$out").tar.sha256")
