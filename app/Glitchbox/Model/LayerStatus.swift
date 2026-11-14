@@ -5,4 +5,8 @@ enum LayerStatus: Hashable {
     case done(cached: Bool)
     case failed(String)
     case disabled
+
+    var isRunning: Bool {
+        if case .running = self { true } else { false }
+    }
 }

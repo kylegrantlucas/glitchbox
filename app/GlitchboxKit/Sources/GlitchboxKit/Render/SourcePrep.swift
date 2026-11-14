@@ -16,6 +16,26 @@ public enum SourcePrep {
         stillExtensions.contains(url.pathExtension.lowercased())
     }
 
+    /// Whether source prep decodes `video` with VideoToolbox: 8-bit 4:2:0 (`yuv420p`) H.264 and
+    /// HEVC whose stream tags its matrix and limited range, as phone and camera footage does.
+    /// Their decoding is bit-exact by spec and prep then converts nothing, so frames match
+    /// FFmpeg's software decoders (framemd5: native, scaled, rotated, 4K), while a 4K HEVC source
+    /// costs about 1% of the CPU. Everything else stays in software, because the frames differ:
+    /// VideoToolbox guesses a matrix for untagged streams (BT.2020 at UHD), so prep's relabel
+    /// becomes a conversion; its 10-bit frames arrive as `p010le`, which converts to `yuv420p`
+    /// with different rounding; its ProRes decoder differs from FFmpeg's. ffmpeg decodes in
+    /// software when a session can't open. iOS stays in software until hardware sessions are
+    /// proven inside a backgrounded `BGContinuedProcessingTask`.
+    public static func decodesInHardware(_ video: MediaProbe.Video) -> Bool {
+        #if os(macOS)
+        ["h264", "hevc"].contains(video.codec) && video.pixelFormat == "yuv420p"
+            && video.colorSpace != nil && ColorTags.resolve(video).space == video.colorSpace
+            && video.colorRange == "tv"
+        #else
+        false
+        #endif
+    }
+
     /// File name of the trimmed source audio inside the source layer's directory.
     public static let audioFileName = "audio.wav"
 
@@ -69,16 +89,27 @@ public enum SourcePrep {
         // ffmpeg converts the matrix and range to match -colorspace/-color_range (it only
         // relabels untagged input); primaries and transfer take effect only via setparams.
         filters.append("format=yuv420p")
-        filters.append("setparams=color_primaries=\(tags.primaries):color_trc=\(tags.transfer)")
+        // VideoToolbox frames lose the stream's chroma location, which software decoding keeps
+        // unless a scale resets it; restating it keeps the hardware path's out.mkv byte-identical,
+        // not only its pixels.
+        let hardware = !still && decodesInHardware(video)
+        let scales = filters.contains { $0.hasPrefix("scale=") }
+        let chroma = hardware && !scales ? video.chromaLocation.map { ":chroma_location=\($0)" } ?? "" : ""
+        filters.append("setparams=color_primaries=\(tags.primaries):color_trc=\(tags.transfer)\(chroma)")
 
         var argv = ["ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error"]
         if still { argv += ["-loop", "1", "-framerate", "{p.fps}"] }
+        else if hardware { argv += ["-hwaccel", "videotoolbox"] }
         if settings.start > 0 { argv += ["-ss", "{p.start}"] }
         if duration >= 0 { argv += ["-t", "{p.duration}"] }
-        argv += ["-i", "{in}", "-an", "-vf", filters.joined(separator: ","),
+        // Two encoder threads keep up with decoding (even VideoToolbox 4K) and write the same
+        // bytes as ncpu, while each extra frame thread holds ~100 MB at 4K (2.0 → 0.95 GB peak).
+        // An output -threads also caps the -vf graph's slice threads unless -filter_threads is
+        // given; 0 keeps the graph at ncpu.
+        argv += ["-i", "{in}", "-an", "-vf", filters.joined(separator: ","), "-filter_threads", "0",
                  "-fflags", "+bitexact", "-flags:v", "+bitexact", "-map_metadata", "-1", "-map_chapters", "-1",
                  "-colorspace", tags.space, "-color_range", "tv",
-                 "-c:v", "ffvhuff", "-y", "{out}"]
+                 "-c:v", "ffvhuff", "-threads:v", "2", "-y", "{out}"]
         var steps = [PluginStep(name: "prepare", argv: argv)]
         if let audio, !still {
             steps.append(PluginStep(name: "audio", argv: audioArgv(settings: settings, duration: duration, audio: audio)))

@@ -163,18 +163,17 @@ final class RGBSource {
     private let resize: GstBilinearScaler?
     /// The frame at the source size; only used when resizing.
     private var native: [UInt8]
-    private var buffer: [UInt8]
 
     /// `width`/`height` 0 keep the source size. `bytesPerPixel`: 3 (rgb24) or 4 (rgba).
     init(url: URL, width: Int = 0, height: Int = 0, bytesPerPixel: Int) throws {
         let fmt = bytesPerPixel == 4 ? "rgba" : "rgb24"
-        let probe = try MediaDecoder(url: url, pixelFormat: fmt)
+        let probe = try MediaDecoder(url: url, pixelFormat: fmt, threads: Effect.decodeThreads)
         let info = probe.info
         let sw = Int(info.width), sh = Int(info.height)
         let w = width > 0 ? width : sw, h = height > 0 ? height : sh
         self.width = w; self.height = h; self.bytesPerPixel = bytesPerPixel
         if info.pix_fmt == gbm_pix_fmt("yuv420p") {
-            decoder = try MediaDecoder(url: url, pixelFormat: "yuv420p")
+            decoder = try MediaDecoder(url: url, pixelFormat: "yuv420p", threads: Effect.decodeThreads)
             gst = GstI420ToRGB(colorSpace: info.color_space, colorRange: info.color_range, height: sh)
         } else {
             decoder = probe
@@ -187,7 +186,6 @@ final class RGBSource {
         rate = Effect.nominalRate(info.frame_rate)
         var name = info.codec_name
         exactTimes = withUnsafeBytes(of: &name) { String(cString: $0.bindMemory(to: CChar.self).baseAddress!) } == "ffvhuff"
-        buffer = [UInt8](repeating: 0, count: w * h * bytesPerPixel)
     }
 
     /// The stream's nominal rate (unknown → 30/1).
@@ -202,11 +200,11 @@ final class RGBSource {
 
     var info: gbm_video_info { decoder.info }
 
-    /// Decodes the next frame and calls `body` with its packed pixels (`stride` = width ·
-    /// bytesPerPixel) and its time in ns as the CLIs' GStreamer graphs see it (nil when the
-    /// frame has no timestamp); nil at the end.
-    func next<R>(_ body: (UnsafeRawPointer, Int64?) throws -> R) throws -> R? {
-        guard let frame = try decoder.next() else { return nil }
+    /// Decodes the next frame into `dst` (packed, `width` · `bytesPerPixel` per row) and returns
+    /// its time in ns as the CLIs' GStreamer graphs see it (nil when the frame has no
+    /// timestamp), or nil at the end (`.none`).
+    func next(into dst: UnsafeMutableRawPointer) throws -> Int64?? {
+        guard let frame = try decoder.next() else { return .none }
         let k = count
         count += 1
         let ns = exactTimes
@@ -223,15 +221,16 @@ final class RGBSource {
                 }
             }
         }
+        let d = dst.assumingMemoryBound(to: UInt8.self)
         if let resize {
             native.withUnsafeMutableBufferPointer { n in
                 load(into: n.baseAddress!)
-                buffer.withUnsafeMutableBufferPointer { resize.scale(n.baseAddress!, into: $0.baseAddress!) }
+                resize.scale(n.baseAddress!, into: d)
             }
         } else {
-            buffer.withUnsafeMutableBufferPointer { load(into: $0.baseAddress!) }
+            load(into: d)
         }
-        return try buffer.withUnsafeBytes { try body($0.baseAddress!, ns) }
+        return .some(ns)
     }
 }
 
@@ -622,7 +621,7 @@ final class ARGB64Source {
     private var count: Int64 = 0
 
     init(url: URL, width: Int = 0, height: Int = 0) throws {
-        let probe = try MediaDecoder(url: url, pixelFormat: "rgb24")
+        let probe = try MediaDecoder(url: url, pixelFormat: "rgb24", threads: Effect.decodeThreads)
         let info = probe.info
         let sw = Int(info.width), sh = Int(info.height)
         let w = width > 0 ? width : sw, h = height > 0 ? height : sh
@@ -630,7 +629,7 @@ final class ARGB64Source {
         let fmt420 = gbm_pix_fmt("yuv420p"), fmt444 = gbm_pix_fmt("yuv444p")
         if info.pix_fmt == fmt420 || info.pix_fmt == fmt444 {
             subsampled = info.pix_fmt == fmt420
-            decoder = try MediaDecoder(url: url, pixelFormat: subsampled ? "yuv420p" : "yuv444p")
+            decoder = try MediaDecoder(url: url, pixelFormat: subsampled ? "yuv420p" : "yuv444p", threads: Effect.decodeThreads)
             // Chroma siting comes from the frames (GBMedia reports none per stream), so take
             // GStreamer's own rule for Matroska: FFV1/ffvhuff/H.264 layers written by the CLIs
             // and ffmpeg carry it in the codec; the probe's colour fields give matrix/range.
@@ -652,11 +651,10 @@ final class ARGB64Source {
 
     var info: gbm_video_info { decoder.info }
 
-    /// Decodes the next frame into `into` (at least width · height · 4 values); returns its
-    /// time in ns as the CLI sees it (nil without a timestamp), or nil at the end (`.none`).
-    func next(into dst: inout [UInt16]) throws -> Int64?? {
+    /// Decodes the next frame into `dst` (width · height · 4 values); returns its time in ns
+    /// as the CLI sees it (nil without a timestamp), or nil at the end (`.none`).
+    func next(into dst: UnsafeMutablePointer<UInt16>) throws -> Int64?? {
         guard let frame = try decoder.next() else { return .none }
-        precondition(dst.count >= width * height * 4, "ARGB64Source.next: destination too small")
         let k = count
         count += 1
         let ns = exactTimes
@@ -679,15 +677,13 @@ final class ARGB64Source {
                 }
             }
         }
-        dst.withUnsafeMutableBufferPointer { d in
-            if let resize {
-                native.withUnsafeMutableBufferPointer { n in
-                    load(into: n.baseAddress!)
-                    resize.scale16(n.baseAddress!, into: d.baseAddress!)
-                }
-            } else {
-                load(into: d.baseAddress!)
+        if let resize {
+            native.withUnsafeMutableBufferPointer { n in
+                load(into: n.baseAddress!)
+                resize.scale16(n.baseAddress!, into: dst)
             }
+        } else {
+            load(into: dst)
         }
         return .some(ns)
     }

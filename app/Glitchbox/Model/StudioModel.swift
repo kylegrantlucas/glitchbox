@@ -178,30 +178,38 @@ final class StudioModel {
 
     // MARK: Library
 
+    /// Runs on every app activation; each piece is assigned only when it changed, so an
+    /// unchanged library doesn't invalidate every view that reads it.
     func reloadLibrary() {
         let loaded = workspace.loadPlugins()
-        plugins = loaded.plugins
-        pluginIssues = loaded.issues
-        pluginOrigins = Dictionary(uniqueKeysWithValues: plugins.compactMap { p in workspace.pluginOrigin(id: p.id).map { (p.id, $0) } })
+        if plugins != loaded.plugins { plugins = loaded.plugins }
+        if pluginIssues != loaded.issues { pluginIssues = loaded.issues }
+        let origins = Dictionary(uniqueKeysWithValues: plugins.compactMap { p in workspace.pluginOrigin(id: p.id).map { (p.id, $0) } })
+        if pluginOrigins != origins { pluginOrigins = origins }
         refreshChainPresets()
-        pluginPresets = [:]
-        pluginPresetOrigins = [:]
+        for id in pluginPresets.keys where plugin(id) == nil {
+            pluginPresets[id] = nil
+            pluginPresetOrigins[id] = nil
+        }
         for p in plugins { refreshPluginPresets(p.id) }
         reresolveStack()
     }
 
     private func refreshChainPresets() {
-        chainPresets = workspace.loadChainPresets()
-        chainOrigins = Dictionary(chainPresets.compactMap { c in workspace.chainPresetOrigin(name: c.name).map { (c.name, $0) } },
-                                  uniquingKeysWith: { a, _ in a })
+        let presets = workspace.loadChainPresets()
+        let origins = Dictionary(presets.compactMap { c in workspace.chainPresetOrigin(name: c.name).map { (c.name, $0) } },
+                                 uniquingKeysWith: { a, _ in a })
+        if chainPresets != presets { chainPresets = presets }
+        if chainOrigins != origins { chainOrigins = origins }
     }
 
     private func refreshPluginPresets(_ plugin: String) {
         let presets = workspace.loadPluginPresets(plugin: plugin)
-        pluginPresets[plugin] = presets
-        pluginPresetOrigins[plugin] = Dictionary(
+        let origins = Dictionary(
             presets.compactMap { p in workspace.pluginPresetOrigin(plugin: plugin, name: p.name).map { (p.name, $0) } },
             uniquingKeysWith: { a, _ in a })
+        if pluginPresets[plugin] != presets { pluginPresets[plugin] = presets }
+        if pluginPresetOrigins[plugin] != origins { pluginPresetOrigins[plugin] = origins }
     }
 
     /// Re-applies manifests to the stack after plugins change on disk.
@@ -238,7 +246,10 @@ final class StudioModel {
     private func refreshBaseStatuses() {
         for i in stack.indices {
             switch stack[i].status {
-            case .idle, .unavailable, .disabled: stack[i].status = baseStatus(stack[i].spec)
+            case .idle, .unavailable, .disabled:
+                // An unchanged write still invalidates every view reading `stack`.
+                let status = baseStatus(stack[i].spec)
+                if stack[i].status != status { stack[i].status = status }
             default: break
             }
         }
@@ -332,6 +343,10 @@ final class StudioModel {
         // Exports pause auto-render; `exportFinished` catches up.
         guard autoRenders, canRender, !isExporting else { return }
         autoRenderTask?.cancel()
+        // A render now busy only with layers this edit made stale (`invalidate` cleared their
+        // `.running`) would burn CPU through the debounce, or a whole slider drag; stop it now.
+        // One still running a layer above the edit keeps going, since that layer stays valid.
+        if isRendering, !sourceStatus.isRunning, !stack.contains(where: \.status.isRunning) { renderTask?.cancel() }
         isRenderPending = true
         autoRenderTask = Task {
             try? await Task.sleep(for: .milliseconds(800))

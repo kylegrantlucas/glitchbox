@@ -7,8 +7,9 @@ public struct TemplateExpander {
 
     /// `params` is the resolved-params JSON file; `source_audio` the source's
     /// trimmed audio track ("" when the source has none); `layer` the directory that becomes the
-    /// layer's cache entry (`out.mkv`'s directory; files written there are kept with the layer).
-    public static let builtinNames: Set<String> = ["in", "out", "work", "root", "params", "source_audio", "layer"]
+    /// layer's cache entry (`out.mkv`'s directory; files written there are kept with the layer);
+    /// `fps` the render's exact frame rate as ffmpeg takes it (`30`, `30000/1001`).
+    public static let builtinNames: Set<String> = ["in", "out", "work", "root", "params", "source_audio", "layer", "fps"]
 
     public static func isValidName(_ name: String) -> Bool {
         if builtinNames.contains(name) { return true }

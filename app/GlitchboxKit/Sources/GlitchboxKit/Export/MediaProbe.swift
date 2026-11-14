@@ -18,15 +18,21 @@ public struct MediaProbe: Hashable, Sendable {
         public var colorSpace: String?
         /// `tv` or `pc`; nil when unknown.
         public var colorRange: String?
+        /// ffprobe codec name (`h264`, `hevc`, `prores`, ...); empty when unknown.
+        public var codec: String
+        /// ffprobe chroma sample location (`left`, `topleft`, ...); nil when unspecified.
+        public var chromaLocation: String?
 
         public init(width: Int, height: Int, sarNumerator: Int = 1, sarDenominator: Int = 1, rotation: Int = 0,
                     pixelFormat: String = "yuv420p", frameRate: Double? = nil, colorPrimaries: String? = nil,
-                    colorTransfer: String? = nil, colorSpace: String? = nil, colorRange: String? = nil) {
+                    colorTransfer: String? = nil, colorSpace: String? = nil, colorRange: String? = nil,
+                    codec: String = "", chromaLocation: String? = nil) {
             self.width = width; self.height = height
             self.sarNumerator = sarNumerator; self.sarDenominator = sarDenominator
             self.rotation = rotation; self.pixelFormat = pixelFormat; self.frameRate = frameRate
             self.colorPrimaries = colorPrimaries; self.colorTransfer = colorTransfer
-            self.colorSpace = colorSpace; self.colorRange = colorRange
+            self.colorSpace = colorSpace; self.colorRange = colorRange; self.codec = codec
+            self.chromaLocation = chromaLocation
         }
 
         public var sar: Double { Double(sarNumerator) / Double(sarDenominator) }
@@ -91,6 +97,7 @@ public struct MediaProbe: Hashable, Sendable {
             var color_space: String?
             var color_transfer: String?
             var color_primaries: String?
+            var chroma_location: String?
             var sample_fmt: String?
             var bits_per_sample: Int?
             var bits_per_raw_sample: String?
@@ -127,7 +134,8 @@ public struct MediaProbe: Hashable, Sendable {
                                 rotation: rotation, pixelFormat: v.pix_fmt ?? "",
                                 frameRate: fps,
                                 colorPrimaries: known(v.color_primaries), colorTransfer: known(v.color_transfer),
-                                colorSpace: known(v.color_space), colorRange: known(v.color_range))
+                                colorSpace: known(v.color_space), colorRange: known(v.color_range),
+                                codec: v.codec_name ?? "", chromaLocation: known(v.chroma_location))
         }
         if let a = streams.first(where: { $0.codec_type == "audio" }) {
             let raw = a.bits_per_raw_sample.flatMap { Int($0) } ?? 0
@@ -152,9 +160,12 @@ public struct MediaProbe: Hashable, Sendable {
 
     // MARK: Running ffprobe
 
-    /// Runs the toolchain's ffprobe on `url`.
+    /// Runs the toolchain's ffprobe on `url`, once per file identity and toolchain: renders and
+    /// exports re-probe the same files, and in-process ffprobe waits behind a running ffmpeg.
     public static func probe(_ url: URL, env: ToolEnvironment) async throws -> MediaProbe {
         guard env.runner.has("ffprobe") else { throw RenderError.commandNotFound(plugin: "probe", command: "ffprobe") }
+        let key = (try? FileIdentity(url)).map { ProbeKey(file: $0, toolchain: env.digest) }
+        if let key, let probe = probes[key] { return probe }
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appending(path: "glitchbox-probe-\(UUID().uuidString)", directoryHint: .isDirectory)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -168,6 +179,15 @@ public struct MediaProbe: Hashable, Sendable {
         guard code == 0, let data = try? Data(contentsOf: json) else {
             throw ExportError.probeFailed(url, tail: LayerRunner.tail(log, lines: 10))
         }
-        return try parse(data)
+        let probe = try parse(data)
+        if let key, (try? FileIdentity(url)) == key.file { probes[key] = probe }
+        return probe
     }
+
+    private struct ProbeKey: Hashable, Sendable {
+        var file: FileIdentity
+        var toolchain: String
+    }
+
+    private static let probes = Memo<ProbeKey, MediaProbe>()
 }

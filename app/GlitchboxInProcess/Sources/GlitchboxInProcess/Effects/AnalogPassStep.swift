@@ -47,7 +47,7 @@ public struct AnalogPassStep: NativeStep {
         // Probe the source size first: --scale sizes the decoder's output.
         var width = 0, height = 0
         if scale > 0 {
-            let probe = try MediaDecoder(url: c.input, pixelFormat: "rgb24")
+            let probe = try MediaDecoder(url: c.input, pixelFormat: "rgb24", threads: Effect.decodeThreads)
             var w: UInt32 = 0, h: UInt32 = 0
             guard gbfx_ntsc_scaled_size(UInt32(probe.info.width), UInt32(probe.info.height), UInt32(scale), &w, &h) == GBFX_OK
             else { throw EffectError("cannot scale \(probe.info.width)x\(probe.info.height) to \(scale) lines") }
@@ -62,56 +62,64 @@ public struct AnalogPassStep: NativeStep {
             codec: Int32(GBM_CODEC_FFV1.rawValue), width: w, height: h, pixelFormat: "yuv420p", rate: rate,
             sar: gbm_rational(num: 1, den: 1), space: colour.space, chromaLocation: colour.chromaLocation))
 
+        // Decode + ARGB64 conversion and yuv420p conversion + encode run on their own threads;
+        // the effect keeps the previous frame for retiming, hence three input buffers. The
+        // effect output stays here and only the narrowed RGB travels, to save memory.
         let stride16 = w * 4  // uint16 per row
-        var previous = [UInt16](repeating: 0, count: stride16 * h)
-        var current = previous
-        var effected = previous
-        var narrow = [UInt8](repeating: 0, count: w * 3 * h)
+        var effected = [UInt16](repeating: 0, count: stride16 * h)
+        var previous: FrameBuffer?
         var previousNs: Int64 = 0
         var retimer = Retimer(rate: rate)
-        var have = false, written: Int64 = 0
+        var written: Int64 = 0
 
-        func emit(_ src: [UInt16], index: Int64) throws {
+        func emit(_ src: FrameBuffer, index: Int64, _ out: ((FrameBuffer) throws -> Void) throws -> Void) throws {
             try Effect.check(flag)
-            try src.withUnsafeBufferPointer { s in
-                try effected.withUnsafeMutableBufferPointer { d in
-                    _ = try Effect.fx("ntsc-rs frame \(index)", {
-                        gbfx_ntsc_apply(ntsc, s.baseAddress, stride16 * 2, d.baseAddress, stride16 * 2,
-                                        UInt32(w), UInt32(h), UInt64(index), $0)
-                    }, failed: { $0 != GBFX_OK })
-                }
+            try effected.withUnsafeMutableBufferPointer { d in
+                _ = try Effect.fx("ntsc-rs frame \(index)", {
+                    gbfx_ntsc_apply(ntsc, src.base.assumingMemoryBound(to: UInt16.self), stride16 * 2, d.baseAddress,
+                                    stride16 * 2, UInt32(w), UInt32(h), UInt64(index), $0)
+                }, failed: { $0 != GBFX_OK })
             }
-            // videoconvert narrows 16-bit RGB by truncation.
-            effected.withUnsafeBufferPointer { e in
-                narrow.withUnsafeMutableBufferPointer { n in
+            try out { o in
+                // videoconvert narrows 16-bit RGB by truncation.
+                effected.withUnsafeBufferPointer { e in
+                    let n = o.base.assumingMemoryBound(to: UInt8.self)
                     for p in 0..<(w * h) {
-                        n[p * 3] = UInt8(e[p * 4 + 1] >> 8)
-                        n[p * 3 + 1] = UInt8(e[p * 4 + 2] >> 8)
-                        n[p * 3 + 2] = UInt8(e[p * 4 + 3] >> 8)
+                        n[p &* 3] = UInt8(truncatingIfNeeded: e[p &* 4 &+ 1] >> 8)
+                        n[p &* 3 &+ 1] = UInt8(truncatingIfNeeded: e[p &* 4 &+ 2] >> 8)
+                        n[p &* 3 &+ 2] = UInt8(truncatingIfNeeded: e[p &* 4 &+ 3] >> 8)
                     }
                 }
+                o.index = written
+                written += 1
             }
-            let yuv = try narrow.withUnsafeBytes { try converter.run(packed: $0.baseAddress!, stride: w * 3) }
-            try encoder.write(yuv, index: written)
-            written += 1
         }
 
         var counter: Int64 = 0
-        while let time = try source.next(into: &current) {
+        try FramePipeline.run(inBytes: stride16 * 2 * h, outBytes: w * 3 * h, inDepth: 3, name: "analog-pass", produce: { b in
+            guard let time = try source.next(into: b.base.assumingMemoryBound(to: UInt16.self)) else { return false }
+            b.time = time
+            return true
+        }, transform: { current, out in
             try Effect.check(flag)
-            let ns = time ?? retimer.slotNs(counter)
+            let ns = current.time ?? retimer.slotNs(counter)
             counter += 1
-            if have {
-                for k in retimer.advance(previousNs: previousNs, ns: ns) { try emit(previous, index: k) }
+            let done = previous
+            if let previous {
+                for k in retimer.advance(previousNs: previousNs, ns: ns) { try emit(previous, index: k, out) }
             }
-            swap(&previous, &current)
+            previous = current
             previousNs = ns
-            have = true
-        }
-        guard have else { throw EffectError("\(c.input.lastPathComponent) has no video frames") }
-        // At end of stream videorate repeats the last frame to the end of its duration: one
-        // more frame (index N) for millisecond-timed FFV1/H.264 layers, none for ffvhuff.
-        for k in retimer.finish(lastNs: previousNs) { try emit(previous, index: k) }
+            return done
+        }, finish: { out in
+            guard let previous else { throw EffectError("\(c.input.lastPathComponent) has no video frames") }
+            // At end of stream videorate repeats the last frame to the end of its duration: one
+            // more frame (index N) for millisecond-timed FFV1/H.264 layers, none for ffvhuff.
+            for k in retimer.finish(lastNs: previousNs) { try emit(previous, index: k, out) }
+        }, consume: { o in
+            let yuv = try converter.run(packed: o.base, stride: w * 3)
+            try encoder.write(yuv, index: o.index)
+        })
         try encoder.finish()
     }
 }

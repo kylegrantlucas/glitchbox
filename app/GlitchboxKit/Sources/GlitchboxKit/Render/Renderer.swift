@@ -96,12 +96,14 @@ public struct Renderer: Sendable {
             sourceManifest = SourcePrep.manifest(settings: settings, video: video, audio: probe.audio, still: still)
         }
 
+        // Every layer from source prep on runs at this rate; the source layer's params key it.
+        let fps = SourcePrep.frameRate(settings: settings, video: video, still: still).ffmpeg
         emit(.layerStarted(index: -1, plugin: "source"))
         var current: LayerOutput
         do {
             current = try await runner.run(
                 manifest: sourceManifest, params: sourceManifest.defaults(), input: prepInput, parentKey: prepKey,
-                onStep: { emit(.step(index: -1, step: $0, of: $1, name: $2, log: $3)) })
+                fps: fps, onStep: { emit(.step(index: -1, step: $0, of: $1, name: $2, log: $3)) })
         } catch {
             throw Self.attribute(error, index: -1, plugin: "source")
         }
@@ -113,7 +115,7 @@ public struct Renderer: Sendable {
             emit(.layerStarted(index: i, plugin: m.id))
             do {
                 current = try await runner.run(manifest: m, params: params, input: current.output, parentKey: current.key,
-                                               sourceAudio: sourceAudio,
+                                               sourceAudio: sourceAudio, fps: fps,
                                                onStep: { emit(.step(index: i, step: $0, of: $1, name: $2, log: $3)) })
             } catch {
                 throw Self.attribute(error, index: i, plugin: m.id)

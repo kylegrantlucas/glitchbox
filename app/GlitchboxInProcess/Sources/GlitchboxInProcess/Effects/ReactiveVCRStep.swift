@@ -88,7 +88,7 @@ public struct ReactiveVCRStep: NativeStep {
         let samples = try MediaAudio.decodeMono(url: URL(filePath: audio), sampleRate: 48_000)
         try Effect.check(flag)
 
-        let probe = try MediaDecoder(url: c.input, pixelFormat: "rgb24")
+        let probe = try MediaDecoder(url: c.input, pixelFormat: "rgb24", threads: Effect.decodeThreads)
         let info = probe.info
         let rate = Effect.nominalRate(info.frame_rate)
         guard info.duration > 0 else { throw EffectError("\(c.input.lastPathComponent) has no duration") }
@@ -119,50 +119,53 @@ public struct ReactiveVCRStep: NativeStep {
             codec: Int32(GBM_CODEC_FFV1.rawValue), width: w, height: h, pixelFormat: "yuv444p", rate: rate, sar: sar,
             space: tag, primaries: tag, transfer: tag, chromaLocation: colour.chromaLocation))
 
+        // Decode + RGB conversion and yuv444p conversion + encode run on their own threads;
+        // the effect keeps the previous frame for retiming, hence three input buffers.
         let stride = w * 3
-        var previous = [UInt8](repeating: 0, count: stride * h)
-        var current = previous
-        var effected = previous
+        var previous: FrameBuffer?
         var previousNs: Int64 = 0
         var retimer = Retimer(rate: rate)
-        var have = false, done = false, written: Int64 = 0
+        var written: Int64 = 0
 
-        func emit(_ src: [UInt8], slot: Int64) throws {
-            guard !done else { return }
+        func emit(_ src: FrameBuffer, slot: Int64, _ out: ((FrameBuffer) throws -> Void) throws -> Void) throws {
             try Effect.check(flag)
             let t = UInt64(max(retimer.slotNs(slot), 0))
             let index = gbfx_reactive_frame_index(t, rate.num, rate.den)
-            let rc = try src.withUnsafeBufferPointer { s in
-                try effected.withUnsafeMutableBufferPointer { d in
-                    try Effect.fx("reactive-vcr frame \(index)", {
-                        gbfx_reactive_apply(reactive, s.baseAddress, stride, d.baseAddress, stride,
-                                            UInt32(w), UInt32(h), UInt64(max(index, 0)), $0)
-                    }, failed: { $0 == GBFX_ERROR })
-                }
+            try out { d in
+                let rc = try Effect.fx("reactive-vcr frame \(index)", {
+                    gbfx_reactive_apply(reactive, src.base.assumingMemoryBound(to: UInt8.self), stride,
+                                        d.base.assumingMemoryBound(to: UInt8.self), stride,
+                                        UInt32(w), UInt32(h), UInt64(max(index, 0)), $0)
+                }, failed: { $0 == GBFX_ERROR })
+                if rc == GBFX_DROPPED { throw FramePipeline.Stop() }
+                d.index = written
+                written += 1
             }
-            if rc == GBFX_DROPPED { done = true; return }
-            let yuv = try effected.withUnsafeBytes { try converter.run(packed: $0.baseAddress!, stride: stride) }
-            try encoder.write(yuv, index: written)
-            written += 1
         }
 
         var counter: Int64 = 0
-        while !done, let time = try source.next({ pixels, ns in
-            current.withUnsafeMutableBytes { $0.copyMemory(from: UnsafeRawBufferPointer(start: pixels, count: stride * h)) }
-            return ns
-        }) {
+        try FramePipeline.run(inBytes: stride * h, outBytes: stride * h, inDepth: 3, name: "reactive-vcr", produce: { b in
+            guard let time = try source.next(into: b.base) else { return false }
+            b.time = time
+            return true
+        }, transform: { current, out in
             try Effect.check(flag)
-            let ns = time ?? retimer.slotNs(counter)
+            let ns = current.time ?? retimer.slotNs(counter)
             counter += 1
-            if have {
-                for k in retimer.advance(previousNs: previousNs, ns: ns) { try emit(previous, slot: k) }
+            let done = previous
+            if let previous {
+                for k in retimer.advance(previousNs: previousNs, ns: ns) { try emit(previous, slot: k, out) }
             }
-            swap(&previous, &current)
+            previous = current
             previousNs = ns
-            have = true
-        }
-        guard have else { throw EffectError("\(c.input.lastPathComponent) has no video frames") }
-        if !done { for k in retimer.finish(lastNs: previousNs) { try emit(previous, slot: k) } }
+            return done
+        }, finish: { out in
+            guard let previous else { throw EffectError("\(c.input.lastPathComponent) has no video frames") }
+            for k in retimer.finish(lastNs: previousNs) { try emit(previous, slot: k, out) }
+        }, consume: { d in
+            let yuv = try converter.run(packed: d.base, stride: stride)
+            try encoder.write(yuv, index: d.index)
+        })
         guard written > 0 || frameCount == 0 else { throw EffectError("reactive-vcr rendered no frames") }
         try encoder.finish()
     }

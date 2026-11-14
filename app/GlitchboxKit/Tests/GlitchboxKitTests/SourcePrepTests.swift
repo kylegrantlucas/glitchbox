@@ -14,6 +14,25 @@ struct SourcePrepTests {
         argv.firstIndex(of: flag).map { argv[$0 + 1] }
     }
 
+    /// Only tagged, limited-range, 8-bit 4:2:0 H.264/HEVC decode in hardware; VideoToolbox's
+    /// frames for anything else differ from FFmpeg's software output.
+    @Test func onlyTaggedEightBitH264AndHEVCDecodeInHardware() {
+        func hw(_ codec: String, _ pixelFormat: String = "yuv420p", space: String? = "bt709", range: String? = "tv",
+                still: Bool = false) -> Bool {
+            let video = MediaProbe.Video(width: 3840, height: 2160, pixelFormat: pixelFormat, colorSpace: space,
+                                         colorRange: range, codec: codec)
+            return prepare(RenderSettings(), video, still: still).argv.contains("-hwaccel")
+        }
+        #if os(macOS)
+        #expect(hw("h264") && hw("hevc") && hw("hevc", space: "bt2020nc"))
+        #else
+        #expect(!hw("h264") && !hw("hevc"))
+        #endif
+        #expect(!hw("hevc", space: nil) && !hw("h264", range: nil) && !hw("h264", range: "pc"))
+        #expect(!hw("hevc", "yuv420p10le") && !hw("h264", "yuvj420p"))
+        #expect(!hw("prores", "yuv422p10le") && !hw("ffv1") && !hw("mjpeg", "yuvj420p", still: true))
+    }
+
     @Test func rationalRateGoesToFfmpegVerbatim() {
         let m = prepare(RenderSettings(fps: .fps29_97), MediaProbe.Video(width: 1920, height: 1080, frameRate: 25)).manifest
         #expect(m.defaults()["fps"] == .string("30000/1001"))

@@ -30,7 +30,7 @@ enum MoshChain {
         return PipeChain.Stage(tool: .ffmpeg, argv: { input, _ in
             ["ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-f", "mpegvideo", "-i", input!,
              "-fflags", "+bitexact", "-flags:v", "+bitexact", "-map_metadata", "-1", "-map_chapters", "-1",
-             "-c:v", "ffvhuff", "-y", output]
+             "-c:v", "ffvhuff", "-threads:v", "2", "-y", output]
         }, log: c.log)
     }
 }
@@ -65,13 +65,12 @@ struct MVScriptStep: NativeStep {
 }
 
 /// pipelines/mv-mangle with the plugin's argv (`--qscale --gop --amount --seed -o OUT IN`):
-/// MPEG-4 forced-MV encode → `ffedit -t` with `scripts/mv-shuffle.js` → lossless re-encode,
-/// through files in the step's work directory.
+/// MPEG-4 forced-MV encode | `ffedit -t` with `scripts/mv-shuffle.js` | lossless re-encode,
+/// streamed as raw m4v with the input's probed `r_frame_rate` as the decoder's `-r`.
 struct MVMangleStep: NativeStep {
     func run(_ c: NativeStepContext) async throws -> Int32 {
         let fm = FileManager.default
         let quiet = !(c.environment["GB_QUIET"] ?? "").isEmpty
-        func say(_ s: String) { if !quiet { ToolCall.append(c.log, "  \(s)\n") } }
         let level = c.environment["GB_LOGLEVEL"].flatMap { $0.isEmpty ? nil : $0 } ?? "error"
         let qscale = c.params.rendered("qscale", default: "8"), gop = c.params.rendered("gop", default: "1000")
         let amount = c.params.rendered("amount", default: "8"), seed = c.params.rendered("seed", default: "1")
@@ -85,42 +84,47 @@ struct MVMangleStep: NativeStep {
             ToolCall.append(c.log, "error: input not found: \(c.input.path)\n")
             return 1
         }
-        let outDir = c.environment["GB_OUT_DIR"].map { URL(filePath: $0, directoryHint: .isDirectory) }
-            ?? c.work.appending(path: "gb", directoryHint: .isDirectory)
-        let runDir = outDir.appending(path: "mv-mangle", directoryHint: .isDirectory)
-        try fm.createDirectory(at: runDir, withIntermediateDirectories: true)
-        let enc = runDir.appending(path: "stage1-mpeg4.avi").path
-        let glitched = runDir.appending(path: "stage2-glitched.avi").path
 
-        say("ffgac: mpeg4 q=\(qscale) gop=\(gop) +forcemv+nopimb")
-        var code = try await ToolCall.cancellable("ffgac") { [log = c.log.path, input = c.input.path] flag in
-            ToolCall.call(.ffgac, ["ffgac", "-hide_banner", "-nostdin", "-loglevel", level,
-                                   "-i", input, "-an",
-                                   "-flags", "+bitexact", "-fflags", "+bitexact",
-                                   "-mpv_flags", "+forcemv+nopimb", "-qscale:v", qscale, "-g", gop,
-                                   "-vcodec", "mpeg4", "-f", "avi", "-y", enc], log: log, flag: flag)
+        // RATE=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of default=nw=1:nk=1 IN)
+        try fm.createDirectory(at: c.work, withIntermediateDirectories: true)
+        let probeOut = c.work.appending(path: "mv-mangle-rate.txt")
+        try? fm.removeItem(at: probeOut)
+        let probe = try await ToolCall.cancellable("ffprobe") { [input = c.input.path, out = probeOut.path] flag in
+            ToolCall.call(.ffprobe, ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                     "stream=r_frame_rate", "-of", "default=nw=1:nk=1", input], log: out, flag: flag)
         }
-        guard code == 0 else { return code }
+        let rate = ((try? String(contentsOf: probeOut, encoding: .utf8)) ?? "")
+            .split(whereSeparator: \.isNewline).last.map(String.init) ?? ""
+        guard probe == 0, rate.contains("/") else {
+            ToolCall.append(c.log, "error: no video stream: \(c.input.path)\n")
+            return 1
+        }
 
-        say("ffedit: mv script seed=\(seed) amount=\(amount)")
-        // jq -cn --argjson seed "$SEED" --argjson amount "$AMOUNT" '{seed:$seed,amount:$amount}';
-        // ffedit's stderr goes to /dev/null in the pipeline.
+        if !quiet {
+            ToolCall.append(c.log, "  ffgac: mpeg4 q=\(qscale) gop=\(gop) +forcemv+nopimb | ffedit: mv script seed=\(seed) "
+                            + "amount=\(amount) | ffmpeg: lossless re-encode\n")
+        }
+        // jq -cn --argjson seed "$SEED" --argjson amount "$AMOUNT" '{seed:$seed,amount:$amount}'
         let sp = JQ.object([("seed", c.params["seed"] ?? .int(1)), ("amount", c.params["amount"] ?? .int(8))])
-        code = try await ToolCall.cancellable("ffedit") { [script = script.path] flag in
-            ToolCall.call(.ffedit, ["ffedit", "-t", "-i", enc, "-f", "mv", "-s", script, "-sp", sp, "-o", glitched],
-                          log: nil, flag: flag)
-        }
-        guard code == 0 else { return code }
-
-        say("ffmpeg: lossless re-encode")
-        // gb_ffmpeg -i "$GLITCHED" -- -c:v ffvhuff -y "$OUTPUT"
-        return try await ToolCall.cancellable("ffmpeg") { [log = c.log.path, output = c.output.path] flag in
-            ToolCall.call(.ffmpeg, ["ffmpeg", "-hide_banner", "-nostdin", "-loglevel", level,
-                                    "-i", glitched,
-                                    "-fflags", "+bitexact", "-flags:v", "+bitexact", "-map_metadata", "-1",
-                                    "-map_chapters", "-1",
-                                    "-c:v", "ffvhuff", "-y", output], log: log, flag: flag)
-        }
+        let input = c.input.path, output = c.output.path, scriptPath = script.path
+        return try await PipeChain.run([
+            PipeChain.Stage(tool: .ffgac, argv: { _, out in
+                ["ffgac", "-hide_banner", "-nostdin", "-loglevel", level, "-i", input, "-an",
+                 "-flags", "+bitexact", "-fflags", "+bitexact",
+                 "-mpv_flags", "+forcemv+nopimb", "-qscale:v", qscale, "-g", gop,
+                 "-vcodec", "mpeg4", "-f", "m4v", out!]
+            }, log: c.log),
+            // -t is ffedit's bitexact/test mode; its stderr goes to /dev/null in the pipeline.
+            PipeChain.Stage(tool: .ffedit, argv: { inp, out in
+                ["ffedit", "-t", "-i", inp!, "-f", "mv", "-s", scriptPath, "-sp", sp, "-o", out!]
+            }, log: nil),
+            // gb_ffmpeg -f m4v -r "$RATE" -i - -- -c:v ffvhuff -y "$OUTPUT"
+            PipeChain.Stage(tool: .ffmpeg, argv: { inp, _ in
+                ["ffmpeg", "-hide_banner", "-nostdin", "-loglevel", level, "-f", "m4v", "-r", rate, "-i", inp!,
+                 "-fflags", "+bitexact", "-flags:v", "+bitexact", "-map_metadata", "-1", "-map_chapters", "-1",
+                 "-c:v", "ffvhuff", "-threads:v", "2", "-y", output]
+            }, log: c.log),
+        ], log: c.log)
     }
 }
 
